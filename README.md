@@ -55,4 +55,16 @@ The structure of the Repository is as follows:
 	* It contains a Main Project Folder which has 5 Subfolders for each of the 5 different Proejects
 	
 	* Each Individual subfolder for each project contains the following :- 
-			*  5 subfolders for 5 versions of that particular proejct
+			*  5 subfolders for 5 versions of that particular project with folder name as Version name
+				1). In each Version there is a pom.xml file with the Configurations for
+				    for Jacoco Plugin , Pitest Plugin( For some files), and Sonar Lint Plugin (For some Files).
+
+
+				2). Next there is a Jacoco-ut folder with the Jacoco Reports in 3 formats (CSV,XML,HTML).
+
+				3). Next there is a Pitest Report in pit-reports folder in the latest version of each project.
+
+				4). For Some Projects versions there is a snapshot of Sonar Analysis results which shows the Code smell Value.
+
+
+
