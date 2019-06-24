@@ -52,4 +52,13 @@ We have Chosen the following Projects for analysis:-
 
 ### Tools/Plugins used for Metric Measurement
 
+1. Jacoco Maven Plugin:-  
+   * This Plugin has been used to collect data for Metric 1,2 and 4.
+   * Each __pom.xml__ file of each version of each Project contains this plugin in __Build.Plugins.Plugin Tag__.
+   * Inorder to generate the reports we follow below steps:-  
+      1. Insert the plugin in pom.xml in the root directory of the project
+      2. Run Maven Clean Goal.
+      3. Run the Maven Test Goal.
+   * We get the reports in jacoco-ut folder which is currently present in the above folder structure in each project/version sub-folders
+
 
