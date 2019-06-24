@@ -5,12 +5,12 @@ _This Project is aimed at analyzing various open source systems from “The Apac
 ### Metrics
 The chosen systems undergo a rigorous analysis under different tools to measure various metrics including:  
 
-1. Code Coverage Metric------( Statement Coverage )
-2. Code Coverage Metric------( Branch Coverage )
-3. Mutation Score
-4. Cyclomatic Complexity-----( McCabe )
-5. Code Churn-----------------( A sofware Maintainance Metric)
-6. Code Smells-----------------( A software quality metric )
+1. Metric 1- Code Coverage Metric------( Statement Coverage )
+2. Metric 2- Code Coverage Metric------( Branch Coverage )
+3. Metric 3-Mutation Score
+4. Metric 4-Cyclomatic Complexity-----( McCabe )
+5. Metric 5-Code Churn-----------------( A sofware Maintainance Metric)
+6. Metric 6-Code Smells-----------------( A software quality metric )
 
 ### Projects
 We have Chosen the following Projects for analysis:-  
