@@ -32,7 +32,7 @@ Test coverage can be done in two ways; namely code statement coverage and code b
   * We use _SonarLint_ and _SonarQube_ to identify the code smells in out projects.
   
 
-### Projects
+## Projects
 We have Chosen the following Projects for analysis:-  
 1. Commons Math    		     SLOC ~ 186K  
    * Versions:-
@@ -70,7 +70,7 @@ We have Chosen the following Projects for analysis:-
       * 2.1
       * 2.0
 
-### Tools/Plugins used for Metric Measurement
+## Tools/Plugins used for Metric Measurement
 
 1. Jacoco Maven Plugin:-  
    * This Plugin has been used to collect data for Metric 1,2 and 4.
@@ -80,5 +80,28 @@ We have Chosen the following Projects for analysis:-
       2. Run Maven Clean Goal.
       3. Run the Maven Test Goal.
    * We get the reports in jacoco-ut folder which is currently present in the above folder structure in each project/version sub-folders
+2. PiTest Plugin
+
+3. Code Churn  
+  Download and install cloc-1.82.exe.  
+  
+  #### Command used :  
+    cloc --diff “version1Code” “Version2Code” --out=report.csv  
+    
+  This creates a file report.csv that contains the count of files ,blank lines, commented lines and lines of code that are same, added , modified and removed in each of the languages used in the given projects .  
+  We consider the sum of values of LOC for added/modified/deleted sections and get a Code Churn value.
+
+
+4. SonarQube/SonarLint
+
+## Team Details  
+
+  - ADITYA SURVE  || 40087470 || aditya.surve2913@gmail.com
+  - PALLAVI KUMAR || 40049791 || pallavikumar88992@gmail.com  
+  - DIVYA PANDIT  || 40087471 || divyapandit13@gmail.com
+  - ANKUR AGARWAL || 40105298 || ankur.96469@gmail.com
+  - HITESH AGARWAL|| 40104304 || hitesh0981@gmail.com
+
+
 
 
