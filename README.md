@@ -6,9 +6,9 @@ _This Project is aimed at analyzing various open source systems from “The Apac
 The chosen systems undergo a rigorous analysis under different tools to measure various metrics including:  
      
 ### Metric 1 & 2 - Test Coverage Metric  
-Test coverage can be done in two ways; namely code statement coverage and code branch coverage.
-      1. Statement coverage shows exactly how much percentage of statements of the given code are executed.
-      2. Branch coverage verifies that all branches of the code are executed, meaning that all edges in the control flow graph are    executed.
+Test coverage can be done in two ways; namely code statement coverage and code branch coverage.  
+  * Statement coverage shows exactly how much percentage of statements of the given code are executed.  
+  * Branch coverage verifies that all branches of the code are executed, meaning that all edges in the control flow graph are    executed.
       
 ### Metric 3- Mutation Score
   Mutation Testing includes changing the code — a small part at a time — creating mutants and running the unit tests suite repeatedly.
