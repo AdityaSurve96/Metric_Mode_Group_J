@@ -1,0 +1,1506 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>BigMatrixImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">BigMatrixImpl.java</span></div><h1>BigMatrixImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+import java.io.Serializable;
+import java.math.BigDecimal;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+
+/**
+ * Implementation of {@link BigMatrix} using a BigDecimal[][] array to store entries
+ * and &lt;a href=&quot;http://www.math.gatech.edu/~bourbaki/math2601/Web-notes/2num.pdf&quot;&gt;
+ * LU decompostion&lt;/a&gt; to support linear system
+ * solution and inverse.
+ * &lt;p&gt;
+ * The LU decompostion is performed as needed, to support the following operations: &lt;ul&gt;
+ * &lt;li&gt;solve&lt;/li&gt;
+ * &lt;li&gt;isSingular&lt;/li&gt;
+ * &lt;li&gt;getDeterminant&lt;/li&gt;
+ * &lt;li&gt;inverse&lt;/li&gt; &lt;/ul&gt;&lt;/p&gt;
+ * &lt;p&gt;
+* &lt;strong&gt;Usage notes&lt;/strong&gt;:&lt;br&gt;
+ * &lt;ul&gt;&lt;li&gt;
+ * The LU decomposition is stored and reused on subsequent calls.  If matrix
+ * data are modified using any of the public setXxx methods, the saved
+ * decomposition is discarded.  If data are modified via references to the
+ * underlying array obtained using &lt;code&gt;getDataRef()&lt;/code&gt;, then the stored
+ * LU decomposition will not be discarded.  In this case, you need to
+ * explicitly invoke &lt;code&gt;LUDecompose()&lt;/code&gt; to recompute the decomposition
+ * before using any of the methods above.&lt;/li&gt;
+ * &lt;li&gt;
+ * As specified in the {@link BigMatrix} interface, matrix element indexing
+ * is 0-based -- e.g., &lt;code&gt;getEntry(0, 0)&lt;/code&gt;
+ * returns the element in the first row, first column of the matrix.&lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+ *
+ * @deprecated as of 2.0, replaced by {@link Array2DRowFieldMatrix} with a {@link
+ * org.apache.commons.math.util.BigReal} parameter
+ * @version $Revision$ $Date$
+ */
+@Deprecated
+public class BigMatrixImpl implements BigMatrix, Serializable {
+
+    /** BigDecimal 0 */
+<span class="fc" id="L59">    static final BigDecimal ZERO = new BigDecimal(0);</span>
+
+    /** BigDecimal 1 */
+<span class="fc" id="L62">    static final BigDecimal ONE = new BigDecimal(1);</span>
+
+    /** Bound to determine effective singularity in LU decomposition */
+<span class="fc" id="L65">    private static final BigDecimal TOO_SMALL = new BigDecimal(10E-12);</span>
+
+    /** Serialization id */
+    private static final long serialVersionUID = -1011428905656140431L;
+
+    /** Entries of the matrix */
+<span class="fc" id="L71">    protected BigDecimal data[][] = null;</span>
+
+    /** Entries of cached LU decomposition.
+     *  All updates to data (other than luDecompose()) *must* set this to null
+     */
+<span class="fc" id="L76">    protected BigDecimal lu[][] = null;</span>
+
+    /** Permutation associated with LU decomposition */
+<span class="fc" id="L79">    protected int[] permutation = null;</span>
+
+    /** Parity of the permutation associated with the LU decomposition */
+<span class="fc" id="L82">    protected int parity = 1;</span>
+
+    /** Rounding mode for divisions **/
+<span class="fc" id="L85">    private int roundingMode = BigDecimal.ROUND_HALF_UP;</span>
+
+    /*** BigDecimal scale ***/
+<span class="fc" id="L88">    private int scale = 64;</span>
+
+    /**
+     * Creates a matrix with no data
+     */
+<span class="fc" id="L93">    public BigMatrixImpl() {</span>
+<span class="fc" id="L94">    }</span>
+
+    /**
+     * Create a new BigMatrix with the supplied row and column dimensions.
+     *
+     * @param rowDimension      the number of rows in the new matrix
+     * @param columnDimension   the number of columns in the new matrix
+     * @throws IllegalArgumentException if row or column dimension is not
+     *  positive
+     */
+<span class="fc" id="L104">    public BigMatrixImpl(int rowDimension, int columnDimension) {</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">        if (rowDimension &lt; 1 ) {</span>
+<span class="fc" id="L106">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L107">                    LocalizedFormats.INSUFFICIENT_DIMENSION, rowDimension, 1);</span>
+        }
+<span class="pc bpc" id="L109" title="1 of 2 branches missed.">        if (columnDimension &lt; 1) {</span>
+<span class="fc" id="L110">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L111">                    LocalizedFormats.INSUFFICIENT_DIMENSION, columnDimension, 1);</span>
+        }
+<span class="nc" id="L113">        data = new BigDecimal[rowDimension][columnDimension];</span>
+<span class="nc" id="L114">        lu = null;</span>
+<span class="nc" id="L115">    }</span>
+
+    /**
+     * Create a new BigMatrix using &lt;code&gt;d&lt;/code&gt; as the underlying
+     * data array.
+     * &lt;p&gt;The input array is copied, not referenced. This constructor has
+     * the same effect as calling {@link #BigMatrixImpl(BigDecimal[][], boolean)}
+     * with the second argument set to &lt;code&gt;true&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @param d data for new matrix
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is not rectangular
+     *  (not all rows have the same length) or empty
+     * @throws NullPointerException if &lt;code&gt;d&lt;/code&gt; is null
+     */
+<span class="fc" id="L129">    public BigMatrixImpl(BigDecimal[][] d) {</span>
+<span class="fc" id="L130">        this.copyIn(d);</span>
+<span class="fc" id="L131">        lu = null;</span>
+<span class="fc" id="L132">    }</span>
+
+    /**
+     * Create a new BigMatrix using the input array as the underlying
+     * data array.
+     * &lt;p&gt;If an array is built specially in order to be embedded in a
+     * BigMatrix and not used directly, the &lt;code&gt;copyArray&lt;/code&gt; may be
+     * set to &lt;code&gt;false&lt;/code. This will prevent the copying and improve
+     * performance as no new array will be built and no data will be copied.&lt;/p&gt;
+     * @param d data for new matrix
+     * @param copyArray if true, the input array will be copied, otherwise
+     * it will be referenced
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is not rectangular
+     *  (not all rows have the same length) or empty
+     * @throws NullPointerException if &lt;code&gt;d&lt;/code&gt; is null
+     * @see #BigMatrixImpl(BigDecimal[][])
+     */
+<span class="fc" id="L149">    public BigMatrixImpl(BigDecimal[][] d, boolean copyArray) {</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        if (copyArray) {</span>
+<span class="fc" id="L151">            copyIn(d);</span>
+        } else {
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">            if (d == null) {</span>
+<span class="nc" id="L154">                throw new NullPointerException();</span>
+            }
+<span class="fc" id="L156">            final int nRows = d.length;</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">            if (nRows == 0) {</span>
+<span class="fc" id="L158">                throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_ROW);</span>
+            }
+
+<span class="fc" id="L161">            final int nCols = d[0].length;</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            if (nCols == 0) {</span>
+<span class="fc" id="L163">                throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_COLUMN);</span>
+            }
+<span class="fc bfc" id="L165" title="All 2 branches covered.">            for (int r = 1; r &lt; nRows; r++) {</span>
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">                if (d[r].length != nCols) {</span>
+<span class="nc" id="L167">                    throw MathRuntimeException.createIllegalArgumentException(</span>
+                          LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+<span class="nc" id="L169">                          nCols, d[r].length);</span>
+                }
+            }
+<span class="fc" id="L172">            data = d;</span>
+        }
+<span class="fc" id="L174">        lu = null;</span>
+<span class="fc" id="L175">    }</span>
+
+    /**
+     * Create a new BigMatrix using &lt;code&gt;d&lt;/code&gt; as the underlying
+     * data array.
+     * &lt;p&gt;Since the underlying array will hold &lt;code&gt;BigDecimal&lt;/code&gt;
+     * instances, it will be created.&lt;/p&gt;
+     *
+     * @param d data for new matrix
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is not rectangular
+     *  (not all rows have the same length) or empty
+     * @throws NullPointerException if &lt;code&gt;d&lt;/code&gt; is null
+     */
+<span class="fc" id="L188">    public BigMatrixImpl(double[][] d) {</span>
+<span class="fc" id="L189">        final int nRows = d.length;</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">        if (nRows == 0) {</span>
+<span class="nc" id="L191">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_ROW);</span>
+        }
+
+<span class="fc" id="L194">        final int nCols = d[0].length;</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">        if (nCols == 0) {</span>
+<span class="fc" id="L196">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_COLUMN);</span>
+        }
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        for (int row = 1; row &lt; nRows; row++) {</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">            if (d[row].length != nCols) {</span>
+<span class="fc" id="L200">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+<span class="fc" id="L202">                      nCols, d[row].length);</span>
+            }
+        }
+<span class="fc" id="L205">        this.copyIn(d);</span>
+<span class="fc" id="L206">        lu = null;</span>
+<span class="fc" id="L207">    }</span>
+
+    /**
+     * Create a new BigMatrix using the values represented by the strings in
+     * &lt;code&gt;d&lt;/code&gt; as the underlying data array.
+     *
+     * @param d data for new matrix
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is not rectangular
+     *  (not all rows have the same length) or empty
+     * @throws NullPointerException if &lt;code&gt;d&lt;/code&gt; is null
+     */
+<span class="fc" id="L218">    public BigMatrixImpl(String[][] d) {</span>
+<span class="fc" id="L219">        final int nRows = d.length;</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">        if (nRows == 0) {</span>
+<span class="fc" id="L221">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_ROW);</span>
+        }
+
+<span class="fc" id="L224">        final int nCols = d[0].length;</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (nCols == 0) {</span>
+<span class="fc" id="L226">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_COLUMN);</span>
+        }
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        for (int row = 1; row &lt; nRows; row++) {</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">            if (d[row].length != nCols) {</span>
+<span class="fc" id="L230">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+<span class="fc" id="L232">                      nCols, d[row].length);</span>
+            }
+        }
+<span class="fc" id="L235">        this.copyIn(d);</span>
+<span class="fc" id="L236">        lu = null;</span>
+<span class="fc" id="L237">    }</span>
+
+    /**
+     * Create a new (column) BigMatrix using &lt;code&gt;v&lt;/code&gt; as the
+     * data for the unique column of the &lt;code&gt;v.length x 1&lt;/code&gt; matrix
+     * created.
+     * &lt;p&gt;
+     * The input array is copied, not referenced.&lt;/p&gt;
+     *
+     * @param v column vector holding data for new matrix
+     */
+<span class="fc" id="L248">    public BigMatrixImpl(BigDecimal[] v) {</span>
+<span class="fc" id="L249">        final int nRows = v.length;</span>
+<span class="fc" id="L250">        data = new BigDecimal[nRows][1];</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L252">            data[row][0] = v[row];</span>
+        }
+<span class="fc" id="L254">    }</span>
+
+    /**
+     * Create a new BigMatrix which is a copy of this.
+     *
+     * @return  the cloned matrix
+     */
+    public BigMatrix copy() {
+<span class="fc" id="L262">        return new BigMatrixImpl(this.copyOut(), false);</span>
+    }
+
+    /**
+     * Compute the sum of this and &lt;code&gt;m&lt;/code&gt;.
+     *
+     * @param m    matrix to be added
+     * @return     this + m
+     * @throws  IllegalArgumentException if m is not the same size as this
+     */
+    public BigMatrix add(BigMatrix m) throws IllegalArgumentException {
+        try {
+<span class="fc" id="L274">            return add((BigMatrixImpl) m);</span>
+<span class="nc" id="L275">        } catch (ClassCastException cce) {</span>
+
+            // safety check
+<span class="nc" id="L278">            MatrixUtils.checkAdditionCompatible(this, m);</span>
+
+<span class="nc" id="L280">            final int rowCount    = getRowDimension();</span>
+<span class="nc" id="L281">            final int columnCount = getColumnDimension();</span>
+<span class="nc" id="L282">            final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">            for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="nc" id="L284">                final BigDecimal[] dataRow    = data[row];</span>
+<span class="nc" id="L285">                final BigDecimal[] outDataRow = outData[row];</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="nc" id="L287">                    outDataRow[col] = dataRow[col].add(m.getEntry(row, col));</span>
+                }
+            }
+<span class="nc" id="L290">            return new BigMatrixImpl(outData, false);</span>
+        }
+    }
+
+    /**
+     * Compute the sum of this and &lt;code&gt;m&lt;/code&gt;.
+     *
+     * @param m    matrix to be added
+     * @return     this + m
+     * @throws  IllegalArgumentException if m is not the same size as this
+     */
+    public BigMatrixImpl add(BigMatrixImpl m) throws IllegalArgumentException {
+
+        // safety check
+<span class="fc" id="L304">        MatrixUtils.checkAdditionCompatible(this, m);</span>
+
+<span class="fc" id="L306">        final int rowCount    = getRowDimension();</span>
+<span class="fc" id="L307">        final int columnCount = getColumnDimension();</span>
+<span class="fc" id="L308">        final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="fc" id="L310">            final BigDecimal[] dataRow    = data[row];</span>
+<span class="fc" id="L311">            final BigDecimal[] mRow       = m.data[row];</span>
+<span class="fc" id="L312">            final BigDecimal[] outDataRow = outData[row];</span>
+<span class="fc bfc" id="L313" title="All 2 branches covered.">            for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="fc" id="L314">                outDataRow[col] = dataRow[col].add(mRow[col]);</span>
+            }
+        }
+<span class="fc" id="L317">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Compute  this minus &lt;code&gt;m&lt;/code&gt;.
+     *
+     * @param m    matrix to be subtracted
+     * @return     this + m
+     * @throws  IllegalArgumentException if m is not the same size as this
+     */
+    public BigMatrix subtract(BigMatrix m) throws IllegalArgumentException {
+        try {
+<span class="fc" id="L329">            return subtract((BigMatrixImpl) m);</span>
+<span class="nc" id="L330">        } catch (ClassCastException cce) {</span>
+
+            // safety check
+<span class="nc" id="L333">            MatrixUtils.checkSubtractionCompatible(this, m);</span>
+
+<span class="nc" id="L335">            final int rowCount    = getRowDimension();</span>
+<span class="nc" id="L336">            final int columnCount = getColumnDimension();</span>
+<span class="nc" id="L337">            final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">            for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="nc" id="L339">                final BigDecimal[] dataRow    = data[row];</span>
+<span class="nc" id="L340">                final BigDecimal[] outDataRow = outData[row];</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">                for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="nc" id="L342">                    outDataRow[col] = dataRow[col].subtract(getEntry(row, col));</span>
+                }
+            }
+<span class="nc" id="L345">            return new BigMatrixImpl(outData, false);</span>
+        }
+    }
+
+    /**
+     * Compute  this minus &lt;code&gt;m&lt;/code&gt;.
+     *
+     * @param m    matrix to be subtracted
+     * @return     this + m
+     * @throws  IllegalArgumentException if m is not the same size as this
+     */
+    public BigMatrixImpl subtract(BigMatrixImpl m) throws IllegalArgumentException {
+
+        // safety check
+<span class="fc" id="L359">        MatrixUtils.checkSubtractionCompatible(this, m);</span>
+
+<span class="fc" id="L361">        final int rowCount    = getRowDimension();</span>
+<span class="fc" id="L362">        final int columnCount = getColumnDimension();</span>
+<span class="fc" id="L363">        final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">        for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="fc" id="L365">            final BigDecimal[] dataRow    = data[row];</span>
+<span class="fc" id="L366">            final BigDecimal[] mRow       = m.data[row];</span>
+<span class="fc" id="L367">            final BigDecimal[] outDataRow = outData[row];</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">            for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="fc" id="L369">                outDataRow[col] = dataRow[col].subtract(mRow[col]);</span>
+            }
+        }
+<span class="fc" id="L372">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Returns the result of adding d to each entry of this.
+     *
+     * @param d    value to be added to each entry
+     * @return     d + this
+     */
+    public BigMatrix scalarAdd(BigDecimal d) {
+<span class="fc" id="L382">        final int rowCount    = getRowDimension();</span>
+<span class="fc" id="L383">        final int columnCount = getColumnDimension();</span>
+<span class="fc" id="L384">        final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="fc bfc" id="L385" title="All 2 branches covered.">        for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="fc" id="L386">            final BigDecimal[] dataRow    = data[row];</span>
+<span class="fc" id="L387">            final BigDecimal[] outDataRow = outData[row];</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="fc" id="L389">                outDataRow[col] = dataRow[col].add(d);</span>
+            }
+        }
+<span class="fc" id="L392">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Returns the result of multiplying each entry of this by &lt;code&gt;d&lt;/code&gt;
+     * @param d  value to multiply all entries by
+     * @return d * this
+     */
+    public BigMatrix scalarMultiply(BigDecimal d) {
+<span class="fc" id="L401">        final int rowCount    = getRowDimension();</span>
+<span class="fc" id="L402">        final int columnCount = getColumnDimension();</span>
+<span class="fc" id="L403">        final BigDecimal[][] outData = new BigDecimal[rowCount][columnCount];</span>
+<span class="fc bfc" id="L404" title="All 2 branches covered.">        for (int row = 0; row &lt; rowCount; row++) {</span>
+<span class="fc" id="L405">            final BigDecimal[] dataRow    = data[row];</span>
+<span class="fc" id="L406">            final BigDecimal[] outDataRow = outData[row];</span>
+<span class="fc bfc" id="L407" title="All 2 branches covered.">            for (int col = 0; col &lt; columnCount; col++) {</span>
+<span class="fc" id="L408">                outDataRow[col] = dataRow[col].multiply(d);</span>
+            }
+        }
+<span class="fc" id="L411">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Returns the result of postmultiplying this by &lt;code&gt;m&lt;/code&gt;.
+     * @param m    matrix to postmultiply by
+     * @return     this*m
+     * @throws     IllegalArgumentException
+     *             if columnDimension(this) != rowDimension(m)
+     */
+    public BigMatrix multiply(BigMatrix m) throws IllegalArgumentException {
+        try {
+<span class="fc" id="L423">            return multiply((BigMatrixImpl) m);</span>
+<span class="nc" id="L424">        } catch (ClassCastException cce) {</span>
+
+            // safety check
+<span class="nc" id="L427">            MatrixUtils.checkMultiplicationCompatible(this, m);</span>
+
+<span class="nc" id="L429">            final int nRows = this.getRowDimension();</span>
+<span class="nc" id="L430">            final int nCols = m.getColumnDimension();</span>
+<span class="nc" id="L431">            final int nSum = this.getColumnDimension();</span>
+<span class="nc" id="L432">            final BigDecimal[][] outData = new BigDecimal[nRows][nCols];</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">            for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="nc" id="L434">                final BigDecimal[] dataRow    = data[row];</span>
+<span class="nc" id="L435">                final BigDecimal[] outDataRow = outData[row];</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">                for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="nc" id="L437">                    BigDecimal sum = ZERO;</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                    for (int i = 0; i &lt; nSum; i++) {</span>
+<span class="nc" id="L439">                        sum = sum.add(dataRow[i].multiply(m.getEntry(i, col)));</span>
+                    }
+<span class="nc" id="L441">                    outDataRow[col] = sum;</span>
+                }
+            }
+<span class="nc" id="L444">            return new BigMatrixImpl(outData, false);</span>
+        }
+    }
+
+    /**
+     * Returns the result of postmultiplying this by &lt;code&gt;m&lt;/code&gt;.
+     * @param m    matrix to postmultiply by
+     * @return     this*m
+     * @throws     IllegalArgumentException
+     *             if columnDimension(this) != rowDimension(m)
+     */
+    public BigMatrixImpl multiply(BigMatrixImpl m) throws IllegalArgumentException {
+
+        // safety check
+<span class="fc" id="L458">        MatrixUtils.checkMultiplicationCompatible(this, m);</span>
+
+<span class="fc" id="L460">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L461">        final int nCols = m.getColumnDimension();</span>
+<span class="fc" id="L462">        final int nSum = this.getColumnDimension();</span>
+<span class="fc" id="L463">        final BigDecimal[][] outData = new BigDecimal[nRows][nCols];</span>
+<span class="fc bfc" id="L464" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L465">            final BigDecimal[] dataRow    = data[row];</span>
+<span class="fc" id="L466">            final BigDecimal[] outDataRow = outData[row];</span>
+<span class="fc bfc" id="L467" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L468">                BigDecimal sum = ZERO;</span>
+<span class="fc bfc" id="L469" title="All 2 branches covered.">                for (int i = 0; i &lt; nSum; i++) {</span>
+<span class="fc" id="L470">                    sum = sum.add(dataRow[i].multiply(m.data[i][col]));</span>
+                }
+<span class="fc" id="L472">                outDataRow[col] = sum;</span>
+            }
+        }
+<span class="fc" id="L475">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Returns the result premultiplying this by &lt;code&gt;m&lt;/code&gt;.
+     * @param m    matrix to premultiply by
+     * @return     m * this
+     * @throws     IllegalArgumentException
+     *             if rowDimension(this) != columnDimension(m)
+     */
+    public BigMatrix preMultiply(BigMatrix m) throws IllegalArgumentException {
+<span class="fc" id="L486">        return m.multiply(this);</span>
+    }
+
+    /**
+     * Returns matrix entries as a two-dimensional array.
+     * &lt;p&gt;
+     * Makes a fresh copy of the underlying data.&lt;/p&gt;
+     *
+     * @return    2-dimensional array of entries
+     */
+    public BigDecimal[][] getData() {
+<span class="fc" id="L497">        return copyOut();</span>
+    }
+
+    /**
+     * Returns matrix entries as a two-dimensional array.
+     * &lt;p&gt;
+     * Makes a fresh copy of the underlying data converted to
+     * &lt;code&gt;double&lt;/code&gt; values.&lt;/p&gt;
+     *
+     * @return    2-dimensional array of entries
+     */
+    public double[][] getDataAsDoubleArray() {
+<span class="nc" id="L509">        final int nRows = getRowDimension();</span>
+<span class="nc" id="L510">        final int nCols = getColumnDimension();</span>
+<span class="nc" id="L511">        final double d[][] = new double[nRows][nCols];</span>
+<span class="nc bnc" id="L512" title="All 2 branches missed.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            for (int j = 0; j &lt; nCols; j++) {</span>
+<span class="nc" id="L514">                d[i][j] = data[i][j].doubleValue();</span>
+            }
+        }
+<span class="nc" id="L517">        return d;</span>
+    }
+
+    /**
+     * Returns a reference to the underlying data array.
+     * &lt;p&gt;
+     * Does not make a fresh copy of the underlying data.&lt;/p&gt;
+     *
+     * @return 2-dimensional array of entries
+     */
+    public BigDecimal[][] getDataRef() {
+<span class="fc" id="L528">        return data;</span>
+    }
+
+    /***
+     * Gets the rounding mode for division operations
+     * The default is {@link java.math.BigDecimal#ROUND_HALF_UP}
+     * @see BigDecimal
+     * @return the rounding mode.
+     */
+    public int getRoundingMode() {
+<span class="nc" id="L538">        return roundingMode;</span>
+    }
+
+    /***
+     * Sets the rounding mode for decimal divisions.
+     * @see BigDecimal
+     * @param roundingMode rounding mode for decimal divisions
+     */
+    public void setRoundingMode(int roundingMode) {
+<span class="nc" id="L547">        this.roundingMode = roundingMode;</span>
+<span class="nc" id="L548">    }</span>
+
+    /***
+     * Sets the scale for division operations.
+     * The default is 64
+     * @see BigDecimal
+     * @return the scale
+     */
+    public int getScale() {
+<span class="nc" id="L557">        return scale;</span>
+    }
+
+    /***
+     * Sets the scale for division operations.
+     * @see BigDecimal
+     * @param scale scale for division operations
+     */
+    public void setScale(int scale) {
+<span class="nc" id="L566">        this.scale = scale;</span>
+<span class="nc" id="L567">    }</span>
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/MaximumAbsoluteRowSumNorm.html&quot;&gt;
+     * maximum absolute row sum norm&lt;/a&gt; of the matrix.
+     *
+     * @return norm
+     */
+    public BigDecimal getNorm() {
+<span class="fc" id="L576">        BigDecimal maxColSum = ZERO;</span>
+<span class="fc bfc" id="L577" title="All 2 branches covered.">        for (int col = 0; col &lt; this.getColumnDimension(); col++) {</span>
+<span class="fc" id="L578">            BigDecimal sum = ZERO;</span>
+<span class="fc bfc" id="L579" title="All 2 branches covered.">            for (int row = 0; row &lt; this.getRowDimension(); row++) {</span>
+<span class="fc" id="L580">                sum = sum.add(data[row][col].abs());</span>
+            }
+<span class="fc" id="L582">            maxColSum = maxColSum.max(sum);</span>
+        }
+<span class="fc" id="L584">        return maxColSum;</span>
+    }
+
+    /**
+     * Gets a submatrix. Rows and columns are indicated
+     * counting from 0 to n-1.
+     *
+     * @param startRow Initial row index
+     * @param endRow Final row index
+     * @param startColumn Initial column index
+     * @param endColumn Final column index
+     * @return The subMatrix containing the data of the
+     *         specified rows and columns
+     * @exception MatrixIndexException if row or column selections are not valid
+     */
+    public BigMatrix getSubMatrix(int startRow, int endRow,
+                                  int startColumn, int endColumn)
+        throws MatrixIndexException {
+
+<span class="fc" id="L603">        MatrixUtils.checkRowIndex(this, startRow);</span>
+<span class="fc" id="L604">        MatrixUtils.checkRowIndex(this, endRow);</span>
+<span class="fc bfc" id="L605" title="All 2 branches covered.">        if (startRow &gt; endRow) {</span>
+<span class="fc" id="L606">            throw new MatrixIndexException(LocalizedFormats.INITIAL_ROW_AFTER_FINAL_ROW,</span>
+<span class="fc" id="L607">                                           startRow, endRow);</span>
+        }
+
+<span class="fc" id="L610">        MatrixUtils.checkColumnIndex(this, startColumn);</span>
+<span class="fc" id="L611">        MatrixUtils.checkColumnIndex(this, endColumn);</span>
+<span class="pc bpc" id="L612" title="1 of 2 branches missed.">        if (startColumn &gt; endColumn) {</span>
+<span class="nc" id="L613">            throw new MatrixIndexException(LocalizedFormats.INITIAL_COLUMN_AFTER_FINAL_COLUMN,</span>
+<span class="nc" id="L614">                                           startColumn, endColumn);</span>
+        }
+
+<span class="fc" id="L617">        final BigDecimal[][] subMatrixData =</span>
+            new BigDecimal[endRow - startRow + 1][endColumn - startColumn + 1];
+<span class="fc bfc" id="L619" title="All 2 branches covered.">        for (int i = startRow; i &lt;= endRow; i++) {</span>
+<span class="fc" id="L620">            System.arraycopy(data[i], startColumn,</span>
+                             subMatrixData[i - startRow], 0,
+                             endColumn - startColumn + 1);
+        }
+
+<span class="fc" id="L625">        return new BigMatrixImpl(subMatrixData, false);</span>
+
+    }
+
+    /**
+     * Gets a submatrix. Rows and columns are indicated
+     * counting from 0 to n-1.
+     *
+     * @param selectedRows Array of row indices must be non-empty
+     * @param selectedColumns Array of column indices must be non-empty
+     * @return The subMatrix containing the data in the
+     *     specified rows and columns
+     * @exception MatrixIndexException  if supplied row or column index arrays
+     *     are not valid
+     */
+    public BigMatrix getSubMatrix(int[] selectedRows, int[] selectedColumns)
+        throws MatrixIndexException {
+
+<span class="fc bfc" id="L643" title="All 2 branches covered.">        if (selectedRows.length * selectedColumns.length == 0) {</span>
+<span class="pc bpc" id="L644" title="1 of 2 branches missed.">            if (selectedRows.length == 0) {</span>
+<span class="fc" id="L645">                throw new MatrixIndexException(LocalizedFormats.EMPTY_SELECTED_ROW_INDEX_ARRAY);</span>
+            }
+<span class="nc" id="L647">            throw new MatrixIndexException(LocalizedFormats.EMPTY_SELECTED_COLUMN_INDEX_ARRAY);</span>
+        }
+
+<span class="fc" id="L650">        final BigDecimal[][] subMatrixData =</span>
+            new BigDecimal[selectedRows.length][selectedColumns.length];
+        try  {
+<span class="fc bfc" id="L653" title="All 2 branches covered.">            for (int i = 0; i &lt; selectedRows.length; i++) {</span>
+<span class="fc" id="L654">                final BigDecimal[] subI = subMatrixData[i];</span>
+<span class="fc" id="L655">                final BigDecimal[] dataSelectedI = data[selectedRows[i]];</span>
+<span class="fc bfc" id="L656" title="All 2 branches covered.">                for (int j = 0; j &lt; selectedColumns.length; j++) {</span>
+<span class="fc" id="L657">                    subI[j] = dataSelectedI[selectedColumns[j]];</span>
+                }
+            }
+<span class="fc" id="L660">        } catch (ArrayIndexOutOfBoundsException e) {</span>
+            // we redo the loop with checks enabled
+            // in order to generate an appropriate message
+<span class="fc bfc" id="L663" title="All 2 branches covered.">            for (final int row : selectedRows) {</span>
+<span class="fc" id="L664">                MatrixUtils.checkRowIndex(this, row);</span>
+            }
+<span class="pc bpc" id="L666" title="1 of 2 branches missed.">            for (final int column : selectedColumns) {</span>
+<span class="nc" id="L667">                MatrixUtils.checkColumnIndex(this, column);</span>
+            }
+<span class="fc" id="L669">        }</span>
+<span class="fc" id="L670">        return new BigMatrixImpl(subMatrixData, false);</span>
+    }
+
+    /**
+     * Replace the submatrix starting at &lt;code&gt;row, column&lt;/code&gt; using data in
+     * the input &lt;code&gt;subMatrix&lt;/code&gt; array. Indexes are 0-based.
+     * &lt;p&gt;
+     * Example:&lt;br&gt;
+     * Starting with &lt;pre&gt;
+     * 1  2  3  4
+     * 5  6  7  8
+     * 9  0  1  2
+     * &lt;/pre&gt;
+     * and &lt;code&gt;subMatrix = {{3, 4} {5,6}}&lt;/code&gt;, invoking
+     * &lt;code&gt;setSubMatrix(subMatrix,1,1))&lt;/code&gt; will result in &lt;pre&gt;
+     * 1  2  3  4
+     * 5  3  4  8
+     * 9  5  6  2
+     * &lt;/pre&gt;&lt;/p&gt;
+     *
+     * @param subMatrix  array containing the submatrix replacement data
+     * @param row  row coordinate of the top, left element to be replaced
+     * @param column  column coordinate of the top, left element to be replaced
+     * @throws MatrixIndexException  if subMatrix does not fit into this
+     *    matrix from element in (row, column)
+     * @throws IllegalArgumentException if &lt;code&gt;subMatrix&lt;/code&gt; is not rectangular
+     *  (not all rows have the same length) or empty
+     * @throws NullPointerException if &lt;code&gt;subMatrix&lt;/code&gt; is null
+     * @since 1.1
+     */
+    public void setSubMatrix(BigDecimal[][] subMatrix, int row, int column)
+    throws MatrixIndexException {
+
+<span class="fc" id="L703">        final int nRows = subMatrix.length;</span>
+<span class="pc bpc" id="L704" title="1 of 2 branches missed.">        if (nRows == 0) {</span>
+<span class="nc" id="L705">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_ROW);</span>
+        }
+
+<span class="fc" id="L708">        final int nCols = subMatrix[0].length;</span>
+<span class="fc bfc" id="L709" title="All 2 branches covered.">        if (nCols == 0) {</span>
+<span class="fc" id="L710">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.AT_LEAST_ONE_COLUMN);</span>
+        }
+
+<span class="fc bfc" id="L713" title="All 2 branches covered.">        for (int r = 1; r &lt; nRows; r++) {</span>
+<span class="fc bfc" id="L714" title="All 2 branches covered.">            if (subMatrix[r].length != nCols) {</span>
+<span class="fc" id="L715">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+<span class="fc" id="L717">                      nCols, subMatrix[r].length);</span>
+            }
+        }
+
+<span class="fc bfc" id="L721" title="All 2 branches covered.">        if (data == null) {</span>
+<span class="pc bpc" id="L722" title="1 of 2 branches missed.">            if (row &gt; 0) {</span>
+<span class="nc" id="L723">                throw MathRuntimeException.createIllegalStateException(</span>
+                        LocalizedFormats.FIRST_ROWS_NOT_INITIALIZED_YET,
+<span class="nc" id="L725">                        row);</span>
+            }
+<span class="pc bpc" id="L727" title="1 of 2 branches missed.">            if (column &gt; 0) {</span>
+<span class="nc" id="L728">                throw MathRuntimeException.createIllegalStateException(</span>
+                        LocalizedFormats.FIRST_COLUMNS_NOT_INITIALIZED_YET,
+<span class="nc" id="L730">                        column);</span>
+            }
+<span class="fc" id="L732">            data = new BigDecimal[nRows][nCols];</span>
+<span class="fc" id="L733">            System.arraycopy(subMatrix, 0, data, 0, subMatrix.length);</span>
+        } else {
+<span class="fc" id="L735">            MatrixUtils.checkRowIndex(this, row);</span>
+<span class="fc" id="L736">            MatrixUtils.checkColumnIndex(this, column);</span>
+<span class="fc" id="L737">            MatrixUtils.checkRowIndex(this, nRows + row - 1);</span>
+<span class="fc" id="L738">            MatrixUtils.checkColumnIndex(this, nCols + column - 1);</span>
+        }
+<span class="fc bfc" id="L740" title="All 2 branches covered.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="fc" id="L741">            System.arraycopy(subMatrix[i], 0, data[row + i], column, nCols);</span>
+        }
+
+<span class="fc" id="L744">        lu = null;</span>
+
+<span class="fc" id="L746">    }</span>
+
+    /**
+     * Returns the entries in row number &lt;code&gt;row&lt;/code&gt;
+     * as a row matrix.  Row indices start at 0.
+     *
+     * @param row the row to be fetched
+     * @return row matrix
+     * @throws MatrixIndexException if the specified row index is invalid
+     */
+    public BigMatrix getRowMatrix(int row) throws MatrixIndexException {
+<span class="fc" id="L757">        MatrixUtils.checkRowIndex(this, row);</span>
+<span class="fc" id="L758">        final int ncols = this.getColumnDimension();</span>
+<span class="fc" id="L759">        final BigDecimal[][] out = new BigDecimal[1][ncols];</span>
+<span class="fc" id="L760">        System.arraycopy(data[row], 0, out[0], 0, ncols);</span>
+<span class="fc" id="L761">        return new BigMatrixImpl(out, false);</span>
+    }
+
+    /**
+     * Returns the entries in column number &lt;code&gt;column&lt;/code&gt;
+     * as a column matrix.  Column indices start at 0.
+     *
+     * @param column the column to be fetched
+     * @return column matrix
+     * @throws MatrixIndexException if the specified column index is invalid
+     */
+    public BigMatrix getColumnMatrix(int column) throws MatrixIndexException {
+<span class="fc" id="L773">        MatrixUtils.checkColumnIndex(this, column);</span>
+<span class="fc" id="L774">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L775">        final BigDecimal[][] out = new BigDecimal[nRows][1];</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L777">            out[row][0] = data[row][column];</span>
+        }
+<span class="fc" id="L779">        return new BigMatrixImpl(out, false);</span>
+    }
+
+    /**
+     * Returns the entries in row number &lt;code&gt;row&lt;/code&gt; as an array.
+     * &lt;p&gt;
+     * Row indices start at 0.  A &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown
+     * unless &lt;code&gt;0 &lt;= row &lt; rowDimension.&lt;/code&gt;&lt;/p&gt;
+     *
+     * @param row the row to be fetched
+     * @return array of entries in the row
+     * @throws MatrixIndexException if the specified row index is not valid
+     */
+    public BigDecimal[] getRow(int row) throws MatrixIndexException {
+<span class="nc" id="L793">        MatrixUtils.checkRowIndex(this, row);</span>
+<span class="nc" id="L794">        final int ncols = this.getColumnDimension();</span>
+<span class="nc" id="L795">        final BigDecimal[] out = new BigDecimal[ncols];</span>
+<span class="nc" id="L796">        System.arraycopy(data[row], 0, out, 0, ncols);</span>
+<span class="nc" id="L797">        return out;</span>
+    }
+
+     /**
+     * Returns the entries in row number &lt;code&gt;row&lt;/code&gt; as an array
+     * of double values.
+     * &lt;p&gt;
+     * Row indices start at 0.  A &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown
+     * unless &lt;code&gt;0 &lt;= row &lt; rowDimension.&lt;/code&gt;&lt;/p&gt;
+     *
+     * @param row the row to be fetched
+     * @return array of entries in the row
+     * @throws MatrixIndexException if the specified row index is not valid
+     */
+    public double[] getRowAsDoubleArray(int row) throws MatrixIndexException {
+<span class="fc" id="L812">        MatrixUtils.checkRowIndex(this, row);</span>
+<span class="fc" id="L813">        final int ncols = this.getColumnDimension();</span>
+<span class="fc" id="L814">        final double[] out = new double[ncols];</span>
+<span class="fc bfc" id="L815" title="All 2 branches covered.">        for (int i=0;i&lt;ncols;i++) {</span>
+<span class="fc" id="L816">            out[i] = data[row][i].doubleValue();</span>
+        }
+<span class="fc" id="L818">        return out;</span>
+    }
+
+     /**
+     * Returns the entries in column number &lt;code&gt;col&lt;/code&gt; as an array.
+     * &lt;p&gt;
+     * Column indices start at 0.  A &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown
+     * unless &lt;code&gt;0 &lt;= column &lt; columnDimension.&lt;/code&gt;&lt;/p&gt;
+     *
+     * @param col the column to be fetched
+     * @return array of entries in the column
+     * @throws MatrixIndexException if the specified column index is not valid
+     */
+    public BigDecimal[] getColumn(int col) throws MatrixIndexException {
+<span class="nc" id="L832">        MatrixUtils.checkColumnIndex(this, col);</span>
+<span class="nc" id="L833">        final int nRows = this.getRowDimension();</span>
+<span class="nc" id="L834">        final BigDecimal[] out = new BigDecimal[nRows];</span>
+<span class="nc bnc" id="L835" title="All 2 branches missed.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="nc" id="L836">            out[i] = data[i][col];</span>
+        }
+<span class="nc" id="L838">        return out;</span>
+    }
+
+    /**
+     * Returns the entries in column number &lt;code&gt;col&lt;/code&gt; as an array
+     * of double values.
+     * &lt;p&gt;
+     * Column indices start at 0.  A &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown
+     * unless &lt;code&gt;0 &lt;= column &lt; columnDimension.&lt;/code&gt;&lt;/p&gt;
+     *
+     * @param col the column to be fetched
+     * @return array of entries in the column
+     * @throws MatrixIndexException if the specified column index is not valid
+     */
+    public double[] getColumnAsDoubleArray(int col) throws MatrixIndexException {
+<span class="fc" id="L853">        MatrixUtils.checkColumnIndex(this, col);</span>
+<span class="fc" id="L854">        final int nrows = this.getRowDimension();</span>
+<span class="fc" id="L855">        final double[] out = new double[nrows];</span>
+<span class="fc bfc" id="L856" title="All 2 branches covered.">        for (int i=0;i&lt;nrows;i++) {</span>
+<span class="fc" id="L857">            out[i] = data[i][col].doubleValue();</span>
+        }
+<span class="fc" id="L859">        return out;</span>
+    }
+
+     /**
+     * Returns the entry in the specified row and column.
+     * &lt;p&gt;
+     * Row and column indices start at 0 and must satisfy
+     * &lt;ul&gt;
+     * &lt;li&gt;&lt;code&gt;0 &lt;= row &lt; rowDimension&lt;/code&gt;&lt;/li&gt;
+     * &lt;li&gt;&lt;code&gt; 0 &lt;= column &lt; columnDimension&lt;/code&gt;&lt;/li&gt;
+     * &lt;/ul&gt;
+     * otherwise a &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown.&lt;/p&gt;
+     *
+     * @param row  row location of entry to be fetched
+     * @param column  column location of entry to be fetched
+     * @return matrix entry in row,column
+     * @throws MatrixIndexException if the row or column index is not valid
+     */
+    public BigDecimal getEntry(int row, int column)
+    throws MatrixIndexException {
+        try {
+<span class="fc" id="L880">            return data[row][column];</span>
+<span class="nc" id="L881">        } catch (ArrayIndexOutOfBoundsException e) {</span>
+<span class="nc" id="L882">            throw new MatrixIndexException(</span>
+                    LocalizedFormats.NO_SUCH_MATRIX_ENTRY,
+<span class="nc" id="L884">                    row, column, getRowDimension(), getColumnDimension());</span>
+        }
+    }
+
+    /**
+     * Returns the entry in the specified row and column as a double.
+     * &lt;p&gt;
+     * Row and column indices start at 0 and must satisfy
+     * &lt;ul&gt;
+     * &lt;li&gt;&lt;code&gt;0 &lt;= row &lt; rowDimension&lt;/code&gt;&lt;/li&gt;
+     * &lt;li&gt;&lt;code&gt; 0 &lt;= column &lt; columnDimension&lt;/code&gt;&lt;/li&gt;
+     * &lt;/ul&gt;
+     * otherwise a &lt;code&gt;MatrixIndexException&lt;/code&gt; is thrown.&lt;/p&gt;
+     *
+     * @param row  row location of entry to be fetched
+     * @param column  column location of entry to be fetched
+     * @return matrix entry in row,column
+     * @throws MatrixIndexException if the row
+     * or column index is not valid
+     */
+    public double getEntryAsDouble(int row, int column) throws MatrixIndexException {
+<span class="nc" id="L905">        return getEntry(row,column).doubleValue();</span>
+    }
+
+    /**
+     * Returns the transpose matrix.
+     *
+     * @return transpose matrix
+     */
+    public BigMatrix transpose() {
+<span class="fc" id="L914">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L915">        final int nCols = this.getColumnDimension();</span>
+<span class="fc" id="L916">        final BigDecimal[][] outData = new BigDecimal[nCols][nRows];</span>
+<span class="fc bfc" id="L917" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L918">            final BigDecimal[] dataRow = data[row];</span>
+<span class="fc bfc" id="L919" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L920">                outData[col][row] = dataRow[col];</span>
+            }
+        }
+<span class="fc" id="L923">        return new BigMatrixImpl(outData, false);</span>
+    }
+
+    /**
+     * Returns the inverse matrix if this matrix is invertible.
+     *
+     * @return inverse matrix
+     * @throws InvalidMatrixException if this is not invertible
+     */
+    public BigMatrix inverse() throws InvalidMatrixException {
+<span class="fc" id="L933">        return solve(MatrixUtils.createBigIdentityMatrix(getRowDimension()));</span>
+    }
+
+    /**
+     * Returns the determinant of this matrix.
+     *
+     * @return determinant
+     * @throws InvalidMatrixException if matrix is not square
+     */
+    public BigDecimal getDeterminant() throws InvalidMatrixException {
+<span class="fc bfc" id="L943" title="All 2 branches covered.">        if (!isSquare()) {</span>
+<span class="fc" id="L944">            throw new NonSquareMatrixException(getRowDimension(), getColumnDimension());</span>
+        }
+<span class="fc bfc" id="L946" title="All 2 branches covered.">        if (isSingular()) {   // note: this has side effect of attempting LU decomp if lu == null</span>
+<span class="fc" id="L947">            return ZERO;</span>
+        } else {
+<span class="fc bfc" id="L949" title="All 2 branches covered.">            BigDecimal det = (parity == 1) ? ONE : ONE.negate();</span>
+<span class="fc bfc" id="L950" title="All 2 branches covered.">            for (int i = 0; i &lt; getRowDimension(); i++) {</span>
+<span class="fc" id="L951">                det = det.multiply(lu[i][i]);</span>
+            }
+<span class="fc" id="L953">            return det;</span>
+        }
+    }
+
+     /**
+     * Is this a square matrix?
+     * @return true if the matrix is square (rowDimension = columnDimension)
+     */
+    public boolean isSquare() {
+<span class="fc bfc" id="L962" title="All 2 branches covered.">        return getColumnDimension() == getRowDimension();</span>
+    }
+
+    /**
+     * Is this a singular matrix?
+     * @return true if the matrix is singular
+     */
+    public boolean isSingular() {
+<span class="fc bfc" id="L970" title="All 2 branches covered.">        if (lu == null) {</span>
+            try {
+<span class="fc" id="L972">                luDecompose();</span>
+<span class="fc" id="L973">                return false;</span>
+<span class="fc" id="L974">            } catch (InvalidMatrixException ex) {</span>
+<span class="fc" id="L975">                return true;</span>
+            }
+        } else { // LU decomp must have been successfully performed
+<span class="fc" id="L978">            return false; // so the matrix is not singular</span>
+        }
+    }
+
+    /**
+     * Returns the number of rows in the matrix.
+     *
+     * @return rowDimension
+     */
+    public int getRowDimension() {
+<span class="fc" id="L988">        return data.length;</span>
+    }
+
+    /**
+     * Returns the number of columns in the matrix.
+     *
+     * @return columnDimension
+     */
+    public int getColumnDimension() {
+<span class="fc" id="L997">        return data[0].length;</span>
+    }
+
+     /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/MatrixTrace.html&quot;&gt;
+     * trace&lt;/a&gt; of the matrix (the sum of the elements on the main diagonal).
+     *
+     * @return trace
+     *
+     * @throws IllegalArgumentException if this matrix is not square.
+     */
+    public BigDecimal getTrace() throws IllegalArgumentException {
+<span class="fc bfc" id="L1009" title="All 2 branches covered.">        if (!isSquare()) {</span>
+<span class="fc" id="L1010">            throw new NonSquareMatrixException(getRowDimension(), getColumnDimension());</span>
+        }
+<span class="fc" id="L1012">        BigDecimal trace = data[0][0];</span>
+<span class="fc bfc" id="L1013" title="All 2 branches covered.">        for (int i = 1; i &lt; this.getRowDimension(); i++) {</span>
+<span class="fc" id="L1014">            trace = trace.add(data[i][i]);</span>
+        }
+<span class="fc" id="L1016">        return trace;</span>
+    }
+
+    /**
+     * Returns the result of multiplying this by the vector &lt;code&gt;v&lt;/code&gt;.
+     *
+     * @param v the vector to operate on
+     * @return this*v
+     * @throws IllegalArgumentException if columnDimension != v.size()
+     */
+    public BigDecimal[] operate(BigDecimal[] v) throws IllegalArgumentException {
+<span class="fc bfc" id="L1027" title="All 2 branches covered.">        if (v.length != getColumnDimension()) {</span>
+<span class="fc" id="L1028">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L1030">                    v.length, getColumnDimension() );</span>
+        }
+<span class="fc" id="L1032">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L1033">        final int nCols = this.getColumnDimension();</span>
+<span class="fc" id="L1034">        final BigDecimal[] out = new BigDecimal[nRows];</span>
+<span class="fc bfc" id="L1035" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1036">            BigDecimal sum = ZERO;</span>
+<span class="fc bfc" id="L1037" title="All 2 branches covered.">            for (int i = 0; i &lt; nCols; i++) {</span>
+<span class="fc" id="L1038">                sum = sum.add(data[row][i].multiply(v[i]));</span>
+            }
+<span class="fc" id="L1040">            out[row] = sum;</span>
+        }
+<span class="fc" id="L1042">        return out;</span>
+    }
+
+    /**
+     * Returns the result of multiplying this by the vector &lt;code&gt;v&lt;/code&gt;.
+     *
+     * @param v the vector to operate on
+     * @return this*v
+     * @throws IllegalArgumentException if columnDimension != v.size()
+     */
+    public BigDecimal[] operate(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L1053">        final BigDecimal bd[] = new BigDecimal[v.length];</span>
+<span class="nc bnc" id="L1054" title="All 2 branches missed.">        for (int i = 0; i &lt; bd.length; i++) {</span>
+<span class="nc" id="L1055">            bd[i] = new BigDecimal(v[i]);</span>
+        }
+<span class="nc" id="L1057">        return operate(bd);</span>
+    }
+
+    /**
+     * Returns the (row) vector result of premultiplying this by the vector &lt;code&gt;v&lt;/code&gt;.
+     *
+     * @param v the row vector to premultiply by
+     * @return v*this
+     * @throws IllegalArgumentException if rowDimension != v.size()
+     */
+    public BigDecimal[] preMultiply(BigDecimal[] v) throws IllegalArgumentException {
+<span class="fc" id="L1068">        final int nRows = this.getRowDimension();</span>
+<span class="fc bfc" id="L1069" title="All 2 branches covered.">        if (v.length != nRows) {</span>
+<span class="fc" id="L1070">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L1072">                    v.length, nRows );</span>
+        }
+<span class="fc" id="L1074">        final int nCols = this.getColumnDimension();</span>
+<span class="fc" id="L1075">        final BigDecimal[] out = new BigDecimal[nCols];</span>
+<span class="fc bfc" id="L1076" title="All 2 branches covered.">        for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L1077">            BigDecimal sum = ZERO;</span>
+<span class="fc bfc" id="L1078" title="All 2 branches covered.">            for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="fc" id="L1079">                sum = sum.add(data[i][col].multiply(v[i]));</span>
+            }
+<span class="fc" id="L1081">            out[col] = sum;</span>
+        }
+<span class="fc" id="L1083">        return out;</span>
+    }
+
+    /**
+     * Returns a matrix of (column) solution vectors for linear systems with
+     * coefficient matrix = this and constant vectors = columns of
+     * &lt;code&gt;b&lt;/code&gt;.
+     *
+     * @param b  array of constants forming RHS of linear systems to
+     * to solve
+     * @return solution array
+     * @throws IllegalArgumentException if this.rowDimension != row dimension
+     * @throws InvalidMatrixException if this matrix is not square or is singular
+     */
+    public BigDecimal[] solve(BigDecimal[] b) throws IllegalArgumentException, InvalidMatrixException {
+<span class="fc" id="L1098">        final int nRows = this.getRowDimension();</span>
+<span class="fc bfc" id="L1099" title="All 2 branches covered.">        if (b.length != nRows) {</span>
+<span class="fc" id="L1100">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L1102">                    b.length, nRows);</span>
+        }
+<span class="fc" id="L1104">        final BigMatrix bMatrix = new BigMatrixImpl(b);</span>
+<span class="fc" id="L1105">        final BigDecimal[][] solution = ((BigMatrixImpl) (solve(bMatrix))).getDataRef();</span>
+<span class="fc" id="L1106">        final BigDecimal[] out = new BigDecimal[nRows];</span>
+<span class="fc bfc" id="L1107" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1108">            out[row] = solution[row][0];</span>
+        }
+<span class="fc" id="L1110">        return out;</span>
+    }
+
+    /**
+     * Returns a matrix of (column) solution vectors for linear systems with
+     * coefficient matrix = this and constant vectors = columns of
+     * &lt;code&gt;b&lt;/code&gt;.
+     *
+     * @param b  array of constants forming RHS of linear systems to
+     * to solve
+     * @return solution array
+     * @throws IllegalArgumentException if this.rowDimension != row dimension
+     * @throws InvalidMatrixException if this matrix is not square or is singular
+     */
+    public BigDecimal[] solve(double[] b) throws IllegalArgumentException, InvalidMatrixException {
+<span class="nc" id="L1125">        final BigDecimal bd[] = new BigDecimal[b.length];</span>
+<span class="nc bnc" id="L1126" title="All 2 branches missed.">        for (int i = 0; i &lt; bd.length; i++) {</span>
+<span class="nc" id="L1127">            bd[i] = new BigDecimal(b[i]);</span>
+        }
+<span class="nc" id="L1129">        return solve(bd);</span>
+    }
+
+    /**
+     * Returns a matrix of (column) solution vectors for linear systems with
+     * coefficient matrix = this and constant vectors = columns of
+     * &lt;code&gt;b&lt;/code&gt;.
+     *
+     * @param b  matrix of constant vectors forming RHS of linear systems to
+     * to solve
+     * @return matrix of solution vectors
+     * @throws IllegalArgumentException if this.rowDimension != row dimension
+     * @throws InvalidMatrixException if this matrix is not square or is singular
+     */
+    public BigMatrix solve(BigMatrix b) throws IllegalArgumentException, InvalidMatrixException  {
+<span class="fc bfc" id="L1144" title="All 2 branches covered.">        if (b.getRowDimension() != getRowDimension()) {</span>
+<span class="fc" id="L1145">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.DIMENSIONS_MISMATCH_2x2,
+<span class="fc" id="L1147">                    b.getRowDimension(), b.getColumnDimension(), getRowDimension(), &quot;n&quot;);</span>
+        }
+<span class="fc bfc" id="L1149" title="All 2 branches covered.">        if (!isSquare()) {</span>
+<span class="fc" id="L1150">            throw new NonSquareMatrixException(getRowDimension(), getColumnDimension());</span>
+        }
+<span class="fc bfc" id="L1152" title="All 2 branches covered.">        if (this.isSingular()) { // side effect: compute LU decomp</span>
+<span class="fc" id="L1153">            throw new SingularMatrixException();</span>
+        }
+
+<span class="fc" id="L1156">        final int nCol = this.getColumnDimension();</span>
+<span class="fc" id="L1157">        final int nColB = b.getColumnDimension();</span>
+<span class="fc" id="L1158">        final int nRowB = b.getRowDimension();</span>
+
+        // Apply permutations to b
+<span class="fc" id="L1161">        final BigDecimal[][] bp = new BigDecimal[nRowB][nColB];</span>
+<span class="fc bfc" id="L1162" title="All 2 branches covered.">        for (int row = 0; row &lt; nRowB; row++) {</span>
+<span class="fc" id="L1163">            final BigDecimal[] bpRow = bp[row];</span>
+<span class="fc bfc" id="L1164" title="All 2 branches covered.">            for (int col = 0; col &lt; nColB; col++) {</span>
+<span class="fc" id="L1165">                bpRow[col] = b.getEntry(permutation[row], col);</span>
+            }
+        }
+
+        // Solve LY = b
+<span class="fc bfc" id="L1170" title="All 2 branches covered.">        for (int col = 0; col &lt; nCol; col++) {</span>
+<span class="fc bfc" id="L1171" title="All 2 branches covered.">            for (int i = col + 1; i &lt; nCol; i++) {</span>
+<span class="fc" id="L1172">                final BigDecimal[] bpI = bp[i];</span>
+<span class="fc" id="L1173">                final BigDecimal[] luI = lu[i];</span>
+<span class="fc bfc" id="L1174" title="All 2 branches covered.">                for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L1175">                    bpI[j] = bpI[j].subtract(bp[col][j].multiply(luI[col]));</span>
+                }
+            }
+        }
+
+        // Solve UX = Y
+<span class="fc bfc" id="L1181" title="All 2 branches covered.">        for (int col = nCol - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L1182">            final BigDecimal[] bpCol = bp[col];</span>
+<span class="fc" id="L1183">            final BigDecimal luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L1184" title="All 2 branches covered.">            for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L1185">                bpCol[j] = bpCol[j].divide(luDiag, scale, roundingMode);</span>
+            }
+<span class="fc bfc" id="L1187" title="All 2 branches covered.">            for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L1188">                final BigDecimal[] bpI = bp[i];</span>
+<span class="fc" id="L1189">                final BigDecimal[] luI = lu[i];</span>
+<span class="fc bfc" id="L1190" title="All 2 branches covered.">                for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L1191">                    bpI[j] = bpI[j].subtract(bp[col][j].multiply(luI[col]));</span>
+                }
+            }
+        }
+
+<span class="fc" id="L1196">        return new BigMatrixImpl(bp, false);</span>
+
+    }
+
+    /**
+     * Computes a new
+     * &lt;a href=&quot;http://www.math.gatech.edu/~bourbaki/math2601/Web-notes/2num.pdf&quot;&gt;
+     * LU decompostion&lt;/a&gt; for this matrix, storing the result for use by other methods.
+     * &lt;p&gt;
+     * &lt;strong&gt;Implementation Note&lt;/strong&gt;:&lt;br&gt;
+     * Uses &lt;a href=&quot;http://www.damtp.cam.ac.uk/user/fdl/people/sd/lectures/nummeth98/linear.htm&quot;&gt;
+     * Crout's algortithm&lt;/a&gt;, with partial pivoting.&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Usage Note&lt;/strong&gt;:&lt;br&gt;
+     * This method should rarely be invoked directly. Its only use is
+     * to force recomputation of the LU decomposition when changes have been
+     * made to the underlying data using direct array references. Changes
+     * made using setXxx methods will trigger recomputation when needed
+     * automatically.&lt;/p&gt;
+     *
+     * @throws InvalidMatrixException if the matrix is non-square or singular.
+     */
+    public void luDecompose() throws InvalidMatrixException {
+
+<span class="fc" id="L1220">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L1221">        final int nCols = this.getColumnDimension();</span>
+<span class="fc bfc" id="L1222" title="All 2 branches covered.">        if (nRows != nCols) {</span>
+<span class="fc" id="L1223">            throw new NonSquareMatrixException(getRowDimension(), getColumnDimension());</span>
+        }
+<span class="fc" id="L1225">        lu = this.getData();</span>
+
+        // Initialize permutation array and parity
+<span class="fc" id="L1228">        permutation = new int[nRows];</span>
+<span class="fc bfc" id="L1229" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1230">            permutation[row] = row;</span>
+        }
+<span class="fc" id="L1232">        parity = 1;</span>
+
+        // Loop over columns
+<span class="fc bfc" id="L1235" title="All 2 branches covered.">        for (int col = 0; col &lt; nCols; col++) {</span>
+
+<span class="fc" id="L1237">            BigDecimal sum = ZERO;</span>
+
+            // upper
+<span class="fc bfc" id="L1240" title="All 2 branches covered.">            for (int row = 0; row &lt; col; row++) {</span>
+<span class="fc" id="L1241">                final BigDecimal[] luRow = lu[row];</span>
+<span class="fc" id="L1242">                sum = luRow[col];</span>
+<span class="fc bfc" id="L1243" title="All 2 branches covered.">                for (int i = 0; i &lt; row; i++) {</span>
+<span class="fc" id="L1244">                    sum = sum.subtract(luRow[i].multiply(lu[i][col]));</span>
+                }
+<span class="fc" id="L1246">                luRow[col] = sum;</span>
+            }
+
+            // lower
+<span class="fc" id="L1250">            int max = col; // permutation row</span>
+<span class="fc" id="L1251">            BigDecimal largest = ZERO;</span>
+<span class="fc bfc" id="L1252" title="All 2 branches covered.">            for (int row = col; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1253">                final BigDecimal[] luRow = lu[row];</span>
+<span class="fc" id="L1254">                sum = luRow[col];</span>
+<span class="fc bfc" id="L1255" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L1256">                    sum = sum.subtract(luRow[i].multiply(lu[i][col]));</span>
+                }
+<span class="fc" id="L1258">                luRow[col] = sum;</span>
+
+                // maintain best permutation choice
+<span class="fc bfc" id="L1261" title="All 2 branches covered.">                if (sum.abs().compareTo(largest) == 1) {</span>
+<span class="fc" id="L1262">                    largest = sum.abs();</span>
+<span class="fc" id="L1263">                    max = row;</span>
+                }
+            }
+
+            // Singularity check
+<span class="fc bfc" id="L1268" title="All 2 branches covered.">            if (lu[max][col].abs().compareTo(TOO_SMALL) &lt;= 0) {</span>
+<span class="fc" id="L1269">                lu = null;</span>
+<span class="fc" id="L1270">                throw new SingularMatrixException();</span>
+            }
+
+            // Pivot if necessary
+<span class="fc bfc" id="L1274" title="All 2 branches covered.">            if (max != col) {</span>
+<span class="fc" id="L1275">                BigDecimal tmp = ZERO;</span>
+<span class="fc bfc" id="L1276" title="All 2 branches covered.">                for (int i = 0; i &lt; nCols; i++) {</span>
+<span class="fc" id="L1277">                    tmp = lu[max][i];</span>
+<span class="fc" id="L1278">                    lu[max][i] = lu[col][i];</span>
+<span class="fc" id="L1279">                    lu[col][i] = tmp;</span>
+                }
+<span class="fc" id="L1281">                int temp = permutation[max];</span>
+<span class="fc" id="L1282">                permutation[max] = permutation[col];</span>
+<span class="fc" id="L1283">                permutation[col] = temp;</span>
+<span class="fc" id="L1284">                parity = -parity;</span>
+            }
+
+            // Divide the lower elements by the &quot;winning&quot; diagonal elt.
+<span class="fc" id="L1288">            final BigDecimal luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L1289" title="All 2 branches covered.">            for (int row = col + 1; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1290">                final BigDecimal[] luRow = lu[row];</span>
+<span class="fc" id="L1291">                luRow[col] = luRow[col].divide(luDiag, scale, roundingMode);</span>
+            }
+
+        }
+
+<span class="fc" id="L1296">    }</span>
+
+    /**
+     * Get a string representation for this matrix.
+     * @return a string representation for this matrix
+     */
+    @Override
+    public String toString() {
+<span class="fc" id="L1304">        StringBuilder res = new StringBuilder();</span>
+<span class="fc" id="L1305">        res.append(&quot;BigMatrixImpl{&quot;);</span>
+<span class="fc bfc" id="L1306" title="All 2 branches covered.">        if (data != null) {</span>
+<span class="fc bfc" id="L1307" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc bfc" id="L1308" title="All 2 branches covered.">                if (i &gt; 0) {</span>
+<span class="fc" id="L1309">                    res.append(&quot;,&quot;);</span>
+                }
+<span class="fc" id="L1311">                res.append(&quot;{&quot;);</span>
+<span class="fc bfc" id="L1312" title="All 2 branches covered.">                for (int j = 0; j &lt; data[0].length; j++) {</span>
+<span class="fc bfc" id="L1313" title="All 2 branches covered.">                    if (j &gt; 0) {</span>
+<span class="fc" id="L1314">                        res.append(&quot;,&quot;);</span>
+                    }
+<span class="fc" id="L1316">                    res.append(data[i][j]);</span>
+                }
+<span class="fc" id="L1318">                res.append(&quot;}&quot;);</span>
+            }
+        }
+<span class="fc" id="L1321">        res.append(&quot;}&quot;);</span>
+<span class="fc" id="L1322">        return res.toString();</span>
+    }
+
+    /**
+     * Returns true iff &lt;code&gt;object&lt;/code&gt; is a
+     * &lt;code&gt;BigMatrixImpl&lt;/code&gt; instance with the same dimensions as this
+     * and all corresponding matrix entries are equal.  BigDecimal.equals
+     * is used to compare corresponding entries.
+     *
+     * @param object the object to test equality against.
+     * @return true if object equals this
+     */
+    @Override
+    public boolean equals(Object object) {
+<span class="fc bfc" id="L1336" title="All 2 branches covered.">        if (object == this ) {</span>
+<span class="fc" id="L1337">            return true;</span>
+        }
+<span class="fc bfc" id="L1339" title="All 2 branches covered.">        if (object instanceof BigMatrixImpl == false) {</span>
+<span class="fc" id="L1340">            return false;</span>
+        }
+<span class="fc" id="L1342">        final BigMatrix m = (BigMatrix) object;</span>
+<span class="fc" id="L1343">        final int nRows = getRowDimension();</span>
+<span class="fc" id="L1344">        final int nCols = getColumnDimension();</span>
+<span class="pc bpc" id="L1345" title="1 of 4 branches missed.">        if (m.getColumnDimension() != nCols || m.getRowDimension() != nRows) {</span>
+<span class="fc" id="L1346">            return false;</span>
+        }
+<span class="fc bfc" id="L1348" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1349">            final BigDecimal[] dataRow = data[row];</span>
+<span class="fc bfc" id="L1350" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc bfc" id="L1351" title="All 2 branches covered.">                if (!dataRow[col].equals(m.getEntry(row, col))) {</span>
+<span class="fc" id="L1352">                    return false;</span>
+                }
+            }
+        }
+<span class="fc" id="L1356">        return true;</span>
+    }
+
+    /**
+     * Computes a hashcode for the matrix.
+     *
+     * @return hashcode for matrix
+     */
+    @Override
+    public int hashCode() {
+<span class="fc" id="L1366">        int ret = 7;</span>
+<span class="fc" id="L1367">        final int nRows = getRowDimension();</span>
+<span class="fc" id="L1368">        final int nCols = getColumnDimension();</span>
+<span class="fc" id="L1369">        ret = ret * 31 + nRows;</span>
+<span class="fc" id="L1370">        ret = ret * 31 + nCols;</span>
+<span class="fc bfc" id="L1371" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc" id="L1372">            final BigDecimal[] dataRow = data[row];</span>
+<span class="fc bfc" id="L1373" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L1374">                ret = ret * 31 + (11 * (row+1) + 17 * (col+1)) *</span>
+<span class="fc" id="L1375">                dataRow[col].hashCode();</span>
+            }
+        }
+<span class="fc" id="L1378">        return ret;</span>
+    }
+
+    //------------------------ Protected methods
+
+    /**
+     *  Returns the LU decomposition as a BigMatrix.
+     *  Returns a fresh copy of the cached LU matrix if this has been computed;
+     *  otherwise the composition is computed and cached for use by other methods.
+     *  Since a copy is returned in either case, changes to the returned matrix do not
+     *  affect the LU decomposition property.
+     * &lt;p&gt;
+     * The matrix returned is a compact representation of the LU decomposition.
+     * Elements below the main diagonal correspond to entries of the &quot;L&quot; matrix;
+     * elements on and above the main diagonal correspond to entries of the &quot;U&quot;
+     * matrix.&lt;/p&gt;
+     * &lt;p&gt;
+     * Example: &lt;pre&gt;
+     *
+     *     Returned matrix                L                  U
+     *         2  3  1                   1  0  0            2  3  1
+     *         5  4  6                   5  1  0            0  4  6
+     *         1  7  8                   1  7  1            0  0  8
+     * &lt;/pre&gt;
+     *
+     * The L and U matrices satisfy the matrix equation LU = permuteRows(this), &lt;br&gt;
+     *  where permuteRows reorders the rows of the matrix to follow the order determined
+     *  by the &lt;a href=#getPermutation()&gt;permutation&lt;/a&gt; property.&lt;/p&gt;
+     *
+     * @return LU decomposition matrix
+     * @throws InvalidMatrixException if the matrix is non-square or singular.
+     */
+    protected BigMatrix getLUMatrix() throws InvalidMatrixException {
+<span class="pc bpc" id="L1411" title="1 of 2 branches missed.">        if (lu == null) {</span>
+<span class="fc" id="L1412">            luDecompose();</span>
+        }
+<span class="fc" id="L1414">        return new BigMatrixImpl(lu);</span>
+    }
+
+    /**
+     * Returns the permutation associated with the lu decomposition.
+     * The entries of the array represent a permutation of the numbers 0, ... , nRows - 1.
+     * &lt;p&gt;
+     * Example:
+     * permutation = [1, 2, 0] means current 2nd row is first, current third row is second
+     * and current first row is last.&lt;/p&gt;
+     * &lt;p&gt;
+     * Returns a fresh copy of the array.&lt;/p&gt;
+     *
+     * @return the permutation
+     */
+    protected int[] getPermutation() {
+<span class="fc" id="L1430">        final int[] out = new int[permutation.length];</span>
+<span class="fc" id="L1431">        System.arraycopy(permutation, 0, out, 0, permutation.length);</span>
+<span class="fc" id="L1432">        return out;</span>
+    }
+
+    //------------------------ Private methods
+
+    /**
+     * Returns a fresh copy of the underlying data array.
+     *
+     * @return a copy of the underlying data array.
+     */
+    private BigDecimal[][] copyOut() {
+<span class="fc" id="L1443">        final int nRows = this.getRowDimension();</span>
+<span class="fc" id="L1444">        final BigDecimal[][] out = new BigDecimal[nRows][this.getColumnDimension()];</span>
+        // can't copy 2-d array in one shot, otherwise get row references
+<span class="fc bfc" id="L1446" title="All 2 branches covered.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="fc" id="L1447">            System.arraycopy(data[i], 0, out[i], 0, data[i].length);</span>
+        }
+<span class="fc" id="L1449">        return out;</span>
+    }
+
+    /**
+     * Replaces data with a fresh copy of the input array.
+     * &lt;p&gt;
+     * Verifies that the input array is rectangular and non-empty.&lt;/p&gt;
+     *
+     * @param in data to copy in
+     * @throws IllegalArgumentException if input array is emtpy or not
+     *    rectangular
+     * @throws NullPointerException if input array is null
+     */
+    private void copyIn(BigDecimal[][] in) {
+<span class="fc" id="L1463">        setSubMatrix(in,0,0);</span>
+<span class="fc" id="L1464">    }</span>
+
+    /**
+     * Replaces data with a fresh copy of the input array.
+     *
+     * @param in data to copy in
+     */
+    private void copyIn(double[][] in) {
+<span class="fc" id="L1472">        final int nRows = in.length;</span>
+<span class="fc" id="L1473">        final int nCols = in[0].length;</span>
+<span class="fc" id="L1474">        data = new BigDecimal[nRows][nCols];</span>
+<span class="fc bfc" id="L1475" title="All 2 branches covered.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="fc" id="L1476">            final BigDecimal[] dataI = data[i];</span>
+<span class="fc" id="L1477">            final double[] inI = in[i];</span>
+<span class="fc bfc" id="L1478" title="All 2 branches covered.">            for (int j = 0; j &lt; nCols; j++) {</span>
+<span class="fc" id="L1479">                dataI[j] = new BigDecimal(inI[j]);</span>
+            }
+        }
+<span class="fc" id="L1482">        lu = null;</span>
+<span class="fc" id="L1483">    }</span>
+
+    /**
+     * Replaces data with BigDecimals represented by the strings in the input
+     * array.
+     *
+     * @param in data to copy in
+     */
+    private void copyIn(String[][] in) {
+<span class="fc" id="L1492">        final int nRows = in.length;</span>
+<span class="fc" id="L1493">        final int nCols = in[0].length;</span>
+<span class="fc" id="L1494">        data = new BigDecimal[nRows][nCols];</span>
+<span class="fc bfc" id="L1495" title="All 2 branches covered.">        for (int i = 0; i &lt; nRows; i++) {</span>
+<span class="fc" id="L1496">            final BigDecimal[] dataI = data[i];</span>
+<span class="fc" id="L1497">            final String[] inI = in[i];</span>
+<span class="fc bfc" id="L1498" title="All 2 branches covered.">            for (int j = 0; j &lt; nCols; j++) {</span>
+<span class="fc" id="L1499">                dataI[j] = new BigDecimal(inI[j]);</span>
+            }
+        }
+<span class="fc" id="L1502">        lu = null;</span>
+<span class="fc" id="L1503">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

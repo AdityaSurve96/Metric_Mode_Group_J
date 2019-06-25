@@ -1,0 +1,1229 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ArrayRealVector.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">ArrayRealVector.java</span></div><h1>ArrayRealVector.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.linear;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Iterator;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.MathUtils;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * This class implements the {@link RealVector} interface with a double array.
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class ArrayRealVector extends AbstractRealVector implements Serializable {
+
+    /** Serializable version identifier. */
+    private static final long serialVersionUID = -1097961340710804027L;
+
+    /** Default format. */
+<span class="fc" id="L39">    private static final RealVectorFormat DEFAULT_FORMAT =</span>
+<span class="fc" id="L40">        RealVectorFormat.getInstance();</span>
+
+    /** Entries of the vector. */
+    protected double data[];
+
+    /**
+     * Build a 0-length vector.
+     * &lt;p&gt;Zero-length vectors may be used to initialized construction of vectors
+     * by data gathering. We start with zero-length and use either the {@link
+     * #ArrayRealVector(ArrayRealVector, ArrayRealVector)} constructor
+     * or one of the &lt;code&gt;append&lt;/code&gt; method ({@link #append(double)}, {@link
+     * #append(double[])}, {@link #append(ArrayRealVector)}) to gather data
+     * into this vector.&lt;/p&gt;
+     */
+<span class="fc" id="L54">    public ArrayRealVector() {</span>
+<span class="fc" id="L55">        data = new double[0];</span>
+<span class="fc" id="L56">    }</span>
+
+    /**
+     * Construct a (size)-length vector of zeros.
+     * @param size size of the vector
+     */
+<span class="fc" id="L62">    public ArrayRealVector(int size) {</span>
+<span class="fc" id="L63">        data = new double[size];</span>
+<span class="fc" id="L64">    }</span>
+
+    /**
+     * Construct an (size)-length vector with preset values.
+     * @param size size of the vector
+     * @param preset fill the vector with this scalar value
+     */
+<span class="fc" id="L71">    public ArrayRealVector(int size, double preset) {</span>
+<span class="fc" id="L72">        data = new double[size];</span>
+<span class="fc" id="L73">        Arrays.fill(data, preset);</span>
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * Construct a vector from an array, copying the input array.
+     * @param d array of doubles.
+     */
+<span class="fc" id="L80">    public ArrayRealVector(double[] d) {</span>
+<span class="fc" id="L81">        data = d.clone();</span>
+<span class="fc" id="L82">    }</span>
+
+    /**
+     * Create a new ArrayRealVector using the input array as the underlying
+     * data array.
+     * &lt;p&gt;If an array is built specially in order to be embedded in a
+     * ArrayRealVector and not used directly, the &lt;code&gt;copyArray&lt;/code&gt; may be
+     * set to &lt;code&gt;false&lt;/code. This will prevent the copying and improve
+     * performance as no new array will be built and no data will be copied.&lt;/p&gt;
+     * @param d data for new vector
+     * @param copyArray if true, the input array will be copied, otherwise
+     * it will be referenced
+     * @see #ArrayRealVector(double[])
+     */
+<span class="fc" id="L96">    public ArrayRealVector(double[] d, boolean copyArray) {</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        data = copyArray ? d.clone() :  d;</span>
+<span class="fc" id="L98">    }</span>
+
+    /**
+     * Construct a vector from part of a array.
+     * @param d array of doubles.
+     * @param pos position of first entry
+     * @param size number of entries to copy
+     */
+<span class="fc" id="L106">    public ArrayRealVector(double[] d, int pos, int size) {</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (d.length &lt; pos + size) {</span>
+<span class="fc" id="L108">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L109">                  LocalizedFormats.POSITION_SIZE_MISMATCH_INPUT_ARRAY, pos, size, d.length);</span>
+        }
+<span class="fc" id="L111">        data = new double[size];</span>
+<span class="fc" id="L112">        System.arraycopy(d, pos, data, 0, size);</span>
+<span class="fc" id="L113">    }</span>
+
+    /**
+     * Construct a vector from an array.
+     * @param d array of Doubles.
+     */
+<span class="fc" id="L119">    public ArrayRealVector(Double[] d) {</span>
+<span class="fc" id="L120">        data = new double[d.length];</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        for (int i = 0; i &lt; d.length; i++) {</span>
+<span class="fc" id="L122">            data[i] = d[i].doubleValue();</span>
+        }
+<span class="fc" id="L124">    }</span>
+
+    /**
+     * Construct a vector from part of a Double array
+     * @param d array of Doubles.
+     * @param pos position of first entry
+     * @param size number of entries to copy
+     */
+<span class="fc" id="L132">    public ArrayRealVector(Double[] d, int pos, int size) {</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (d.length &lt; pos + size) {</span>
+<span class="fc" id="L134">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L135">                  LocalizedFormats.POSITION_SIZE_MISMATCH_INPUT_ARRAY, pos, size, d.length);</span>
+        }
+<span class="fc" id="L137">        data = new double[size];</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        for (int i = pos; i &lt; pos + size; i++) {</span>
+<span class="fc" id="L139">            data[i-pos] = d[i].doubleValue();</span>
+        }
+<span class="fc" id="L141">    }</span>
+
+    /**
+     * Construct a vector from another vector, using a deep copy.
+     * @param v vector to copy
+     */
+<span class="fc" id="L147">    public ArrayRealVector(RealVector v) {</span>
+<span class="fc" id="L148">        data = new double[v.getDimension()];</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L150">            data[i] = v.getEntry(i);</span>
+        }
+<span class="fc" id="L152">    }</span>
+
+    /**
+     * Construct a vector from another vector, using a deep copy.
+     * @param v vector to copy
+     */
+    public ArrayRealVector(ArrayRealVector v) {
+<span class="fc" id="L159">        this(v, true);</span>
+<span class="fc" id="L160">    }</span>
+
+    /**
+     * Construct a vector from another vector.
+     * @param v vector to copy
+     * @param deep if true perform a deep copy otherwise perform a shallow copy
+     */
+<span class="fc" id="L167">    public ArrayRealVector(ArrayRealVector v, boolean deep) {</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        data = deep ? v.data.clone() : v.data;</span>
+<span class="fc" id="L169">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L176">    public ArrayRealVector(ArrayRealVector v1, ArrayRealVector v2) {</span>
+<span class="fc" id="L177">        data = new double[v1.data.length + v2.data.length];</span>
+<span class="fc" id="L178">        System.arraycopy(v1.data, 0, data, 0, v1.data.length);</span>
+<span class="fc" id="L179">        System.arraycopy(v2.data, 0, data, v1.data.length, v2.data.length);</span>
+<span class="fc" id="L180">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L187">    public ArrayRealVector(ArrayRealVector v1, RealVector v2) {</span>
+<span class="fc" id="L188">        final int l1 = v1.data.length;</span>
+<span class="fc" id="L189">        final int l2 = v2.getDimension();</span>
+<span class="fc" id="L190">        data = new double[l1 + l2];</span>
+<span class="fc" id="L191">        System.arraycopy(v1.data, 0, data, 0, l1);</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        for (int i = 0; i &lt; l2; ++i) {</span>
+<span class="fc" id="L193">            data[l1 + i] = v2.getEntry(i);</span>
+        }
+<span class="fc" id="L195">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L202">    public ArrayRealVector(RealVector v1, ArrayRealVector v2) {</span>
+<span class="fc" id="L203">        final int l1 = v1.getDimension();</span>
+<span class="fc" id="L204">        final int l2 = v2.data.length;</span>
+<span class="fc" id="L205">        data = new double[l1 + l2];</span>
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        for (int i = 0; i &lt; l1; ++i) {</span>
+<span class="fc" id="L207">            data[i] = v1.getEntry(i);</span>
+        }
+<span class="fc" id="L209">        System.arraycopy(v2.data, 0, data, l1, l2);</span>
+<span class="fc" id="L210">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L217">    public ArrayRealVector(ArrayRealVector v1, double[] v2) {</span>
+<span class="fc" id="L218">        final int l1 = v1.getDimension();</span>
+<span class="fc" id="L219">        final int l2 = v2.length;</span>
+<span class="fc" id="L220">        data = new double[l1 + l2];</span>
+<span class="fc" id="L221">        System.arraycopy(v1.data, 0, data, 0, l1);</span>
+<span class="fc" id="L222">        System.arraycopy(v2, 0, data, l1, l2);</span>
+<span class="fc" id="L223">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L230">    public ArrayRealVector(double[] v1, ArrayRealVector v2) {</span>
+<span class="fc" id="L231">        final int l1 = v1.length;</span>
+<span class="fc" id="L232">        final int l2 = v2.getDimension();</span>
+<span class="fc" id="L233">        data = new double[l1 + l2];</span>
+<span class="fc" id="L234">        System.arraycopy(v1, 0, data, 0, l1);</span>
+<span class="fc" id="L235">        System.arraycopy(v2.data, 0, data, l1, l2);</span>
+<span class="fc" id="L236">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L243">    public ArrayRealVector(double[] v1, double[] v2) {</span>
+<span class="fc" id="L244">        final int l1 = v1.length;</span>
+<span class="fc" id="L245">        final int l2 = v2.length;</span>
+<span class="fc" id="L246">        data = new double[l1 + l2];</span>
+<span class="fc" id="L247">        System.arraycopy(v1, 0, data, 0, l1);</span>
+<span class="fc" id="L248">        System.arraycopy(v2, 0, data, l1, l2);</span>
+<span class="fc" id="L249">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public AbstractRealVector copy() {
+<span class="fc" id="L254">        return new ArrayRealVector(this, true);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector add(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L261" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L262">            return add((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L264">            checkVectorDimensions(v);</span>
+<span class="fc" id="L265">            double[] out = data.clone();</span>
+<span class="fc" id="L266">            Iterator&lt;Entry&gt; it = v.sparseIterator();</span>
+            Entry e;
+<span class="pc bpc" id="L268" title="1 of 4 branches missed.">            while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L269">                out[e.getIndex()] += e.getValue();</span>
+            }
+<span class="fc" id="L271">            return new ArrayRealVector(out, false);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector add(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L279">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L280">        double[] out = data.clone();</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L282">            out[i] += v[i];</span>
+        }
+<span class="fc" id="L284">        return new ArrayRealVector(out, false);</span>
+    }
+
+    /**
+     * Compute the sum of this and v.
+     * @param v vector to be added
+     * @return this + v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayRealVector add(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L295">        return (ArrayRealVector) add(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector subtract(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L302" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L303">            return subtract((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L305">            checkVectorDimensions(v);</span>
+<span class="fc" id="L306">            double[] out = data.clone();</span>
+<span class="fc" id="L307">            Iterator&lt;Entry&gt; it = v.sparseIterator();</span>
+            Entry e;
+<span class="pc bpc" id="L309" title="1 of 4 branches missed.">            while(it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L310">                out[e.getIndex()] -= e.getValue();</span>
+            }
+<span class="fc" id="L312">            return new ArrayRealVector(out, false);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector subtract(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L320">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L321">        double[] out = data.clone();</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L323">            out[i] -= v[i];</span>
+        }
+<span class="fc" id="L325">        return new ArrayRealVector(out, false);</span>
+    }
+
+    /**
+     * Compute this minus v.
+     * @param v vector to be subtracted
+     * @return this + v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayRealVector subtract(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L336">        return (ArrayRealVector) subtract(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapAddToSelf(double d) {
+<span class="fc bfc" id="L342" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L343">            data[i] = data[i] + d;</span>
+        }
+<span class="fc" id="L345">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapSubtractToSelf(double d) {
+<span class="fc bfc" id="L351" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L352">            data[i] = data[i] - d;</span>
+        }
+<span class="fc" id="L354">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapMultiplyToSelf(double d) {
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L361">            data[i] = data[i] * d;</span>
+        }
+<span class="fc" id="L363">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapDivideToSelf(double d) {
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L370">            data[i] = data[i] / d;</span>
+        }
+<span class="fc" id="L372">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapPowToSelf(double d) {
+<span class="fc bfc" id="L378" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L379">            data[i] = FastMath.pow(data[i], d);</span>
+        }
+<span class="fc" id="L381">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapExpToSelf() {
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L388">            data[i] = FastMath.exp(data[i]);</span>
+        }
+<span class="fc" id="L390">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapExpm1ToSelf() {
+<span class="fc bfc" id="L396" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L397">            data[i] = FastMath.expm1(data[i]);</span>
+        }
+<span class="fc" id="L399">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapLogToSelf() {
+<span class="fc bfc" id="L405" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L406">            data[i] = FastMath.log(data[i]);</span>
+        }
+<span class="fc" id="L408">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapLog10ToSelf() {
+<span class="fc bfc" id="L414" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L415">            data[i] = FastMath.log10(data[i]);</span>
+        }
+<span class="fc" id="L417">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapLog1pToSelf() {
+<span class="fc bfc" id="L423" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L424">            data[i] = FastMath.log1p(data[i]);</span>
+        }
+<span class="fc" id="L426">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapCoshToSelf() {
+<span class="fc bfc" id="L432" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L433">            data[i] = FastMath.cosh(data[i]);</span>
+        }
+<span class="fc" id="L435">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapSinhToSelf() {
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L442">            data[i] = FastMath.sinh(data[i]);</span>
+        }
+<span class="fc" id="L444">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapTanhToSelf() {
+<span class="fc bfc" id="L450" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L451">            data[i] = FastMath.tanh(data[i]);</span>
+        }
+<span class="fc" id="L453">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapCosToSelf() {
+<span class="fc bfc" id="L459" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L460">            data[i] = FastMath.cos(data[i]);</span>
+        }
+<span class="fc" id="L462">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapSinToSelf() {
+<span class="fc bfc" id="L468" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L469">            data[i] = FastMath.sin(data[i]);</span>
+        }
+<span class="fc" id="L471">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapTanToSelf() {
+<span class="fc bfc" id="L477" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L478">            data[i] = FastMath.tan(data[i]);</span>
+        }
+<span class="fc" id="L480">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapAcosToSelf() {
+<span class="fc bfc" id="L486" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L487">            data[i] = FastMath.acos(data[i]);</span>
+        }
+<span class="fc" id="L489">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapAsinToSelf() {
+<span class="fc bfc" id="L495" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L496">            data[i] = FastMath.asin(data[i]);</span>
+        }
+<span class="fc" id="L498">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapAtanToSelf() {
+<span class="fc bfc" id="L504" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L505">            data[i] = FastMath.atan(data[i]);</span>
+        }
+<span class="fc" id="L507">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapInvToSelf() {
+<span class="fc bfc" id="L513" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L514">            data[i] = 1.0 / data[i];</span>
+        }
+<span class="fc" id="L516">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapAbsToSelf() {
+<span class="fc bfc" id="L522" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L523">            data[i] = FastMath.abs(data[i]);</span>
+        }
+<span class="fc" id="L525">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapSqrtToSelf() {
+<span class="fc bfc" id="L531" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L532">            data[i] = FastMath.sqrt(data[i]);</span>
+        }
+<span class="fc" id="L534">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapCbrtToSelf() {
+<span class="fc bfc" id="L540" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L541">            data[i] = FastMath.cbrt(data[i]);</span>
+        }
+<span class="fc" id="L543">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapCeilToSelf() {
+<span class="fc bfc" id="L549" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L550">            data[i] = FastMath.ceil(data[i]);</span>
+        }
+<span class="fc" id="L552">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapFloorToSelf() {
+<span class="fc bfc" id="L558" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L559">            data[i] = FastMath.floor(data[i]);</span>
+        }
+<span class="fc" id="L561">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapRintToSelf() {
+<span class="fc bfc" id="L567" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L568">            data[i] = FastMath.rint(data[i]);</span>
+        }
+<span class="fc" id="L570">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapSignumToSelf() {
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L577">            data[i] = FastMath.signum(data[i]);</span>
+        }
+<span class="fc" id="L579">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector mapUlpToSelf() {
+<span class="fc bfc" id="L585" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L586">            data[i] = FastMath.ulp(data[i]);</span>
+        }
+<span class="fc" id="L588">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector ebeMultiply(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L594" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L595">            return ebeMultiply((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L597">            checkVectorDimensions(v);</span>
+<span class="fc" id="L598">            double[] out = data.clone();</span>
+<span class="fc bfc" id="L599" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L600">                out[i] *= v.getEntry(i);</span>
+            }
+<span class="fc" id="L602">            return new ArrayRealVector(out, false);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector ebeMultiply(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L610">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L611">        double[] out = data.clone();</span>
+<span class="fc bfc" id="L612" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L613">            out[i] *= v[i];</span>
+        }
+<span class="fc" id="L615">        return new ArrayRealVector(out, false);</span>
+    }
+
+    /**
+     * Element-by-element multiplication.
+     * @param v vector by which instance elements must be multiplied
+     * @return a vector containing this[i] * v[i] for all i
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayRealVector ebeMultiply(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L626">        return (ArrayRealVector) ebeMultiply(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector ebeDivide(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L632" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L633">            return ebeDivide((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L635">            checkVectorDimensions(v);</span>
+<span class="fc" id="L636">            double[] out = data.clone();</span>
+<span class="fc bfc" id="L637" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L638">                out[i] /= v.getEntry(i);</span>
+            }
+<span class="fc" id="L640">            return new ArrayRealVector(out, false);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector ebeDivide(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L648">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L649">        double[] out = data.clone();</span>
+<span class="fc bfc" id="L650" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L651">                out[i] /= v[i];</span>
+        }
+<span class="fc" id="L653">        return new ArrayRealVector(out, false);</span>
+    }
+
+    /**
+     * Element-by-element division.
+     * @param v vector by which instance elements must be divided
+     * @return a vector containing this[i] / v[i] for all i
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayRealVector ebeDivide(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L664">        return (ArrayRealVector) ebeDivide(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double[] getData() {
+<span class="fc" id="L670">        return data.clone();</span>
+    }
+
+    /**
+     * Returns a reference to the underlying data array.
+     * &lt;p&gt;Does not make a fresh copy of the underlying data.&lt;/p&gt;
+     * @return array of entries
+     */
+    public double[] getDataRef() {
+<span class="fc" id="L679">        return data;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double dotProduct(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L686" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L687">            return dotProduct((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L689">            checkVectorDimensions(v);</span>
+<span class="fc" id="L690">            double dot = 0;</span>
+<span class="fc" id="L691">            Iterator&lt;Entry&gt; it = v.sparseIterator();</span>
+            Entry e;
+<span class="pc bpc" id="L693" title="1 of 4 branches missed.">            while(it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L694">                dot += data[e.getIndex()] * e.getValue();</span>
+            }
+<span class="fc" id="L696">            return dot;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double dotProduct(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L704">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L705">        double dot = 0;</span>
+<span class="fc bfc" id="L706" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L707">            dot += data[i] * v[i];</span>
+        }
+<span class="fc" id="L709">        return dot;</span>
+    }
+
+    /**
+     * Compute the dot product.
+     * @param v vector with which dot product should be computed
+     * @return the scalar dot product between instance and v
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public double dotProduct(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L720">        return dotProduct(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getNorm() {
+<span class="fc" id="L726">        double sum = 0;</span>
+<span class="fc bfc" id="L727" title="All 2 branches covered.">        for (double a : data) {</span>
+<span class="fc" id="L728">            sum += a * a;</span>
+        }
+<span class="fc" id="L730">        return FastMath.sqrt(sum);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getL1Norm() {
+<span class="fc" id="L736">        double sum = 0;</span>
+<span class="fc bfc" id="L737" title="All 2 branches covered.">        for (double a : data) {</span>
+<span class="fc" id="L738">            sum += FastMath.abs(a);</span>
+        }
+<span class="fc" id="L740">        return sum;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getLInfNorm() {
+<span class="fc" id="L746">        double max = 0;</span>
+<span class="fc bfc" id="L747" title="All 2 branches covered.">        for (double a : data) {</span>
+<span class="fc" id="L748">            max = FastMath.max(max, FastMath.abs(a));</span>
+        }
+<span class="fc" id="L750">        return max;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getDistance(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L757" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L758">            return getDistance((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L760">            checkVectorDimensions(v);</span>
+<span class="fc" id="L761">            double sum = 0;</span>
+<span class="fc bfc" id="L762" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L763">                final double delta = data[i] - v.getEntry(i);</span>
+<span class="fc" id="L764">                sum += delta * delta;</span>
+            }
+<span class="fc" id="L766">            return FastMath.sqrt(sum);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getDistance(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L774">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L775">        double sum = 0;</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L777">            final double delta = data[i] - v[i];</span>
+<span class="fc" id="L778">            sum += delta * delta;</span>
+        }
+<span class="fc" id="L780">        return FastMath.sqrt(sum);</span>
+    }
+
+   /**
+     * Distance between two vectors.
+     * &lt;p&gt;This method computes the distance consistent with the
+     * L&lt;sub&gt;2&lt;/sub&gt; norm, i.e. the square root of the sum of
+     * elements differences, or euclidian distance.&lt;/p&gt;
+     * @param v vector to which distance is requested
+     * @return distance between two vectors.
+     * @exception IllegalArgumentException if v is not the same size as this
+     * @see #getDistance(RealVector)
+     * @see #getL1Distance(ArrayRealVector)
+     * @see #getLInfDistance(ArrayRealVector)
+     * @see #getNorm()
+     */
+    public double getDistance(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L798">        return getDistance(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getL1Distance(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L805" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L806">            return getL1Distance((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L808">            checkVectorDimensions(v);</span>
+<span class="fc" id="L809">            double sum = 0;</span>
+<span class="fc bfc" id="L810" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L811">                final double delta = data[i] - v.getEntry(i);</span>
+<span class="fc" id="L812">                sum += FastMath.abs(delta);</span>
+            }
+<span class="fc" id="L814">            return sum;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getL1Distance(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L822">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L823">        double sum = 0;</span>
+<span class="fc bfc" id="L824" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L825">            final double delta = data[i] - v[i];</span>
+<span class="fc" id="L826">            sum += FastMath.abs(delta);</span>
+        }
+<span class="fc" id="L828">        return sum;</span>
+    }
+
+    /**
+     * Distance between two vectors.
+     * &lt;p&gt;This method computes the distance consistent with
+     * L&lt;sub&gt;1&lt;/sub&gt; norm, i.e. the sum of the absolute values of
+     * elements differences.&lt;/p&gt;
+     * @param v vector to which distance is requested
+     * @return distance between two vectors.
+     * @exception IllegalArgumentException if v is not the same size as this
+     * @see #getDistance(RealVector)
+     * @see #getL1Distance(ArrayRealVector)
+     * @see #getLInfDistance(ArrayRealVector)
+     * @see #getNorm()
+     */
+    public double getL1Distance(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L846">        return getL1Distance(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getLInfDistance(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L853" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L854">            return getLInfDistance((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L856">            checkVectorDimensions(v);</span>
+<span class="fc" id="L857">            double max = 0;</span>
+<span class="fc bfc" id="L858" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L859">                final double delta = data[i] - v.getEntry(i);</span>
+<span class="fc" id="L860">                max = FastMath.max(max, FastMath.abs(delta));</span>
+            }
+<span class="fc" id="L862">            return max;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double getLInfDistance(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L870">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L871">        double max = 0;</span>
+<span class="fc bfc" id="L872" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L873">            final double delta = data[i] - v[i];</span>
+<span class="fc" id="L874">            max = FastMath.max(max, FastMath.abs(delta));</span>
+        }
+<span class="fc" id="L876">        return max;</span>
+    }
+
+    /**
+     * Distance between two vectors.
+     * &lt;p&gt;This method computes the distance consistent with
+     * L&lt;sub&gt;&amp;infin;&lt;/sub&gt; norm, i.e. the max of the absolute values of
+     * elements differences.&lt;/p&gt;
+     * @param v vector to which distance is requested
+     * @return distance between two vectors.
+     * @exception IllegalArgumentException if v is not the same size as this
+     * @see #getDistance(RealVector)
+     * @see #getL1Distance(ArrayRealVector)
+     * @see #getLInfDistance(ArrayRealVector)
+     * @see #getNorm()
+     */
+    public double getLInfDistance(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L894">        return getLInfDistance(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector unitVector() throws ArithmeticException {
+<span class="fc" id="L900">        final double norm = getNorm();</span>
+<span class="fc bfc" id="L901" title="All 2 branches covered.">        if (norm == 0) {</span>
+<span class="fc" id="L902">            throw MathRuntimeException.createArithmeticException(LocalizedFormats.ZERO_NORM);</span>
+        }
+<span class="fc" id="L904">        return mapDivide(norm);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void unitize() throws ArithmeticException {
+<span class="fc" id="L910">        final double norm = getNorm();</span>
+<span class="fc bfc" id="L911" title="All 2 branches covered.">        if (norm == 0) {</span>
+<span class="fc" id="L912">            throw MathRuntimeException.createArithmeticException(LocalizedFormats.CANNOT_NORMALIZE_A_ZERO_NORM_VECTOR);</span>
+        }
+<span class="fc" id="L914">        mapDivideToSelf(norm);</span>
+<span class="fc" id="L915">    }</span>
+
+    /** {@inheritDoc} */
+    public RealVector projection(RealVector v) {
+<span class="fc" id="L919">        return v.mapMultiply(dotProduct(v) / v.dotProduct(v));</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealVector projection(double[] v) {
+<span class="fc" id="L925">        return projection(new ArrayRealVector(v, false));</span>
+    }
+
+   /** Find the orthogonal projection of this vector onto another vector.
+     * @param v vector onto which instance must be projected
+     * @return projection of the instance onto v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayRealVector projection(ArrayRealVector v) {
+<span class="fc" id="L934">        return (ArrayRealVector) v.mapMultiply(dotProduct(v) / v.dotProduct(v));</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealMatrix outerProduct(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L941" title="All 2 branches covered.">        if (v instanceof ArrayRealVector) {</span>
+<span class="fc" id="L942">            return outerProduct((ArrayRealVector) v);</span>
+        } else {
+<span class="fc" id="L944">            checkVectorDimensions(v);</span>
+<span class="fc" id="L945">            final int m = data.length;</span>
+<span class="fc" id="L946">            final RealMatrix out = MatrixUtils.createRealMatrix(m, m);</span>
+<span class="fc bfc" id="L947" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc bfc" id="L948" title="All 2 branches covered.">                for (int j = 0; j &lt; data.length; j++) {</span>
+<span class="fc" id="L949">                    out.setEntry(i, j, data[i] * v.getEntry(j));</span>
+                }
+            }
+<span class="fc" id="L952">            return out;</span>
+        }
+    }
+
+    /**
+     * Compute the outer product.
+     * @param v vector with which outer product should be computed
+     * @return the square matrix outer product between instance and v
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public RealMatrix outerProduct(ArrayRealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L964">        return outerProduct(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public RealMatrix outerProduct(double[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L971">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L972">        final int m = data.length;</span>
+<span class="fc" id="L973">        final RealMatrix out = MatrixUtils.createRealMatrix(m, m);</span>
+<span class="fc bfc" id="L974" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc bfc" id="L975" title="All 2 branches covered.">            for (int j = 0; j &lt; data.length; j++) {</span>
+<span class="fc" id="L976">                out.setEntry(i, j, data[i] * v[j]);</span>
+            }
+        }
+<span class="fc" id="L979">        return out;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getEntry(int index) throws MatrixIndexException {
+<span class="fc" id="L984">        return data[index];</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getDimension() {
+<span class="fc" id="L989">        return data.length;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector append(RealVector v) {
+        try {
+<span class="fc" id="L995">            return new ArrayRealVector(this, (ArrayRealVector) v);</span>
+<span class="fc" id="L996">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L997">            return new ArrayRealVector(this, v);</span>
+        }
+    }
+
+    /**
+     * Construct a vector by appending a vector to this vector.
+     * @param v vector to append to this one.
+     * @return a new vector
+     */
+    public ArrayRealVector append(ArrayRealVector v) {
+<span class="fc" id="L1007">        return new ArrayRealVector(this, v);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector append(double in) {
+<span class="fc" id="L1012">        final double[] out = new double[data.length + 1];</span>
+<span class="fc" id="L1013">        System.arraycopy(data, 0, out, 0, data.length);</span>
+<span class="fc" id="L1014">        out[data.length] = in;</span>
+<span class="fc" id="L1015">        return new ArrayRealVector(out, false);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector append(double[] in) {
+<span class="fc" id="L1020">        return new ArrayRealVector(this, in);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector getSubVector(int index, int n) {
+<span class="fc" id="L1025">        ArrayRealVector out = new ArrayRealVector(n);</span>
+        try {
+<span class="fc" id="L1027">            System.arraycopy(data, index, out.data, 0, n);</span>
+<span class="fc" id="L1028">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L1029">            checkIndex(index);</span>
+<span class="nc" id="L1030">            checkIndex(index + n - 1);</span>
+<span class="fc" id="L1031">        }</span>
+<span class="fc" id="L1032">        return out;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setEntry(int index, double value) {
+        try {
+<span class="fc" id="L1038">            data[index] = value;</span>
+<span class="fc" id="L1039">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="nc" id="L1040">            checkIndex(index);</span>
+<span class="fc" id="L1041">        }</span>
+<span class="fc" id="L1042">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public void setSubVector(int index, RealVector v) {
+        try {
+            try {
+<span class="nc" id="L1049">                set(index, (ArrayRealVector) v);</span>
+<span class="fc" id="L1050">            } catch (ClassCastException cce) {</span>
+<span class="fc bfc" id="L1051" title="All 2 branches covered.">                for (int i = index; i &lt; index + v.getDimension(); ++i) {</span>
+<span class="fc" id="L1052">                    data[i] = v.getEntry(i-index);</span>
+                }
+<span class="nc" id="L1054">            }</span>
+<span class="fc" id="L1055">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L1056">            checkIndex(index);</span>
+<span class="nc" id="L1057">            checkIndex(index + v.getDimension() - 1);</span>
+<span class="fc" id="L1058">        }</span>
+<span class="fc" id="L1059">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public void setSubVector(int index, double[] v) {
+        try {
+<span class="fc" id="L1065">            System.arraycopy(v, 0, data, index, v.length);</span>
+<span class="fc" id="L1066">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L1067">            checkIndex(index);</span>
+<span class="nc" id="L1068">            checkIndex(index + v.length - 1);</span>
+<span class="fc" id="L1069">        }</span>
+<span class="fc" id="L1070">    }</span>
+
+    /**
+     * Set a set of consecutive elements.
+     *
+     * @param index index of first element to be set.
+     * @param v vector containing the values to set.
+     * @exception MatrixIndexException if the index is
+     * inconsistent with vector size
+     */
+    public void set(int index, ArrayRealVector v)
+        throws MatrixIndexException {
+<span class="fc" id="L1082">        setSubVector(index, v.data);</span>
+<span class="fc" id="L1083">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public void set(double value) {
+<span class="fc" id="L1088">        Arrays.fill(data, value);</span>
+<span class="fc" id="L1089">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public double[] toArray(){
+<span class="fc" id="L1094">        return data.clone();</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String toString(){
+<span class="fc" id="L1100">        return DEFAULT_FORMAT.format(this);</span>
+    }
+
+    /**
+     * Check if instance and specified vectors have the same dimension.
+     * @param v vector to compare instance with
+     * @exception IllegalArgumentException if the vectors do not
+     * have the same dimension
+     */
+    @Override
+    protected void checkVectorDimensions(RealVector v)
+        throws IllegalArgumentException {
+<span class="fc" id="L1112">        checkVectorDimensions(v.getDimension());</span>
+<span class="fc" id="L1113">    }</span>
+
+    /**
+     * Check if instance dimension is equal to some expected value.
+     *
+     * @param n expected dimension.
+     * @exception IllegalArgumentException if the dimension is
+     * inconsistent with vector size
+     */
+    @Override
+    protected void checkVectorDimensions(int n)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L1125" title="All 2 branches covered.">        if (data.length != n) {</span>
+<span class="fc" id="L1126">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L1128">                    data.length, n);</span>
+        }
+<span class="fc" id="L1130">    }</span>
+
+    /**
+     * Returns true if any coordinate of this vector is NaN; false otherwise
+     * @return  true if any coordinate of this vector is NaN; false otherwise
+     */
+    public boolean isNaN() {
+<span class="fc bfc" id="L1137" title="All 2 branches covered.">        for (double v : data) {</span>
+<span class="fc bfc" id="L1138" title="All 2 branches covered.">            if (Double.isNaN(v)) {</span>
+<span class="fc" id="L1139">                return true;</span>
+            }
+        }
+<span class="fc" id="L1142">        return false;</span>
+    }
+
+    /**
+     * Returns true if any coordinate of this vector is infinite and none are NaN;
+     * false otherwise
+     * @return  true if any coordinate of this vector is infinite and none are NaN;
+     * false otherwise
+     */
+    public boolean isInfinite() {
+
+<span class="fc bfc" id="L1153" title="All 2 branches covered.">        if (isNaN()) {</span>
+<span class="fc" id="L1154">            return false;</span>
+        }
+
+<span class="fc bfc" id="L1157" title="All 2 branches covered.">        for (double v : data) {</span>
+<span class="fc bfc" id="L1158" title="All 2 branches covered.">            if (Double.isInfinite(v)) {</span>
+<span class="fc" id="L1159">                return true;</span>
+            }
+        }
+
+<span class="fc" id="L1163">        return false;</span>
+
+    }
+
+    /**
+     * Test for the equality of two real vectors.
+     * &lt;p&gt;
+     * If all coordinates of two real vectors are exactly the same, and none are
+     * &lt;code&gt;Double.NaN&lt;/code&gt;, the two real vectors are considered to be equal.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;code&gt;NaN&lt;/code&gt; coordinates are considered to affect globally the vector
+     * and be equals to each other - i.e, if either (or all) coordinates of the
+     * real vector are equal to &lt;code&gt;Double.NaN&lt;/code&gt;, the real vector is equal to
+     * a vector with all &lt;code&gt;Double.NaN&lt;/code&gt; coordinates.
+     * &lt;/p&gt;
+     *
+     * @param other Object to test for equality to this
+     * @return true if two vector objects are equal, false if
+     *         object is null, not an instance of RealVector, or
+     *         not equal to this RealVector instance
+     *
+     */
+    @Override
+    public boolean equals(Object other) {
+
+<span class="fc bfc" id="L1189" title="All 2 branches covered.">      if (this == other) {</span>
+<span class="fc" id="L1190">        return true;</span>
+      }
+
+<span class="fc bfc" id="L1193" title="All 4 branches covered.">      if (other == null || !(other instanceof RealVector)) {</span>
+<span class="fc" id="L1194">        return false;</span>
+      }
+
+
+<span class="fc" id="L1198">      RealVector rhs = (RealVector) other;</span>
+<span class="fc bfc" id="L1199" title="All 2 branches covered.">      if (data.length != rhs.getDimension()) {</span>
+<span class="fc" id="L1200">        return false;</span>
+      }
+
+<span class="fc bfc" id="L1203" title="All 2 branches covered.">      if (rhs.isNaN()) {</span>
+<span class="fc" id="L1204">        return this.isNaN();</span>
+      }
+
+<span class="fc bfc" id="L1207" title="All 2 branches covered.">      for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc bfc" id="L1208" title="All 2 branches covered.">        if (data[i] != rhs.getEntry(i)) {</span>
+<span class="fc" id="L1209">          return false;</span>
+        }
+      }
+<span class="fc" id="L1212">      return true;</span>
+    }
+
+    /**
+     * Get a hashCode for the real vector.
+     * &lt;p&gt;All NaN values have the same hash code.&lt;/p&gt;
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode() {
+<span class="fc bfc" id="L1222" title="All 2 branches covered.">        if (isNaN()) {</span>
+<span class="fc" id="L1223">            return 9;</span>
+        }
+<span class="fc" id="L1225">        return MathUtils.hash(data);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

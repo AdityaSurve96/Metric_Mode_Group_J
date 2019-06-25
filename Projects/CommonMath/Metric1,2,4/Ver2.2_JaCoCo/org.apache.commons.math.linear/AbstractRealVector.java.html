@@ -1,0 +1,933 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractRealVector.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">AbstractRealVector.java</span></div><h1>AbstractRealVector.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.exception.MathUnsupportedOperationException;
+import org.apache.commons.math.exception.DimensionMismatchException;
+import org.apache.commons.math.analysis.BinaryFunction;
+import org.apache.commons.math.analysis.ComposableFunction;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * This class provides default basic implementations for many methods in the
+ * {@link RealVector} interface.
+ * @version $Revision$ $Date$
+ * @since 2.1
+ */
+<span class="fc" id="L38">public abstract class AbstractRealVector implements RealVector {</span>
+
+    /**
+     * Check if instance and specified vectors have the same dimension.
+     * @param v vector to compare instance with
+     * @exception DimensionMismatchException if the vectors do not
+     * have the same dimension
+     */
+    protected void checkVectorDimensions(RealVector v) {
+<span class="fc" id="L47">        checkVectorDimensions(v.getDimension());</span>
+<span class="fc" id="L48">    }</span>
+
+    /**
+     * Check if instance dimension is equal to some expected value.
+     *
+     * @param n expected dimension.
+     * @exception DimensionMismatchException if the dimension is
+     * inconsistent with vector size
+     */
+    protected void checkVectorDimensions(int n)
+        throws DimensionMismatchException {
+<span class="fc" id="L59">        int d = getDimension();</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        if (d != n) {</span>
+<span class="fc" id="L61">            throw new DimensionMismatchException(d, n);</span>
+        }
+<span class="fc" id="L63">    }</span>
+
+    /**
+     * Check if an index is valid.
+     * @param index index to check
+     * @exception MatrixIndexException if index is not valid
+     */
+    protected void checkIndex(final int index)
+        throws MatrixIndexException {
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">        if (index &lt; 0 || index &gt;= getDimension()) {</span>
+<span class="fc" id="L73">            throw new MatrixIndexException(LocalizedFormats.INDEX_OUT_OF_RANGE,</span>
+<span class="fc" id="L74">                                           index, 0, getDimension() - 1);</span>
+        }
+<span class="fc" id="L76">    }</span>
+
+    /** {@inheritDoc} */
+    public void setSubVector(int index, RealVector v) throws MatrixIndexException {
+<span class="nc" id="L80">        checkIndex(index);</span>
+<span class="nc" id="L81">        checkIndex(index + v.getDimension() - 1);</span>
+<span class="nc" id="L82">        setSubVector(index, v.getData());</span>
+<span class="nc" id="L83">    }</span>
+
+    /** {@inheritDoc} */
+    public void setSubVector(int index, double[] v) throws MatrixIndexException {
+<span class="nc" id="L87">        checkIndex(index);</span>
+<span class="nc" id="L88">        checkIndex(index + v.length - 1);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for (int i = 0; i &lt; v.length; i++) {</span>
+<span class="nc" id="L90">            setEntry(i + index, v[i]);</span>
+        }
+<span class="nc" id="L92">    }</span>
+
+    /** {@inheritDoc} */
+    public RealVector add(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L96">        double[] result = v.clone();</span>
+<span class="nc" id="L97">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="nc bnc" id="L99" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L100">            result[e.getIndex()] += e.getValue();</span>
+        }
+<span class="nc" id="L102">        return new ArrayRealVector(result, false);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector add(RealVector v) throws IllegalArgumentException {
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (v instanceof ArrayRealVector) {</span>
+<span class="nc" id="L108">            double[] values = ((ArrayRealVector)v).getDataRef();</span>
+<span class="nc" id="L109">            return add(values);</span>
+        }
+<span class="fc" id="L111">        RealVector result = v.copy();</span>
+<span class="fc" id="L112">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="pc bpc" id="L114" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L115">            final int index = e.getIndex();</span>
+<span class="fc" id="L116">            result.setEntry(index, e.getValue() + result.getEntry(index));</span>
+<span class="fc" id="L117">        }</span>
+<span class="fc" id="L118">        return result;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector subtract(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L123">        double[] result = v.clone();</span>
+<span class="nc" id="L124">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="nc bnc" id="L126" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L127">            final int index = e.getIndex();</span>
+<span class="nc" id="L128">            result[index] = e.getValue() - result[index];</span>
+<span class="nc" id="L129">        }</span>
+<span class="nc" id="L130">        return new ArrayRealVector(result, false);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector subtract(RealVector v) throws IllegalArgumentException {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        if (v instanceof ArrayRealVector) {</span>
+<span class="nc" id="L136">            double[] values = ((ArrayRealVector)v).getDataRef();</span>
+<span class="nc" id="L137">            return add(values);</span>
+        }
+<span class="nc" id="L139">        RealVector result = v.copy();</span>
+<span class="nc" id="L140">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="nc bnc" id="L142" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L143">            final int index = e.getIndex();</span>
+<span class="nc" id="L144">            v.setEntry(index, e.getValue() - result.getEntry(index));</span>
+<span class="nc" id="L145">        }</span>
+<span class="nc" id="L146">        return result;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAdd(double d) {
+<span class="fc" id="L151">        return copy().mapAddToSelf(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAddToSelf(double d) {
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (d != 0) {</span>
+            try {
+<span class="nc" id="L158">                return mapToSelf(BinaryFunction.ADD.fix1stArgument(d));</span>
+<span class="nc" id="L159">            } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L160">                throw new IllegalArgumentException(e);</span>
+            }
+        }
+<span class="nc" id="L163">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public abstract AbstractRealVector copy();
+
+    /** {@inheritDoc} */
+    public double dotProduct(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L171">        return dotProduct(new ArrayRealVector(v, false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public double dotProduct(RealVector v) throws IllegalArgumentException {
+<span class="fc" id="L176">        checkVectorDimensions(v);</span>
+<span class="fc" id="L177">        double d = 0;</span>
+<span class="fc" id="L178">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="pc bpc" id="L180" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L181">            d += e.getValue() * v.getEntry(e.getIndex());</span>
+        }
+<span class="fc" id="L183">        return d;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector ebeDivide(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L188">        return ebeDivide(new ArrayRealVector(v, false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector ebeMultiply(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L193">        return ebeMultiply(new ArrayRealVector(v, false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getDistance(RealVector v) throws IllegalArgumentException {
+<span class="nc" id="L198">        checkVectorDimensions(v);</span>
+<span class="nc" id="L199">        double d = 0;</span>
+<span class="nc" id="L200">        Iterator&lt;Entry&gt; it = iterator();</span>
+        Entry e;
+<span class="nc bnc" id="L202" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L203">            final double diff = e.getValue() - v.getEntry(e.getIndex());</span>
+<span class="nc" id="L204">            d += diff * diff;</span>
+<span class="nc" id="L205">        }</span>
+<span class="nc" id="L206">        return FastMath.sqrt(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getNorm() {
+<span class="fc" id="L211">        double sum = 0;</span>
+<span class="fc" id="L212">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="pc bpc" id="L214" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L215">            final double value = e.getValue();</span>
+<span class="fc" id="L216">            sum += value * value;</span>
+<span class="fc" id="L217">        }</span>
+<span class="fc" id="L218">        return FastMath.sqrt(sum);</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getL1Norm() {
+<span class="fc" id="L223">        double norm = 0;</span>
+<span class="fc" id="L224">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="pc bpc" id="L226" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L227">            norm += FastMath.abs(e.getValue());</span>
+        }
+<span class="fc" id="L229">        return norm;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getLInfNorm() {
+<span class="fc" id="L234">        double norm = 0;</span>
+<span class="fc" id="L235">        Iterator&lt;Entry&gt; it = sparseIterator();</span>
+        Entry e;
+<span class="pc bpc" id="L237" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L238">            norm = FastMath.max(norm, FastMath.abs(e.getValue()));</span>
+        }
+<span class="fc" id="L240">        return norm;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getDistance(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L245">        return getDistance(new ArrayRealVector(v,false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getL1Distance(RealVector v) throws IllegalArgumentException {
+<span class="nc" id="L250">        checkVectorDimensions(v);</span>
+<span class="nc" id="L251">        double d = 0;</span>
+<span class="nc" id="L252">        Iterator&lt;Entry&gt; it = iterator();</span>
+        Entry e;
+<span class="nc bnc" id="L254" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L255">            d += FastMath.abs(e.getValue() - v.getEntry(e.getIndex()));</span>
+        }
+<span class="nc" id="L257">        return d;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getL1Distance(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L262">        checkVectorDimensions(v.length);</span>
+<span class="nc" id="L263">        double d = 0;</span>
+<span class="nc" id="L264">        Iterator&lt;Entry&gt; it = iterator();</span>
+        Entry e;
+<span class="nc bnc" id="L266" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L267">            d += FastMath.abs(e.getValue() - v[e.getIndex()]);</span>
+        }
+<span class="nc" id="L269">        return d;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getLInfDistance(RealVector v) throws IllegalArgumentException {
+<span class="nc" id="L274">        checkVectorDimensions(v);</span>
+<span class="nc" id="L275">        double d = 0;</span>
+<span class="nc" id="L276">        Iterator&lt;Entry&gt; it = iterator();</span>
+        Entry e;
+<span class="nc bnc" id="L278" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L279">            d = FastMath.max(FastMath.abs(e.getValue() - v.getEntry(e.getIndex())), d);</span>
+        }
+<span class="nc" id="L281">        return d;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getLInfDistance(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L286">        checkVectorDimensions(v.length);</span>
+<span class="nc" id="L287">        double d = 0;</span>
+<span class="nc" id="L288">        Iterator&lt;Entry&gt; it = iterator();</span>
+        Entry e;
+<span class="nc bnc" id="L290" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L291">            d = FastMath.max(FastMath.abs(e.getValue() - v[e.getIndex()]), d);</span>
+        }
+<span class="nc" id="L293">        return d;</span>
+    }
+
+    /** Get the index of the minimum entry.
+     * @return index of the minimum entry or -1 if vector length is 0
+     * or all entries are NaN
+     */
+    public int getMinIndex() {
+<span class="fc" id="L301">        int minIndex    = -1;</span>
+<span class="fc" id="L302">        double minValue = Double.POSITIVE_INFINITY;</span>
+<span class="fc" id="L303">        Iterator&lt;Entry&gt; iterator = iterator();</span>
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        while (iterator.hasNext()) {</span>
+<span class="fc" id="L305">            final Entry entry = iterator.next();</span>
+<span class="fc bfc" id="L306" title="All 2 branches covered.">            if (entry.getValue() &lt;= minValue) {</span>
+<span class="fc" id="L307">                minIndex = entry.getIndex();</span>
+<span class="fc" id="L308">                minValue = entry.getValue();</span>
+            }
+<span class="fc" id="L310">        }</span>
+<span class="fc" id="L311">        return minIndex;</span>
+    }
+
+    /** Get the value of the minimum entry.
+     * @return value of the minimum entry or NaN if all entries are NaN
+     */
+    public double getMinValue() {
+<span class="fc" id="L318">        final int minIndex = getMinIndex();</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        return minIndex &lt; 0 ? Double.NaN : getEntry(minIndex);</span>
+    }
+
+    /** Get the index of the maximum entry.
+     * @return index of the maximum entry or -1 if vector length is 0
+     * or all entries are NaN
+     */
+    public int getMaxIndex() {
+<span class="fc" id="L327">        int maxIndex    = -1;</span>
+<span class="fc" id="L328">        double maxValue = Double.NEGATIVE_INFINITY;</span>
+<span class="fc" id="L329">        Iterator&lt;Entry&gt; iterator = iterator();</span>
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        while (iterator.hasNext()) {</span>
+<span class="fc" id="L331">            final Entry entry = iterator.next();</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">            if (entry.getValue() &gt;= maxValue) {</span>
+<span class="fc" id="L333">                maxIndex = entry.getIndex();</span>
+<span class="fc" id="L334">                maxValue = entry.getValue();</span>
+            }
+<span class="fc" id="L336">        }</span>
+<span class="fc" id="L337">        return maxIndex;</span>
+    }
+
+    /** Get the value of the maximum entry.
+     * @return value of the maximum entry or NaN if all entries are NaN
+     */
+    public double getMaxValue() {
+<span class="fc" id="L344">        final int maxIndex = getMaxIndex();</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">        return maxIndex &lt; 0 ? Double.NaN : getEntry(maxIndex);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAbs() {
+<span class="fc" id="L350">        return copy().mapAbsToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAbsToSelf() {
+        try {
+<span class="fc" id="L356">            return mapToSelf(ComposableFunction.ABS);</span>
+<span class="nc" id="L357">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L358">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAcos() {
+<span class="fc" id="L364">        return copy().mapAcosToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAcosToSelf() {
+        try {
+<span class="fc" id="L370">            return mapToSelf(ComposableFunction.ACOS);</span>
+<span class="nc" id="L371">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L372">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAsin() {
+<span class="fc" id="L378">        return copy().mapAsinToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAsinToSelf() {
+        try {
+<span class="fc" id="L384">            return mapToSelf(ComposableFunction.ASIN);</span>
+<span class="nc" id="L385">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L386">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAtan() {
+<span class="fc" id="L392">        return copy().mapAtanToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapAtanToSelf() {
+        try {
+<span class="fc" id="L398">            return mapToSelf(ComposableFunction.ATAN);</span>
+<span class="nc" id="L399">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L400">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCbrt() {
+<span class="fc" id="L406">        return copy().mapCbrtToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCbrtToSelf() {
+        try {
+<span class="fc" id="L412">            return mapToSelf(ComposableFunction.CBRT);</span>
+<span class="nc" id="L413">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L414">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCeil() {
+<span class="fc" id="L420">        return copy().mapCeilToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCeilToSelf() {
+        try {
+<span class="fc" id="L426">            return mapToSelf(ComposableFunction.CEIL);</span>
+<span class="nc" id="L427">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L428">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCos() {
+<span class="fc" id="L434">        return copy().mapCosToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCosToSelf() {
+        try {
+<span class="fc" id="L440">            return mapToSelf(ComposableFunction.COS);</span>
+<span class="nc" id="L441">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L442">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCosh() {
+<span class="fc" id="L448">        return copy().mapCoshToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapCoshToSelf() {
+        try {
+<span class="fc" id="L454">            return mapToSelf(ComposableFunction.COSH);</span>
+<span class="nc" id="L455">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L456">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapDivide(double d) {
+<span class="fc" id="L462">        return copy().mapDivideToSelf(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapDivideToSelf(double d){
+        try {
+<span class="fc" id="L468">            return mapToSelf(BinaryFunction.DIVIDE.fix2ndArgument(d));</span>
+<span class="nc" id="L469">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L470">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapExp() {
+<span class="fc" id="L476">        return copy().mapExpToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapExpToSelf() {
+        try {
+<span class="fc" id="L482">            return mapToSelf(ComposableFunction.EXP);</span>
+<span class="nc" id="L483">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L484">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapExpm1() {
+<span class="fc" id="L490">        return copy().mapExpm1ToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapExpm1ToSelf() {
+        try {
+<span class="fc" id="L496">            return mapToSelf(ComposableFunction.EXPM1);</span>
+<span class="nc" id="L497">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L498">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapFloor() {
+<span class="fc" id="L504">        return copy().mapFloorToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapFloorToSelf() {
+        try {
+<span class="fc" id="L510">            return mapToSelf(ComposableFunction.FLOOR);</span>
+<span class="nc" id="L511">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L512">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapInv() {
+<span class="fc" id="L518">        return copy().mapInvToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapInvToSelf() {
+        try {
+<span class="fc" id="L524">            return mapToSelf(ComposableFunction.INVERT);</span>
+<span class="nc" id="L525">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L526">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLog() {
+<span class="fc" id="L532">        return copy().mapLogToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLogToSelf() {
+        try {
+<span class="fc" id="L538">            return mapToSelf(ComposableFunction.LOG);</span>
+<span class="nc" id="L539">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L540">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLog10() {
+<span class="fc" id="L546">        return copy().mapLog10ToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLog10ToSelf() {
+        try {
+<span class="fc" id="L552">            return mapToSelf(ComposableFunction.LOG10);</span>
+<span class="nc" id="L553">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L554">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLog1p() {
+<span class="fc" id="L560">        return copy().mapLog1pToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapLog1pToSelf() {
+        try {
+<span class="fc" id="L566">            return mapToSelf(ComposableFunction.LOG1P);</span>
+<span class="nc" id="L567">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L568">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapMultiply(double d) {
+<span class="fc" id="L574">        return copy().mapMultiplyToSelf(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapMultiplyToSelf(double d){
+        try {
+<span class="fc" id="L580">            return mapToSelf(BinaryFunction.MULTIPLY.fix1stArgument(d));</span>
+<span class="nc" id="L581">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L582">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapPow(double d) {
+<span class="fc" id="L588">        return copy().mapPowToSelf(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapPowToSelf(double d){
+        try {
+<span class="fc" id="L594">            return mapToSelf(BinaryFunction.POW.fix2ndArgument(d));</span>
+<span class="nc" id="L595">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L596">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapRint() {
+<span class="fc" id="L602">        return copy().mapRintToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapRintToSelf() {
+        try {
+<span class="fc" id="L608">            return mapToSelf(ComposableFunction.RINT);</span>
+<span class="nc" id="L609">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L610">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSignum() {
+<span class="fc" id="L616">        return copy().mapSignumToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSignumToSelf() {
+        try {
+<span class="fc" id="L622">            return mapToSelf(ComposableFunction.SIGNUM);</span>
+<span class="nc" id="L623">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L624">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSin() {
+<span class="fc" id="L630">        return copy().mapSinToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSinToSelf() {
+        try {
+<span class="fc" id="L636">            return mapToSelf(ComposableFunction.SIN);</span>
+<span class="nc" id="L637">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L638">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSinh() {
+<span class="fc" id="L644">        return copy().mapSinhToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSinhToSelf() {
+        try {
+<span class="fc" id="L650">            return mapToSelf(ComposableFunction.SINH);</span>
+<span class="nc" id="L651">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L652">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSqrt() {
+<span class="fc" id="L658">        return copy().mapSqrtToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSqrtToSelf() {
+        try {
+<span class="fc" id="L664">            return mapToSelf(ComposableFunction.SQRT);</span>
+<span class="nc" id="L665">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L666">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSubtract(double d) {
+<span class="fc" id="L672">        return copy().mapSubtractToSelf(d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapSubtractToSelf(double d){
+<span class="fc" id="L677">        return mapAddToSelf(-d);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapTan() {
+<span class="fc" id="L682">        return copy().mapTanToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapTanToSelf() {
+        try {
+<span class="fc" id="L688">            return mapToSelf(ComposableFunction.TAN);</span>
+<span class="nc" id="L689">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L690">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapTanh() {
+<span class="fc" id="L696">        return copy().mapTanhToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapTanhToSelf() {
+        try {
+<span class="fc" id="L702">            return mapToSelf(ComposableFunction.TANH);</span>
+<span class="nc" id="L703">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L704">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapUlp() {
+<span class="fc" id="L710">        return copy().mapUlpToSelf();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapUlpToSelf() {
+        try {
+<span class="fc" id="L716">            return mapToSelf(ComposableFunction.ULP);</span>
+<span class="nc" id="L717">        } catch (FunctionEvaluationException e) {</span>
+<span class="nc" id="L718">            throw new IllegalArgumentException(e);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix outerProduct(RealVector v) throws IllegalArgumentException {
+        RealMatrix product;
+<span class="pc bpc" id="L725" title="1 of 4 branches missed.">        if (v instanceof SparseRealVector || this instanceof SparseRealVector) {</span>
+<span class="fc" id="L726">            product = new OpenMapRealMatrix(this.getDimension(), v.getDimension());</span>
+        } else {
+<span class="nc" id="L728">            product = new Array2DRowRealMatrix(this.getDimension(), v.getDimension());</span>
+        }
+<span class="fc" id="L730">        Iterator&lt;Entry&gt; thisIt = sparseIterator();</span>
+<span class="fc" id="L731">        Entry thisE = null;</span>
+<span class="pc bpc" id="L732" title="1 of 4 branches missed.">        while (thisIt.hasNext() &amp;&amp; (thisE = thisIt.next()) != null) {</span>
+<span class="fc" id="L733">            Iterator&lt;Entry&gt; otherIt = v.sparseIterator();</span>
+<span class="fc" id="L734">            Entry otherE = null;</span>
+<span class="pc bpc" id="L735" title="1 of 4 branches missed.">            while (otherIt.hasNext() &amp;&amp; (otherE = otherIt.next()) != null) {</span>
+<span class="fc" id="L736">                product.setEntry(thisE.getIndex(), otherE.getIndex(),</span>
+<span class="fc" id="L737">                                 thisE.getValue() * otherE.getValue());</span>
+            }
+<span class="fc" id="L739">        }</span>
+
+<span class="fc" id="L741">        return product;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix outerProduct(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L747">        return outerProduct(new ArrayRealVector(v, false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector projection(double[] v) throws IllegalArgumentException {
+<span class="nc" id="L752">        return projection(new ArrayRealVector(v, false));</span>
+    }
+
+    /** {@inheritDoc} */
+    public void set(double value) {
+<span class="nc" id="L757">        Iterator&lt;Entry&gt; it = iterator();</span>
+<span class="nc" id="L758">        Entry e = null;</span>
+<span class="nc bnc" id="L759" title="All 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="nc" id="L760">            e.setValue(value);</span>
+        }
+<span class="nc" id="L762">    }</span>
+
+    /** {@inheritDoc} */
+    public double[] toArray() {
+<span class="nc" id="L766">        int dim = getDimension();</span>
+<span class="nc" id="L767">        double[] values = new double[dim];</span>
+<span class="nc bnc" id="L768" title="All 2 branches missed.">        for (int i = 0; i &lt; dim; i++) {</span>
+<span class="nc" id="L769">            values[i] = getEntry(i);</span>
+        }
+<span class="nc" id="L771">        return values;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double[] getData() {
+<span class="nc" id="L776">        return toArray();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector unitVector() {
+<span class="nc" id="L781">        RealVector copy = copy();</span>
+<span class="nc" id="L782">        copy.unitize();</span>
+<span class="nc" id="L783">        return copy;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void unitize() {
+<span class="nc" id="L788">        mapDivideToSelf(getNorm());</span>
+<span class="nc" id="L789">    }</span>
+
+    /** {@inheritDoc} */
+    public Iterator&lt;Entry&gt; sparseIterator() {
+<span class="fc" id="L793">        return new SparseEntryIterator();</span>
+    }
+
+    /** {@inheritDoc} */
+    public Iterator&lt;Entry&gt; iterator() {
+<span class="fc" id="L798">        final int dim = getDimension();</span>
+<span class="fc" id="L799">        return new Iterator&lt;Entry&gt;() {</span>
+
+            /** Current index. */
+<span class="fc" id="L802">            private int i = 0;</span>
+
+            /** Current entry. */
+<span class="fc" id="L805">            private EntryImpl e = new EntryImpl();</span>
+
+            /** {@inheritDoc} */
+            public boolean hasNext() {
+<span class="fc bfc" id="L809" title="All 2 branches covered.">                return i &lt; dim;</span>
+            }
+
+            /** {@inheritDoc} */
+            public Entry next() {
+<span class="fc" id="L814">                e.setIndex(i++);</span>
+<span class="fc" id="L815">                return e;</span>
+            }
+
+            /** {@inheritDoc} */
+            public void remove() {
+<span class="nc" id="L820">                throw new MathUnsupportedOperationException();</span>
+            }
+        };
+    }
+
+    /** {@inheritDoc} */
+    public RealVector map(UnivariateRealFunction function) throws FunctionEvaluationException {
+<span class="fc" id="L827">        return copy().mapToSelf(function);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealVector mapToSelf(UnivariateRealFunction function) throws FunctionEvaluationException {
+<span class="fc bfc" id="L832" title="All 2 branches covered.">        Iterator&lt;Entry&gt; it = (function.value(0) == 0) ? sparseIterator() : iterator();</span>
+        Entry e;
+<span class="pc bpc" id="L834" title="1 of 4 branches missed.">        while (it.hasNext() &amp;&amp; (e = it.next()) != null) {</span>
+<span class="fc" id="L835">            e.setValue(function.value(e.getValue()));</span>
+        }
+<span class="fc" id="L837">        return this;</span>
+    }
+
+    /** An entry in the vector. */
+    protected class EntryImpl extends Entry {
+
+        /** Simple constructor. */
+<span class="fc" id="L844">        public EntryImpl() {</span>
+<span class="fc" id="L845">            setIndex(0);</span>
+<span class="fc" id="L846">        }</span>
+
+        /** {@inheritDoc} */
+        @Override
+        public double getValue() {
+<span class="fc" id="L851">            return getEntry(getIndex());</span>
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public void setValue(double newValue) {
+<span class="fc" id="L857">            setEntry(getIndex(), newValue);</span>
+<span class="fc" id="L858">        }</span>
+    }
+
+    /**
+     * This class should rare be used, but is here to provide
+     * a default implementation of sparseIterator(), which is implemented
+     * by walking over the entries, skipping those whose values are the default one.
+     *
+     * Concrete subclasses which are SparseVector implementations should
+     * make their own sparse iterator, not use this one.
+     *
+     * This implementation might be useful for ArrayRealVector, when expensive
+     * operations which preserve the default value are to be done on the entries,
+     * and the fraction of non-default values is small (i.e. someone took a
+     * SparseVector, and passed it into the copy-constructor of ArrayRealVector)
+     */
+    protected class SparseEntryIterator implements Iterator&lt;Entry&gt; {
+
+        /** Dimension of the vector. */
+        private final int dim;
+
+        /** last entry returned by {@link #next()} */
+        private EntryImpl current;
+
+        /** Next entry for {@link #next()} to return. */
+        private EntryImpl next;
+
+        /** Simple constructor. */
+<span class="fc" id="L886">        protected SparseEntryIterator() {</span>
+<span class="fc" id="L887">            dim = getDimension();</span>
+<span class="fc" id="L888">            current = new EntryImpl();</span>
+<span class="fc" id="L889">            next = new EntryImpl();</span>
+<span class="fc bfc" id="L890" title="All 2 branches covered.">            if (next.getValue() == 0) {</span>
+<span class="fc" id="L891">                advance(next);</span>
+            }
+<span class="fc" id="L893">        }</span>
+
+        /** Advance an entry up to the next nonzero one.
+         * @param e entry to advance
+         */
+        protected void advance(EntryImpl e) {
+<span class="pc bpc" id="L899" title="1 of 2 branches missed.">            if (e == null) {</span>
+<span class="nc" id="L900">                return;</span>
+            }
+            do {
+<span class="fc" id="L903">                e.setIndex(e.getIndex() + 1);</span>
+<span class="fc bfc" id="L904" title="All 4 branches covered.">            } while (e.getIndex() &lt; dim &amp;&amp; e.getValue() == 0);</span>
+<span class="fc bfc" id="L905" title="All 2 branches covered.">            if (e.getIndex() &gt;= dim) {</span>
+<span class="fc" id="L906">                e.setIndex(-1);</span>
+            }
+<span class="fc" id="L908">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean hasNext() {
+<span class="fc bfc" id="L912" title="All 2 branches covered.">            return next.getIndex() &gt;= 0;</span>
+        }
+
+        /** {@inheritDoc} */
+        public Entry next() {
+<span class="fc" id="L917">            int index = next.getIndex();</span>
+<span class="pc bpc" id="L918" title="1 of 2 branches missed.">            if (index &lt; 0) {</span>
+<span class="nc" id="L919">                throw new NoSuchElementException();</span>
+            }
+<span class="fc" id="L921">            current.setIndex(index);</span>
+<span class="fc" id="L922">            advance(next);</span>
+<span class="fc" id="L923">            return current;</span>
+        }
+
+        /** {@inheritDoc} */
+        public void remove() {
+<span class="nc" id="L928">            throw new MathUnsupportedOperationException();</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NonLinearConjugateGradientOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.general</a> &gt; <span class="el_source">NonLinearConjugateGradientOptimizer.java</span></div><h1>NonLinearConjugateGradientOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.general;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.analysis.solvers.BrentSolver;
+import org.apache.commons.math.analysis.solvers.UnivariateRealSolver;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.optimization.GoalType;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.optimization.RealPointValuePair;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Non-linear conjugate gradient optimizer.
+ * &lt;p&gt;
+ * This class supports both the Fletcher-Reeves and the Polak-Ribi&amp;egrave;re
+ * update formulas for the conjugate search directions. It also supports
+ * optional preconditioning.
+ * &lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 2.0
+ *
+ */
+
+public class NonLinearConjugateGradientOptimizer
+    extends AbstractScalarDifferentiableOptimizer {
+
+    /** Update formula for the beta parameter. */
+    private final ConjugateGradientFormula updateFormula;
+
+    /** Preconditioner (may be null). */
+    private Preconditioner preconditioner;
+
+    /** solver to use in the line search (may be null). */
+    private UnivariateRealSolver solver;
+
+    /** Initial step used to bracket the optimum in line search. */
+    private double initialStep;
+
+    /** Simple constructor with default settings.
+     * &lt;p&gt;The convergence check is set to a {@link
+     * org.apache.commons.math.optimization.SimpleVectorialValueChecker}
+     * and the maximal number of iterations is set to
+     * {@link AbstractScalarDifferentiableOptimizer#DEFAULT_MAX_ITERATIONS}.
+     * @param updateFormula formula to use for updating the &amp;beta; parameter,
+     * must be one of {@link ConjugateGradientFormula#FLETCHER_REEVES} or {@link
+     * ConjugateGradientFormula#POLAK_RIBIERE}
+     */
+<span class="fc" id="L68">    public NonLinearConjugateGradientOptimizer(final ConjugateGradientFormula updateFormula) {</span>
+<span class="fc" id="L69">        this.updateFormula = updateFormula;</span>
+<span class="fc" id="L70">        preconditioner     = null;</span>
+<span class="fc" id="L71">        solver             = null;</span>
+<span class="fc" id="L72">        initialStep        = 1.0;</span>
+<span class="fc" id="L73">    }</span>
+
+    /**
+     * Set the preconditioner.
+     * @param preconditioner preconditioner to use for next optimization,
+     * may be null to remove an already registered preconditioner
+     */
+    public void setPreconditioner(final Preconditioner preconditioner) {
+<span class="fc" id="L81">        this.preconditioner = preconditioner;</span>
+<span class="fc" id="L82">    }</span>
+
+    /**
+     * Set the solver to use during line search.
+     * @param lineSearchSolver solver to use during line search, may be null
+     * to remove an already registered solver and fall back to the
+     * default {@link BrentSolver Brent solver}.
+     */
+    public void setLineSearchSolver(final UnivariateRealSolver lineSearchSolver) {
+<span class="fc" id="L91">        this.solver = lineSearchSolver;</span>
+<span class="fc" id="L92">    }</span>
+
+    /**
+     * Set the initial step used to bracket the optimum in line search.
+     * &lt;p&gt;
+     * The initial step is a factor with respect to the search direction,
+     * which itself is roughly related to the gradient of the function
+     * &lt;/p&gt;
+     * @param initialStep initial step used to bracket the optimum in line search,
+     * if a non-positive value is used, the initial step is reset to its
+     * default value of 1.0
+     */
+    public void setInitialStep(final double initialStep) {
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (initialStep &lt;= 0) {</span>
+<span class="nc" id="L106">            this.initialStep = 1.0;</span>
+        } else {
+<span class="nc" id="L108">            this.initialStep = initialStep;</span>
+        }
+<span class="nc" id="L110">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    protected RealPointValuePair doOptimize()
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException {
+        try {
+
+            // initialization
+<span class="fc bfc" id="L119" title="All 2 branches covered.">            if (preconditioner == null) {</span>
+<span class="fc" id="L120">                preconditioner = new IdentityPreconditioner();</span>
+            }
+<span class="fc bfc" id="L122" title="All 2 branches covered.">            if (solver == null) {</span>
+<span class="fc" id="L123">                solver = new BrentSolver();</span>
+            }
+<span class="fc" id="L125">            final int n = point.length;</span>
+<span class="fc" id="L126">            double[] r = computeObjectiveGradient(point);</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">            if (goal == GoalType.MINIMIZE) {</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L129">                    r[i] = -r[i];</span>
+                }
+            }
+
+            // initial search direction
+<span class="fc" id="L134">            double[] steepestDescent = preconditioner.precondition(point, r);</span>
+<span class="fc" id="L135">            double[] searchDirection = steepestDescent.clone();</span>
+
+<span class="fc" id="L137">            double delta = 0;</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L139">                delta += r[i] * searchDirection[i];</span>
+            }
+
+<span class="fc" id="L142">            RealPointValuePair current = null;</span>
+            while (true) {
+
+<span class="fc" id="L145">                final double objective = computeObjectiveValue(point);</span>
+<span class="fc" id="L146">                RealPointValuePair previous = current;</span>
+<span class="fc" id="L147">                current = new RealPointValuePair(point, objective);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                if (previous != null) {</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">                    if (checker.converged(getIterations(), previous, current)) {</span>
+                        // we have found an optimum
+<span class="fc" id="L151">                        return current;</span>
+                    }
+                }
+
+<span class="fc" id="L155">                incrementIterationsCounter();</span>
+
+<span class="fc" id="L157">                double dTd = 0;</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                for (final double di : searchDirection) {</span>
+<span class="fc" id="L159">                    dTd += di * di;</span>
+                }
+
+                // find the optimal step in the search direction
+<span class="fc" id="L163">                final UnivariateRealFunction lsf = new LineSearchFunction(searchDirection);</span>
+<span class="fc" id="L164">                final double step = solver.solve(lsf, 0, findUpperBound(lsf, 0, initialStep));</span>
+
+                // validate new point
+<span class="fc bfc" id="L167" title="All 2 branches covered.">                for (int i = 0; i &lt; point.length; ++i) {</span>
+<span class="fc" id="L168">                    point[i] += step * searchDirection[i];</span>
+                }
+<span class="fc" id="L170">                r = computeObjectiveGradient(point);</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">                if (goal == GoalType.MINIMIZE) {</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">                    for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L173">                        r[i] = -r[i];</span>
+                    }
+                }
+
+                // compute beta
+<span class="fc" id="L178">                final double deltaOld = delta;</span>
+<span class="fc" id="L179">                final double[] newSteepestDescent = preconditioner.precondition(point, r);</span>
+<span class="fc" id="L180">                delta = 0;</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L182">                    delta += r[i] * newSteepestDescent[i];</span>
+                }
+
+                final double beta;
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">                if (updateFormula == ConjugateGradientFormula.FLETCHER_REEVES) {</span>
+<span class="nc" id="L187">                    beta = delta / deltaOld;</span>
+                } else {
+<span class="fc" id="L189">                    double deltaMid = 0;</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">                    for (int i = 0; i &lt; r.length; ++i) {</span>
+<span class="fc" id="L191">                        deltaMid += r[i] * steepestDescent[i];</span>
+                    }
+<span class="fc" id="L193">                    beta = (delta - deltaMid) / deltaOld;</span>
+                }
+<span class="fc" id="L195">                steepestDescent = newSteepestDescent;</span>
+
+                // compute conjugate search direction
+<span class="fc bfc" id="L198" title="All 4 branches covered.">                if ((getIterations() % n == 0) || (beta &lt; 0)) {</span>
+                    // break conjugation: reset search direction
+<span class="fc" id="L200">                    searchDirection = steepestDescent.clone();</span>
+                } else {
+                    // compute new conjugate search direction
+<span class="fc bfc" id="L203" title="All 2 branches covered.">                    for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L204">                        searchDirection[i] = steepestDescent[i] + beta * searchDirection[i];</span>
+                    }
+                }
+
+<span class="fc" id="L208">            }</span>
+
+<span class="nc" id="L210">        } catch (ConvergenceException ce) {</span>
+<span class="nc" id="L211">            throw new OptimizationException(ce);</span>
+        }
+    }
+
+    /**
+     * Find the upper bound b ensuring bracketing of a root between a and b
+     * @param f function whose root must be bracketed
+     * @param a lower bound of the interval
+     * @param h initial step to try
+     * @return b such that f(a) and f(b) have opposite signs
+     * @exception FunctionEvaluationException if the function cannot be computed
+     * @exception OptimizationException if no bracket can be found
+     */
+    private double findUpperBound(final UnivariateRealFunction f,
+                                  final double a, final double h)
+        throws FunctionEvaluationException, OptimizationException {
+<span class="fc" id="L227">        final double yA = f.value(a);</span>
+<span class="fc" id="L228">        double yB = yA;</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        for (double step = h; step &lt; Double.MAX_VALUE; step *= FastMath.max(2, yA / yB)) {</span>
+<span class="fc" id="L230">            final double b = a + step;</span>
+<span class="fc" id="L231">            yB = f.value(b);</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">            if (yA * yB &lt;= 0) {</span>
+<span class="fc" id="L233">                return b;</span>
+            }
+        }
+<span class="nc" id="L236">        throw new OptimizationException(LocalizedFormats.UNABLE_TO_BRACKET_OPTIMUM_IN_LINE_SEARCH);</span>
+    }
+
+    /** Default identity preconditioner. */
+<span class="fc" id="L240">    private static class IdentityPreconditioner implements Preconditioner {</span>
+
+        /** {@inheritDoc} */
+        public double[] precondition(double[] variables, double[] r) {
+<span class="fc" id="L244">            return r.clone();</span>
+        }
+
+    }
+
+    /** Internal class for line search.
+     * &lt;p&gt;
+     * The function represented by this class is the dot product of
+     * the objective function gradient and the search direction. Its
+     * value is zero when the gradient is orthogonal to the search
+     * direction, i.e. when the objective function value is a local
+     * extremum along the search direction.
+     * &lt;/p&gt;
+     */
+    private class LineSearchFunction implements UnivariateRealFunction {
+        /** Search direction. */
+        private final double[] searchDirection;
+
+        /** Simple constructor.
+         * @param searchDirection search direction
+         */
+<span class="fc" id="L265">        public LineSearchFunction(final double[] searchDirection) {</span>
+<span class="fc" id="L266">            this.searchDirection = searchDirection;</span>
+<span class="fc" id="L267">        }</span>
+
+        /** {@inheritDoc} */
+        public double value(double x) throws FunctionEvaluationException {
+
+            // current point in the search direction
+<span class="fc" id="L273">            final double[] shiftedPoint = point.clone();</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">            for (int i = 0; i &lt; shiftedPoint.length; ++i) {</span>
+<span class="fc" id="L275">                shiftedPoint[i] += x * searchDirection[i];</span>
+            }
+
+            // gradient of the objective function
+            final double[] gradient;
+<span class="fc" id="L280">            gradient = computeObjectiveGradient(shiftedPoint);</span>
+
+            // dot product with the search direction
+<span class="fc" id="L283">            double dotProduct = 0;</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">            for (int i = 0; i &lt; gradient.length; ++i) {</span>
+<span class="fc" id="L285">                dotProduct += gradient[i] * searchDirection[i];</span>
+            }
+
+<span class="fc" id="L288">            return dotProduct;</span>
+
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

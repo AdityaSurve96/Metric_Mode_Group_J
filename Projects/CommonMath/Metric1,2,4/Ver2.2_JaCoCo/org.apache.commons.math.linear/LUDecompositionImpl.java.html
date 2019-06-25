@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>LUDecompositionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">LUDecompositionImpl.java</span></div><h1>LUDecompositionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Calculates the LUP-decomposition of a square matrix.
+ * &lt;p&gt;The LUP-decomposition of a matrix A consists of three matrices
+ * L, U and P that satisfy: PA = LU, L is lower triangular, and U is
+ * upper triangular and P is a permutation matrix. All matrices are
+ * m&amp;times;m.&lt;/p&gt;
+ * &lt;p&gt;As shown by the presence of the P matrix, this decomposition is
+ * implemented using partial pivoting.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class LUDecompositionImpl implements LUDecomposition {
+
+    /** Default bound to determine effective singularity in LU decomposition */
+    private static final double DEFAULT_TOO_SMALL = 10E-12;
+
+    /** Entries of LU decomposition. */
+    private double lu[][];
+
+    /** Pivot permutation associated with LU decomposition */
+    private int[] pivot;
+
+    /** Parity of the permutation associated with the LU decomposition */
+    private boolean even;
+
+    /** Singularity indicator. */
+    private boolean singular;
+
+    /** Cached value of L. */
+    private RealMatrix cachedL;
+
+    /** Cached value of U. */
+    private RealMatrix cachedU;
+
+    /** Cached value of P. */
+    private RealMatrix cachedP;
+
+    /**
+     * Calculates the LU-decomposition of the given matrix.
+     * @param matrix The matrix to decompose.
+     * @exception InvalidMatrixException if matrix is not square
+     */
+    public LUDecompositionImpl(RealMatrix matrix)
+        throws InvalidMatrixException {
+<span class="fc" id="L69">        this(matrix, DEFAULT_TOO_SMALL);</span>
+<span class="fc" id="L70">    }</span>
+
+    /**
+     * Calculates the LU-decomposition of the given matrix.
+     * @param matrix The matrix to decompose.
+     * @param singularityThreshold threshold (based on partial row norm)
+     * under which a matrix is considered singular
+     * @exception NonSquareMatrixException if matrix is not square
+     */
+    public LUDecompositionImpl(RealMatrix matrix, double singularityThreshold)
+<span class="fc" id="L80">        throws NonSquareMatrixException {</span>
+
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (!matrix.isSquare()) {</span>
+<span class="fc" id="L83">            throw new NonSquareMatrixException(matrix.getRowDimension(), matrix.getColumnDimension());</span>
+        }
+
+<span class="fc" id="L86">        final int m = matrix.getColumnDimension();</span>
+<span class="fc" id="L87">        lu = matrix.getData();</span>
+<span class="fc" id="L88">        pivot = new int[m];</span>
+<span class="fc" id="L89">        cachedL = null;</span>
+<span class="fc" id="L90">        cachedU = null;</span>
+<span class="fc" id="L91">        cachedP = null;</span>
+
+        // Initialize permutation array and parity
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L95">            pivot[row] = row;</span>
+        }
+<span class="fc" id="L97">        even     = true;</span>
+<span class="fc" id="L98">        singular = false;</span>
+
+        // Loop over columns
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        for (int col = 0; col &lt; m; col++) {</span>
+
+<span class="fc" id="L103">            double sum = 0;</span>
+
+            // upper
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            for (int row = 0; row &lt; col; row++) {</span>
+<span class="fc" id="L107">                final double[] luRow = lu[row];</span>
+<span class="fc" id="L108">                sum = luRow[col];</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                for (int i = 0; i &lt; row; i++) {</span>
+<span class="fc" id="L110">                    sum -= luRow[i] * lu[i][col];</span>
+                }
+<span class="fc" id="L112">                luRow[col] = sum;</span>
+            }
+
+            // lower
+<span class="fc" id="L116">            int max = col; // permutation row</span>
+<span class="fc" id="L117">            double largest = Double.NEGATIVE_INFINITY;</span>
+<span class="fc bfc" id="L118" title="All 2 branches covered.">            for (int row = col; row &lt; m; row++) {</span>
+<span class="fc" id="L119">                final double[] luRow = lu[row];</span>
+<span class="fc" id="L120">                sum = luRow[col];</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L122">                    sum -= luRow[i] * lu[i][col];</span>
+                }
+<span class="fc" id="L124">                luRow[col] = sum;</span>
+
+                // maintain best permutation choice
+<span class="fc bfc" id="L127" title="All 2 branches covered.">                if (FastMath.abs(sum) &gt; largest) {</span>
+<span class="fc" id="L128">                    largest = FastMath.abs(sum);</span>
+<span class="fc" id="L129">                    max = row;</span>
+                }
+            }
+
+            // Singularity check
+<span class="fc bfc" id="L134" title="All 2 branches covered.">            if (FastMath.abs(lu[max][col]) &lt; singularityThreshold) {</span>
+<span class="fc" id="L135">                singular = true;</span>
+<span class="fc" id="L136">                return;</span>
+            }
+
+            // Pivot if necessary
+<span class="fc bfc" id="L140" title="All 2 branches covered.">            if (max != col) {</span>
+<span class="fc" id="L141">                double tmp = 0;</span>
+<span class="fc" id="L142">                final double[] luMax = lu[max];</span>
+<span class="fc" id="L143">                final double[] luCol = lu[col];</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">                for (int i = 0; i &lt; m; i++) {</span>
+<span class="fc" id="L145">                    tmp = luMax[i];</span>
+<span class="fc" id="L146">                    luMax[i] = luCol[i];</span>
+<span class="fc" id="L147">                    luCol[i] = tmp;</span>
+                }
+<span class="fc" id="L149">                int temp = pivot[max];</span>
+<span class="fc" id="L150">                pivot[max] = pivot[col];</span>
+<span class="fc" id="L151">                pivot[col] = temp;</span>
+<span class="fc bfc" id="L152" title="All 2 branches covered.">                even = !even;</span>
+            }
+
+            // Divide the lower elements by the &quot;winning&quot; diagonal elt.
+<span class="fc" id="L156">            final double luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">            for (int row = col + 1; row &lt; m; row++) {</span>
+<span class="fc" id="L158">                lu[row][col] /= luDiag;</span>
+            }
+        }
+
+<span class="fc" id="L162">    }</span>
+
+    /** {@inheritDoc} */
+    public RealMatrix getL() {
+<span class="fc bfc" id="L166" title="All 4 branches covered.">        if ((cachedL == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L167">            final int m = pivot.length;</span>
+<span class="fc" id="L168">            cachedL = MatrixUtils.createRealMatrix(m, m);</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L170">                final double[] luI = lu[i];</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">                for (int j = 0; j &lt; i; ++j) {</span>
+<span class="fc" id="L172">                    cachedL.setEntry(i, j, luI[j]);</span>
+                }
+<span class="fc" id="L174">                cachedL.setEntry(i, i, 1.0);</span>
+            }
+        }
+<span class="fc" id="L177">        return cachedL;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getU() {
+<span class="fc bfc" id="L182" title="All 4 branches covered.">        if ((cachedU == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L183">            final int m = pivot.length;</span>
+<span class="fc" id="L184">            cachedU = MatrixUtils.createRealMatrix(m, m);</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L186">                final double[] luI = lu[i];</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                for (int j = i; j &lt; m; ++j) {</span>
+<span class="fc" id="L188">                    cachedU.setEntry(i, j, luI[j]);</span>
+                }
+            }
+        }
+<span class="fc" id="L192">        return cachedU;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getP() {
+<span class="fc bfc" id="L197" title="All 4 branches covered.">        if ((cachedP == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L198">            final int m = pivot.length;</span>
+<span class="fc" id="L199">            cachedP = MatrixUtils.createRealMatrix(m, m);</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L201">                cachedP.setEntry(i, pivot[i], 1.0);</span>
+            }
+        }
+<span class="fc" id="L204">        return cachedP;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int[] getPivot() {
+<span class="fc" id="L209">        return pivot.clone();</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getDeterminant() {
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        if (singular) {</span>
+<span class="fc" id="L215">            return 0;</span>
+        } else {
+<span class="fc" id="L217">            final int m = pivot.length;</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">            double determinant = even ? 1 : -1;</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">            for (int i = 0; i &lt; m; i++) {</span>
+<span class="fc" id="L220">                determinant *= lu[i][i];</span>
+            }
+<span class="fc" id="L222">            return determinant;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public DecompositionSolver getSolver() {
+<span class="fc" id="L228">        return new Solver(lu, pivot, singular);</span>
+    }
+
+    /** Specialized solver. */
+    private static class Solver implements DecompositionSolver {
+
+        /** Entries of LU decomposition. */
+        private final double lu[][];
+
+        /** Pivot permutation associated with LU decomposition. */
+        private final int[] pivot;
+
+        /** Singularity indicator. */
+        private final boolean singular;
+
+        /**
+         * Build a solver from decomposed matrix.
+         * @param lu entries of LU decomposition
+         * @param pivot pivot permutation associated with LU decomposition
+         * @param singular singularity indicator
+         */
+<span class="fc" id="L249">        private Solver(final double[][] lu, final int[] pivot, final boolean singular) {</span>
+<span class="fc" id="L250">            this.lu       = lu;</span>
+<span class="fc" id="L251">            this.pivot    = pivot;</span>
+<span class="fc" id="L252">            this.singular = singular;</span>
+<span class="fc" id="L253">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean isNonSingular() {
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            return !singular;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[] solve(double[] b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L264">            final int m = pivot.length;</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">            if (b.length != m) {</span>
+<span class="fc" id="L266">                throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L267">                        LocalizedFormats.VECTOR_LENGTH_MISMATCH, b.length, m);</span>
+            }
+<span class="fc bfc" id="L269" title="All 2 branches covered.">            if (singular) {</span>
+<span class="fc" id="L270">                throw new SingularMatrixException();</span>
+            }
+
+<span class="fc" id="L273">            final double[] bp = new double[m];</span>
+
+            // Apply permutations to b
+<span class="fc bfc" id="L276" title="All 2 branches covered.">            for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L277">                bp[row] = b[pivot[row]];</span>
+            }
+
+            // Solve LY = b
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            for (int col = 0; col &lt; m; col++) {</span>
+<span class="fc" id="L282">                final double bpCol = bp[col];</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">                for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L284">                    bp[i] -= bpCol * lu[i][col];</span>
+                }
+            }
+
+            // Solve UX = Y
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L290">                bp[col] /= lu[col][col];</span>
+<span class="fc" id="L291">                final double bpCol = bp[col];</span>
+<span class="fc bfc" id="L292" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L293">                    bp[i] -= bpCol * lu[i][col];</span>
+                }
+            }
+
+<span class="fc" id="L297">            return bp;</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public RealVector solve(RealVector b)
+            throws IllegalArgumentException, InvalidMatrixException {
+            try {
+<span class="fc" id="L305">                return solve((ArrayRealVector) b);</span>
+<span class="fc" id="L306">            } catch (ClassCastException cce) {</span>
+
+<span class="fc" id="L308">                final int m = pivot.length;</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">                if (b.getDimension() != m) {</span>
+<span class="fc" id="L310">                    throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L311">                            LocalizedFormats.VECTOR_LENGTH_MISMATCH, b.getDimension(), m);</span>
+                }
+<span class="fc bfc" id="L313" title="All 2 branches covered.">                if (singular) {</span>
+<span class="fc" id="L314">                    throw new SingularMatrixException();</span>
+                }
+
+<span class="fc" id="L317">                final double[] bp = new double[m];</span>
+
+                // Apply permutations to b
+<span class="fc bfc" id="L320" title="All 2 branches covered.">                for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L321">                    bp[row] = b.getEntry(pivot[row]);</span>
+                }
+
+                // Solve LY = b
+<span class="fc bfc" id="L325" title="All 2 branches covered.">                for (int col = 0; col &lt; m; col++) {</span>
+<span class="fc" id="L326">                    final double bpCol = bp[col];</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">                    for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L328">                        bp[i] -= bpCol * lu[i][col];</span>
+                    }
+                }
+
+                // Solve UX = Y
+<span class="fc bfc" id="L333" title="All 2 branches covered.">                for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L334">                    bp[col] /= lu[col][col];</span>
+<span class="fc" id="L335">                    final double bpCol = bp[col];</span>
+<span class="fc bfc" id="L336" title="All 2 branches covered.">                    for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L337">                        bp[i] -= bpCol * lu[i][col];</span>
+                    }
+                }
+
+<span class="fc" id="L341">                return new ArrayRealVector(bp, false);</span>
+
+            }
+        }
+
+        /** Solve the linear equation A &amp;times; X = B.
+         * &lt;p&gt;The A matrix is implicit here. It is &lt;/p&gt;
+         * @param b right-hand side of the equation A &amp;times; X = B
+         * @return a vector X such that A &amp;times; X = B
+         * @exception IllegalArgumentException if matrices dimensions don't match
+         * @exception InvalidMatrixException if decomposed matrix is singular
+         */
+        public ArrayRealVector solve(ArrayRealVector b)
+            throws IllegalArgumentException, InvalidMatrixException {
+<span class="fc" id="L355">            return new ArrayRealVector(solve(b.getDataRef()), false);</span>
+        }
+
+        /** {@inheritDoc} */
+        public RealMatrix solve(RealMatrix b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L362">            final int m = pivot.length;</span>
+<span class="fc bfc" id="L363" title="All 2 branches covered.">            if (b.getRowDimension() != m) {</span>
+<span class="fc" id="L364">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                        LocalizedFormats.DIMENSIONS_MISMATCH_2x2,
+<span class="fc" id="L366">                        b.getRowDimension(), b.getColumnDimension(), m, &quot;n&quot;);</span>
+            }
+<span class="fc bfc" id="L368" title="All 2 branches covered.">            if (singular) {</span>
+<span class="fc" id="L369">                throw new SingularMatrixException();</span>
+            }
+
+<span class="fc" id="L372">            final int nColB = b.getColumnDimension();</span>
+
+            // Apply permutations to b
+<span class="fc" id="L375">            final double[][] bp = new double[m][nColB];</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">            for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L377">                final double[] bpRow = bp[row];</span>
+<span class="fc" id="L378">                final int pRow = pivot[row];</span>
+<span class="fc bfc" id="L379" title="All 2 branches covered.">                for (int col = 0; col &lt; nColB; col++) {</span>
+<span class="fc" id="L380">                    bpRow[col] = b.getEntry(pRow, col);</span>
+                }
+            }
+
+            // Solve LY = b
+<span class="fc bfc" id="L385" title="All 2 branches covered.">            for (int col = 0; col &lt; m; col++) {</span>
+<span class="fc" id="L386">                final double[] bpCol = bp[col];</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">                for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L388">                    final double[] bpI = bp[i];</span>
+<span class="fc" id="L389">                    final double luICol = lu[i][col];</span>
+<span class="fc bfc" id="L390" title="All 2 branches covered.">                    for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L391">                        bpI[j] -= bpCol[j] * luICol;</span>
+                    }
+                }
+            }
+
+            // Solve UX = Y
+<span class="fc bfc" id="L397" title="All 2 branches covered.">            for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L398">                final double[] bpCol = bp[col];</span>
+<span class="fc" id="L399">                final double luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L400" title="All 2 branches covered.">                for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L401">                    bpCol[j] /= luDiag;</span>
+                }
+<span class="fc bfc" id="L403" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L404">                    final double[] bpI = bp[i];</span>
+<span class="fc" id="L405">                    final double luICol = lu[i][col];</span>
+<span class="fc bfc" id="L406" title="All 2 branches covered.">                    for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L407">                        bpI[j] -= bpCol[j] * luICol;</span>
+                    }
+                }
+            }
+
+<span class="fc" id="L412">            return new Array2DRowRealMatrix(bp, false);</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public RealMatrix getInverse() throws InvalidMatrixException {
+<span class="fc" id="L418">            return solve(MatrixUtils.createRealIdentityMatrix(pivot.length));</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

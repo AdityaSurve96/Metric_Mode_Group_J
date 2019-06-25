@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractEstimator.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.estimation</a> &gt; <span class="el_source">AbstractEstimator.java</span></div><h1>AbstractEstimator.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.estimation;
+
+import java.util.Arrays;
+
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.linear.InvalidMatrixException;
+import org.apache.commons.math.linear.LUDecompositionImpl;
+import org.apache.commons.math.linear.MatrixUtils;
+import org.apache.commons.math.linear.RealMatrix;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Base class for implementing estimators.
+ * &lt;p&gt;This base class handles the boilerplates methods associated to thresholds
+ * settings, jacobian and error estimation.&lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 1.2
+ * @deprecated as of 2.0, everything in package org.apache.commons.math.estimation has
+ * been deprecated and replaced by package org.apache.commons.math.optimization.general
+ *
+ */
+@Deprecated
+public abstract class AbstractEstimator implements Estimator {
+
+    /** Default maximal number of cost evaluations allowed. */
+    public static final int DEFAULT_MAX_COST_EVALUATIONS = 100;
+
+    /** Array of measurements. */
+    protected WeightedMeasurement[] measurements;
+
+    /** Array of parameters. */
+    protected EstimatedParameter[] parameters;
+
+    /**
+     * Jacobian matrix.
+     * &lt;p&gt;This matrix is in canonical form just after the calls to
+     * {@link #updateJacobian()}, but may be modified by the solver
+     * in the derived class (the {@link LevenbergMarquardtEstimator
+     * Levenberg-Marquardt estimator} does this).&lt;/p&gt;
+     */
+    protected double[] jacobian;
+
+    /** Number of columns of the jacobian matrix. */
+    protected int cols;
+
+    /** Number of rows of the jacobian matrix. */
+    protected int rows;
+
+    /** Residuals array.
+     * &lt;p&gt;This array is in canonical form just after the calls to
+     * {@link #updateJacobian()}, but may be modified by the solver
+     * in the derived class (the {@link LevenbergMarquardtEstimator
+     * Levenberg-Marquardt estimator} does this).&lt;/p&gt;
+     */
+    protected double[] residuals;
+
+    /** Cost value (square root of the sum of the residuals). */
+    protected double cost;
+
+    /** Maximal allowed number of cost evaluations. */
+    private int maxCostEval;
+
+    /** Number of cost evaluations. */
+    private int costEvaluations;
+
+    /** Number of jacobian evaluations. */
+    private int jacobianEvaluations;
+
+    /**
+     * Build an abstract estimator for least squares problems.
+     * &lt;p&gt;The maximal number of cost evaluations allowed is set
+     * to its default value {@link #DEFAULT_MAX_COST_EVALUATIONS}.&lt;/p&gt;
+     */
+<span class="fc" id="L91">    protected AbstractEstimator() {</span>
+<span class="fc" id="L92">        setMaxCostEval(DEFAULT_MAX_COST_EVALUATIONS);</span>
+<span class="fc" id="L93">    }</span>
+
+    /**
+     * Set the maximal number of cost evaluations allowed.
+     *
+     * @param maxCostEval maximal number of cost evaluations allowed
+     * @see #estimate
+     */
+    public final void setMaxCostEval(int maxCostEval) {
+<span class="fc" id="L102">        this.maxCostEval = maxCostEval;</span>
+<span class="fc" id="L103">    }</span>
+
+    /**
+     * Get the number of cost evaluations.
+     *
+     * @return number of cost evaluations
+     * */
+    public final int getCostEvaluations() {
+<span class="fc" id="L111">        return costEvaluations;</span>
+    }
+
+    /**
+     * Get the number of jacobian evaluations.
+     *
+     * @return number of jacobian evaluations
+     * */
+    public final int getJacobianEvaluations() {
+<span class="fc" id="L120">        return jacobianEvaluations;</span>
+    }
+
+    /**
+     * Update the jacobian matrix.
+     */
+    protected void updateJacobian() {
+<span class="fc" id="L127">        incrementJacobianEvaluationsCounter();</span>
+<span class="fc" id="L128">        Arrays.fill(jacobian, 0);</span>
+<span class="fc" id="L129">        int index = 0;</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        for (int i = 0; i &lt; rows; i++) {</span>
+<span class="fc" id="L131">            WeightedMeasurement wm = measurements[i];</span>
+<span class="fc" id="L132">            double factor = -FastMath.sqrt(wm.getWeight());</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">            for (int j = 0; j &lt; cols; ++j) {</span>
+<span class="fc" id="L134">                jacobian[index++] = factor * wm.getPartial(parameters[j]);</span>
+            }
+        }
+<span class="fc" id="L137">    }</span>
+
+    /**
+     * Increment the jacobian evaluations counter.
+     */
+    protected final void incrementJacobianEvaluationsCounter() {
+<span class="fc" id="L143">      ++jacobianEvaluations;</span>
+<span class="fc" id="L144">    }</span>
+
+    /**
+     * Update the residuals array and cost function value.
+     * @exception EstimationException if the number of cost evaluations
+     * exceeds the maximum allowed
+     */
+    protected void updateResidualsAndCost()
+    throws EstimationException {
+
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (++costEvaluations &gt; maxCostEval) {</span>
+<span class="fc" id="L155">            throw new EstimationException(LocalizedFormats.MAX_EVALUATIONS_EXCEEDED,</span>
+<span class="fc" id="L156">                                          maxCostEval);</span>
+        }
+
+<span class="fc" id="L159">        cost = 0;</span>
+<span class="fc" id="L160">        int index = 0;</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        for (int i = 0; i &lt; rows; i++, index += cols) {</span>
+<span class="fc" id="L162">            WeightedMeasurement wm = measurements[i];</span>
+<span class="fc" id="L163">            double residual = wm.getResidual();</span>
+<span class="fc" id="L164">            residuals[i] = FastMath.sqrt(wm.getWeight()) * residual;</span>
+<span class="fc" id="L165">            cost += wm.getWeight() * residual * residual;</span>
+        }
+<span class="fc" id="L167">        cost = FastMath.sqrt(cost);</span>
+
+<span class="fc" id="L169">    }</span>
+
+    /**
+     * Get the Root Mean Square value.
+     * Get the Root Mean Square value, i.e. the root of the arithmetic
+     * mean of the square of all weighted residuals. This is related to the
+     * criterion that is minimized by the estimator as follows: if
+     * &lt;em&gt;c&lt;/em&gt; if the criterion, and &lt;em&gt;n&lt;/em&gt; is the number of
+     * measurements, then the RMS is &lt;em&gt;sqrt (c/n)&lt;/em&gt;.
+     *
+     * @param problem estimation problem
+     * @return RMS value
+     */
+    public double getRMS(EstimationProblem problem) {
+<span class="fc" id="L183">        WeightedMeasurement[] wm = problem.getMeasurements();</span>
+<span class="fc" id="L184">        double criterion = 0;</span>
+<span class="fc bfc" id="L185" title="All 2 branches covered.">        for (int i = 0; i &lt; wm.length; ++i) {</span>
+<span class="fc" id="L186">            double residual = wm[i].getResidual();</span>
+<span class="fc" id="L187">            criterion += wm[i].getWeight() * residual * residual;</span>
+        }
+<span class="fc" id="L189">        return FastMath.sqrt(criterion / wm.length);</span>
+    }
+
+    /**
+     * Get the Chi-Square value.
+     * @param problem estimation problem
+     * @return chi-square value
+     */
+    public double getChiSquare(EstimationProblem problem) {
+<span class="fc" id="L198">        WeightedMeasurement[] wm = problem.getMeasurements();</span>
+<span class="fc" id="L199">        double chiSquare = 0;</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">        for (int i = 0; i &lt; wm.length; ++i) {</span>
+<span class="fc" id="L201">            double residual = wm[i].getResidual();</span>
+<span class="fc" id="L202">            chiSquare += residual * residual / wm[i].getWeight();</span>
+        }
+<span class="fc" id="L204">        return chiSquare;</span>
+    }
+
+    /**
+     * Get the covariance matrix of unbound estimated parameters.
+     * @param problem estimation problem
+     * @return covariance matrix
+     * @exception EstimationException if the covariance matrix
+     * cannot be computed (singular problem)
+     */
+    public double[][] getCovariances(EstimationProblem problem)
+      throws EstimationException {
+
+        // set up the jacobian
+<span class="fc" id="L218">        updateJacobian();</span>
+
+        // compute transpose(J).J, avoiding building big intermediate matrices
+<span class="fc" id="L221">        final int n = problem.getMeasurements().length;</span>
+<span class="fc" id="L222">        final int m = problem.getUnboundParameters().length;</span>
+<span class="fc" id="L223">        final int max  = m * n;</span>
+<span class="fc" id="L224">        double[][] jTj = new double[m][m];</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">            for (int j = i; j &lt; m; ++j) {</span>
+<span class="fc" id="L227">                double sum = 0;</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                for (int k = 0; k &lt; max; k += m) {</span>
+<span class="fc" id="L229">                    sum += jacobian[k + i] * jacobian[k + j];</span>
+                }
+<span class="fc" id="L231">                jTj[i][j] = sum;</span>
+<span class="fc" id="L232">                jTj[j][i] = sum;</span>
+            }
+        }
+
+        try {
+            // compute the covariances matrix
+<span class="fc" id="L238">            RealMatrix inverse =</span>
+<span class="fc" id="L239">                new LUDecompositionImpl(MatrixUtils.createRealMatrix(jTj)).getSolver().getInverse();</span>
+<span class="fc" id="L240">            return inverse.getData();</span>
+<span class="fc" id="L241">        } catch (InvalidMatrixException ime) {</span>
+<span class="fc" id="L242">            throw new EstimationException(LocalizedFormats.UNABLE_TO_COMPUTE_COVARIANCE_SINGULAR_PROBLEM);</span>
+        }
+
+    }
+
+    /**
+     * Guess the errors in unbound estimated parameters.
+     * &lt;p&gt;Guessing is covariance-based, it only gives rough order of magnitude.&lt;/p&gt;
+     * @param problem estimation problem
+     * @return errors in estimated parameters
+     * @exception EstimationException if the covariances matrix cannot be computed
+     * or the number of degrees of freedom is not positive (number of measurements
+     * lesser or equal to number of parameters)
+     */
+    public double[] guessParametersErrors(EstimationProblem problem)
+      throws EstimationException {
+<span class="fc" id="L258">        int m = problem.getMeasurements().length;</span>
+<span class="fc" id="L259">        int p = problem.getUnboundParameters().length;</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">        if (m &lt;= p) {</span>
+<span class="fc" id="L261">            throw new EstimationException(</span>
+                    LocalizedFormats.NO_DEGREES_OF_FREEDOM,
+<span class="fc" id="L263">                    m, p);</span>
+        }
+<span class="fc" id="L265">        double[] errors = new double[problem.getUnboundParameters().length];</span>
+<span class="fc" id="L266">        final double c = FastMath.sqrt(getChiSquare(problem) / (m - p));</span>
+<span class="fc" id="L267">        double[][] covar = getCovariances(problem);</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">        for (int i = 0; i &lt; errors.length; ++i) {</span>
+<span class="fc" id="L269">            errors[i] = FastMath.sqrt(covar[i][i]) * c;</span>
+        }
+<span class="fc" id="L271">        return errors;</span>
+    }
+
+    /**
+     * Initialization of the common parts of the estimation.
+     * &lt;p&gt;This method &lt;em&gt;must&lt;/em&gt; be called at the start
+     * of the {@link #estimate(EstimationProblem) estimate}
+     * method.&lt;/p&gt;
+     * @param problem estimation problem to solve
+     */
+    protected void initializeEstimate(EstimationProblem problem) {
+
+        // reset counters
+<span class="fc" id="L284">        costEvaluations     = 0;</span>
+<span class="fc" id="L285">        jacobianEvaluations = 0;</span>
+
+        // retrieve the equations and the parameters
+<span class="fc" id="L288">        measurements = problem.getMeasurements();</span>
+<span class="fc" id="L289">        parameters   = problem.getUnboundParameters();</span>
+
+        // arrays shared with the other private methods
+<span class="fc" id="L292">        rows      = measurements.length;</span>
+<span class="fc" id="L293">        cols      = parameters.length;</span>
+<span class="fc" id="L294">        jacobian  = new double[rows * cols];</span>
+<span class="fc" id="L295">        residuals = new double[rows];</span>
+
+<span class="fc" id="L297">        cost = Double.POSITIVE_INFINITY;</span>
+
+<span class="fc" id="L299">    }</span>
+
+    /**
+     * Solve an estimation problem.
+     *
+     * &lt;p&gt;The method should set the parameters of the problem to several
+     * trial values until it reaches convergence. If this method returns
+     * normally (i.e. without throwing an exception), then the best
+     * estimate of the parameters can be retrieved from the problem
+     * itself, through the {@link EstimationProblem#getAllParameters
+     * EstimationProblem.getAllParameters} method.&lt;/p&gt;
+     *
+     * @param problem estimation problem to solve
+     * @exception EstimationException if the problem cannot be solved
+     *
+     */
+    public abstract void estimate(EstimationProblem problem)
+    throws EstimationException;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

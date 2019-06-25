@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>HarmonicFunction.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.fitting</a> &gt; <span class="el_source">HarmonicFunction.java</span></div><h1>HarmonicFunction.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.fitting;
+
+import org.apache.commons.math.analysis.DifferentiableUnivariateRealFunction;
+import org.apache.commons.math.util.FastMath;
+
+/** Harmonic function of the form &lt;code&gt;f (t) = a cos (&amp;omega; t + &amp;phi;)&lt;/code&gt;.
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class HarmonicFunction implements DifferentiableUnivariateRealFunction {
+
+    /** Amplitude a. */
+    private final double a;
+
+    /** Pulsation &amp;omega;. */
+    private final double omega;
+
+    /** Phase &amp;phi;. */
+    private final double phi;
+
+    /** Simple constructor.
+     * @param a amplitude
+     * @param omega pulsation
+     * @param phi phase
+     */
+<span class="fc" id="L43">    public HarmonicFunction(double a, double omega, double phi) {</span>
+<span class="fc" id="L44">        this.a     = a;</span>
+<span class="fc" id="L45">        this.omega = omega;</span>
+<span class="fc" id="L46">        this.phi   = phi;</span>
+<span class="fc" id="L47">    }</span>
+
+    /** {@inheritDoc} */
+    public double value(double x) {
+<span class="fc" id="L51">        return a * FastMath.cos(omega * x + phi);</span>
+    }
+
+    /** {@inheritDoc} */
+    public HarmonicFunction derivative() {
+<span class="nc" id="L56">        return new HarmonicFunction(a * omega, omega, phi + FastMath.PI / 2);</span>
+    }
+
+    /** Get the amplitude a.
+     * @return amplitude a;
+     */
+    public double getAmplitude() {
+<span class="fc" id="L63">        return a;</span>
+    }
+
+    /** Get the pulsation &amp;omega;.
+     * @return pulsation &amp;omega;
+     */
+    public double getPulsation() {
+<span class="fc" id="L70">        return omega;</span>
+    }
+
+    /** Get the phase &amp;phi;.
+     * @return phase &amp;phi;
+     */
+    public double getPhase() {
+<span class="fc" id="L77">        return phi;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

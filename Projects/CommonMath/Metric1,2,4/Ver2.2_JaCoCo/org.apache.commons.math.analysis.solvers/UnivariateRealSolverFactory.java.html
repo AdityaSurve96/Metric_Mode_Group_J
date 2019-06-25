@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UnivariateRealSolverFactory.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">UnivariateRealSolverFactory.java</span></div><h1>UnivariateRealSolverFactory.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+/**
+ * Abstract factory class used to create {@link UnivariateRealSolver} instances.
+ * &lt;p&gt;
+ * Solvers implementing the following algorithms are supported:
+ * &lt;ul&gt;
+ * &lt;li&gt;Bisection&lt;/li&gt;
+ * &lt;li&gt;Brent's method&lt;/li&gt;
+ * &lt;li&gt;Secant method&lt;/li&gt;
+ * &lt;/ul&gt;
+ * Concrete factories extending this class also specify a default solver, instances of which
+ * are returned by &lt;code&gt;newDefaultSolver()&lt;/code&gt;.&lt;/p&gt;
+ * &lt;p&gt;
+ * Common usage:&lt;pre&gt;
+ * SolverFactory factory = UnivariateRealSolverFactory.newInstance();&lt;/p&gt;
+ *
+ * // create a Brent solver to use
+ * BrentSolver solver = factory.newBrentSolver();
+ * &lt;/pre&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public abstract class UnivariateRealSolverFactory {
+    /**
+     * Default constructor.
+     */
+<span class="fc" id="L44">    protected UnivariateRealSolverFactory() {</span>
+<span class="fc" id="L45">    }</span>
+
+    /**
+     * Create a new factory.
+     * @return a new factory.
+     */
+    public static UnivariateRealSolverFactory newInstance() {
+<span class="fc" id="L52">        return new UnivariateRealSolverFactoryImpl();</span>
+    }
+
+    /**
+     * Create a new {@link UnivariateRealSolver}.  The
+     * actual solver returned is determined by the underlying factory.
+     * @return the new solver.
+     */
+    public abstract UnivariateRealSolver newDefaultSolver();
+
+    /**
+     * Create a new {@link UnivariateRealSolver}.  The
+     * solver is an implementation of the bisection method.
+     * @return the new solver.
+     */
+    public abstract UnivariateRealSolver newBisectionSolver();
+
+    /**
+     * Create a new {@link UnivariateRealSolver}.  The
+     * solver is an implementation of the Brent method.
+     * @return the new solver.
+     */
+    public abstract UnivariateRealSolver newBrentSolver();
+
+    /**
+     * Create a new {@link UnivariateRealSolver}.  The
+     * solver is an implementation of Newton's Method.
+     * @return the new solver.
+     */
+    public abstract UnivariateRealSolver newNewtonSolver();
+
+    /**
+     * Create a new {@link UnivariateRealSolver}.  The
+     * solver is an implementation of the secant method.
+     * @return the new solver.
+     */
+    public abstract UnivariateRealSolver newSecantSolver();
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

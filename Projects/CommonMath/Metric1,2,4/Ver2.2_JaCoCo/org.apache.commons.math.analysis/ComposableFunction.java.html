@@ -1,0 +1,507 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ComposableFunction.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis</a> &gt; <span class="el_source">ComposableFunction.java</span></div><h1>ComposableFunction.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.analysis;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.util.FastMath;
+
+
+/**
+ * Base class for {@link UnivariateRealFunction} that can be composed with other functions.
+ *
+ * @since 2.1
+ * @version $Revision$ $Date$
+ */
+<span class="fc" id="L30">public abstract class ComposableFunction implements UnivariateRealFunction {</span>
+
+    /** The constant function always returning 0. */
+<span class="fc" id="L33">    public static final ComposableFunction ZERO = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L37">            return 0;</span>
+        }
+    };
+
+    /** The constant function always returning 1. */
+<span class="fc" id="L42">    public static final ComposableFunction ONE = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L46">            return 1;</span>
+        }
+    };
+
+    /** The identity function. */
+<span class="fc" id="L51">    public static final ComposableFunction IDENTITY = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L55">            return d;</span>
+        }
+    };
+
+    /** The {@code FastMath.abs} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L60">    public static final ComposableFunction ABS = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L64">            return FastMath.abs(d);</span>
+        }
+    };
+
+    /** The - operator wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L69">    public static final ComposableFunction NEGATE = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L73">            return -d;</span>
+        }
+    };
+
+    /** The invert operator wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L78">    public static final ComposableFunction INVERT = new ComposableFunction () {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d){
+<span class="fc" id="L82">            return 1/d;</span>
+        }
+    };
+
+    /** The {@code FastMath.sin} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L87">    public static final ComposableFunction SIN = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L91">            return FastMath.sin(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.sqrt} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L96">    public static final ComposableFunction SQRT = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L100">            return FastMath.sqrt(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.sinh} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L105">    public static final ComposableFunction SINH = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L109">            return FastMath.sinh(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.exp} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L114">    public static final ComposableFunction EXP = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L118">            return FastMath.exp(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.expm1} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L123">    public static final ComposableFunction EXPM1 = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L127">            return FastMath.expm1(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.asin} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L132">    public static final ComposableFunction ASIN = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L136">            return FastMath.asin(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.atan} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L141">    public static final ComposableFunction ATAN = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L145">            return FastMath.atan(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.tan} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L150">    public static final ComposableFunction TAN = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L154">            return FastMath.tan(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.tanh} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L159">    public static final ComposableFunction TANH = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L163">            return FastMath.tanh(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.cbrt} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L168">    public static final ComposableFunction CBRT = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L172">            return FastMath.cbrt(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.ceil} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L177">    public static final ComposableFunction CEIL = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L181">            return FastMath.ceil(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.floor} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L186">    public static final ComposableFunction FLOOR = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L190">            return FastMath.floor(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.log} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L195">    public static final ComposableFunction LOG = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L199">            return FastMath.log(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.log10} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L204">    public static final ComposableFunction LOG10 = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L208">            return FastMath.log10(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.log1p} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L213">    public static final ComposableFunction LOG1P = new ComposableFunction () {</span>
+        @Override
+        public double value(double d){
+<span class="fc" id="L216">            return FastMath.log1p(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.cos} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L221">    public static final ComposableFunction COS = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L225">            return FastMath.cos(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.abs} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L230">    public static final ComposableFunction ACOS = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L234">            return FastMath.acos(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.cosh} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L239">    public static final ComposableFunction COSH = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L243">            return FastMath.cosh(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.rint} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L248">    public static final ComposableFunction RINT = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L252">            return FastMath.rint(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.signum} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L257">    public static final ComposableFunction SIGNUM = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L261">            return FastMath.signum(d);</span>
+        }
+    };
+
+    /** The {@code FastMath.ulp} method wrapped as a {@link ComposableFunction}. */
+<span class="fc" id="L266">    public static final ComposableFunction ULP = new ComposableFunction() {</span>
+        /** {@inheritDoc} */
+        @Override
+        public double value(double d) {
+<span class="fc" id="L270">            return FastMath.ulp(d);</span>
+        }
+    };
+
+    /** Precompose the instance with another function.
+     * &lt;p&gt;
+     * The composed function h created by {@code h = g.of(f)} is such
+     * that {@code h.value(x) == g.value(f.value(x))} for all x.
+     * &lt;/p&gt;
+     * @param f function to compose with
+     * @return a new function which computes {@code this.value(f.value(x))}
+     * @see #postCompose(UnivariateRealFunction)
+     */
+    public ComposableFunction of(final UnivariateRealFunction f) {
+<span class="fc" id="L284">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L288">                return ComposableFunction.this.value(f.value(x));</span>
+            }
+        };
+    }
+
+    /** Postcompose the instance with another function.
+     * &lt;p&gt;
+     * The composed function h created by {@code h = g.postCompose(f)} is such
+     * that {@code h.value(x) == f.value(g.value(x))} for all x.
+     * &lt;/p&gt;
+     * @param f function to compose with
+     * @return a new function which computes {@code f.value(this.value(x))}
+     * @see #of(UnivariateRealFunction)
+     */
+    public ComposableFunction postCompose(final UnivariateRealFunction f) {
+<span class="fc" id="L303">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L307">                return f.value(ComposableFunction.this.value(x));</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function combining the instance and another function.
+     * &lt;p&gt;
+     * The function h created by {@code h = g.combine(f, combiner)} is such that
+     * {@code h.value(x) == combiner.value(g.value(x), f.value(x))} for all x.
+     * &lt;/p&gt;
+     * @param f function to combine with the instance
+     * @param combiner bivariate function used for combining
+     * @return a new function which computes {@code combine.value(this.value(x), f.value(x))}
+     */
+    public ComposableFunction combine(final UnivariateRealFunction f,
+                                      final BivariateRealFunction combiner) {
+<span class="fc" id="L324">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L328">                return combiner.value(ComposableFunction.this.value(x), f.value(x));</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function adding the instance and another function.
+     * @param f function to combine with the instance
+     * @return a new function which computes {@code this.value(x) + f.value(x)}
+     */
+    public ComposableFunction add(final UnivariateRealFunction f) {
+<span class="fc" id="L339">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L343">                return ComposableFunction.this.value(x) + f.value(x);</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function adding a constant term to the instance.
+     * @param a term to add
+     * @return a new function which computes {@code this.value(x) + a}
+     */
+    public ComposableFunction add(final double a) {
+<span class="fc" id="L354">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L358">                return ComposableFunction.this.value(x) + a;</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function subtracting another function from the instance.
+     * @param f function to combine with the instance
+     * @return a new function which computes {@code this.value(x) - f.value(x)}
+     */
+    public ComposableFunction subtract(final UnivariateRealFunction f) {
+<span class="fc" id="L369">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L373">                return ComposableFunction.this.value(x) - f.value(x);</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function multiplying the instance and another function.
+     * @param f function to combine with the instance
+     * @return a new function which computes {@code this.value(x) * f.value(x)}
+     */
+    public ComposableFunction multiply(final UnivariateRealFunction f) {
+<span class="fc" id="L384">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L388">                return ComposableFunction.this.value(x) * f.value(x);</span>
+            }
+        };
+    }
+
+    /**
+     * Return a function scaling the instance by a constant factor.
+     * @param scaleFactor constant scaling factor
+     * @return a new function which computes {@code this.value(x) * scaleFactor}
+     */
+    public ComposableFunction multiply(final double scaleFactor) {
+<span class="fc" id="L399">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L403">                return ComposableFunction.this.value(x) * scaleFactor;</span>
+            }
+        };
+    }
+    /**
+     * Return a function dividing the instance by another function.
+     * @param f function to combine with the instance
+     * @return a new function which computes {@code this.value(x) / f.value(x)}
+     */
+    public ComposableFunction divide(final UnivariateRealFunction f) {
+<span class="fc" id="L413">        return new ComposableFunction() {</span>
+            @Override
+            /** {@inheritDoc} */
+            public double value(double x) throws FunctionEvaluationException {
+<span class="fc" id="L417">                return ComposableFunction.this.value(x) / f.value(x);</span>
+            }
+        };
+    }
+
+    /**
+     * Generates a function that iteratively apply instance function on all
+     * elements of an array.
+     * &lt;p&gt;
+     * The generated function behaves as follows:
+     * &lt;ul&gt;
+     *   &lt;li&gt;initialize result = initialValue&lt;/li&gt;
+     *   &lt;li&gt;iterate: {@code result = combiner.value(result,
+     *   this.value(nextMultivariateEntry));}&lt;/li&gt;
+     *   &lt;li&gt;return result&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
+     * @param combiner combiner to use between entries
+     * @param initialValue initial value to use before first entry
+     * @return a new function that iteratively apply instance function on all
+     * elements of an array.
+     */
+    public MultivariateRealFunction asCollector(final BivariateRealFunction combiner,
+                                                final double initialValue) {
+<span class="fc" id="L441">        return new MultivariateRealFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double[] point)
+                throws FunctionEvaluationException, IllegalArgumentException {
+<span class="fc" id="L445">                double result = initialValue;</span>
+<span class="fc bfc" id="L446" title="All 2 branches covered.">                for (final double entry : point) {</span>
+<span class="fc" id="L447">                    result = combiner.value(result, ComposableFunction.this.value(entry));</span>
+                }
+<span class="fc" id="L449">                return result;</span>
+            }
+        };
+    }
+
+    /**
+     * Generates a function that iteratively apply instance function on all
+     * elements of an array.
+     * &lt;p&gt;
+     * Calling this method is equivalent to call {@link
+     * #asCollector(BivariateRealFunction, double) asCollector(BivariateRealFunction, 0.0)}.
+     * &lt;/p&gt;
+     * @param combiner combiner to use between entries
+     * @return a new function that iteratively apply instance function on all
+     * elements of an array.
+     * @see #asCollector(BivariateRealFunction, double)
+     */
+    public  MultivariateRealFunction asCollector(final BivariateRealFunction combiner) {
+<span class="fc" id="L467">        return asCollector(combiner, 0.0);</span>
+    }
+
+    /**
+     * Generates a function that iteratively apply instance function on all
+     * elements of an array.
+     * &lt;p&gt;
+     * Calling this method is equivalent to call {@link
+     * #asCollector(BivariateRealFunction, double) asCollector(BinaryFunction.ADD, initialValue)}.
+     * &lt;/p&gt;
+     * @param initialValue initial value to use before first entry
+     * @return a new function that iteratively apply instance function on all
+     * elements of an array.
+     * @see #asCollector(BivariateRealFunction, double)
+     * @see BinaryFunction#ADD
+     */
+    public  MultivariateRealFunction asCollector(final double initialValue) {
+<span class="fc" id="L484">        return asCollector(BinaryFunction.ADD, initialValue);</span>
+    }
+
+    /**
+     * Generates a function that iteratively apply instance function on all
+     * elements of an array.
+     * &lt;p&gt;
+     * Calling this method is equivalent to call {@link
+     * #asCollector(BivariateRealFunction, double) asCollector(BinaryFunction.ADD, 0.0)}.
+     * &lt;/p&gt;
+     * @return a new function that iteratively apply instance function on all
+     * elements of an array.
+     * @see #asCollector(BivariateRealFunction, double)
+     * @see BinaryFunction#ADD
+     */
+    public  MultivariateRealFunction asCollector() {
+<span class="fc" id="L500">        return asCollector(BinaryFunction.ADD, 0.0);</span>
+    }
+
+    /** {@inheritDoc} */
+    public abstract double value(double x) throws FunctionEvaluationException;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

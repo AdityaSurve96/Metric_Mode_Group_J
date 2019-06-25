@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>GaussNewtonOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.general</a> &gt; <span class="el_source">GaussNewtonOptimizer.java</span></div><h1>GaussNewtonOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.general;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.linear.BlockRealMatrix;
+import org.apache.commons.math.linear.DecompositionSolver;
+import org.apache.commons.math.linear.InvalidMatrixException;
+import org.apache.commons.math.linear.LUDecompositionImpl;
+import org.apache.commons.math.linear.QRDecompositionImpl;
+import org.apache.commons.math.linear.RealMatrix;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.optimization.VectorialPointValuePair;
+
+/**
+ * Gauss-Newton least-squares solver.
+ * &lt;p&gt;
+ * This class solve a least-square problem by solving the normal equations
+ * of the linearized problem at each iteration. Either LU decomposition or
+ * QR decomposition can be used to solve the normal equations. LU decomposition
+ * is faster but QR decomposition is more robust for difficult problems.
+ * &lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 2.0
+ *
+ */
+
+public class GaussNewtonOptimizer extends AbstractLeastSquaresOptimizer {
+
+    /** Indicator for using LU decomposition. */
+    private final boolean useLU;
+
+    /** Simple constructor with default settings.
+     * &lt;p&gt;The convergence check is set to a {@link
+     * org.apache.commons.math.optimization.SimpleVectorialValueChecker}
+     * and the maximal number of evaluation is set to
+     * {@link AbstractLeastSquaresOptimizer#DEFAULT_MAX_ITERATIONS}.
+     * @param useLU if true, the normal equations will be solved using LU
+     * decomposition, otherwise they will be solved using QR decomposition
+     */
+<span class="fc" id="L58">    public GaussNewtonOptimizer(final boolean useLU) {</span>
+<span class="fc" id="L59">        this.useLU = useLU;</span>
+<span class="fc" id="L60">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    public VectorialPointValuePair doOptimize()
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException {
+
+        // iterate until convergence is reached
+<span class="fc" id="L68">        VectorialPointValuePair current = null;</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        for (boolean converged = false; !converged;) {</span>
+
+<span class="fc" id="L71">            incrementIterationsCounter();</span>
+
+            // evaluate the objective function and its jacobian
+<span class="fc" id="L74">            VectorialPointValuePair previous = current;</span>
+<span class="fc" id="L75">            updateResidualsAndCost();</span>
+<span class="fc" id="L76">            updateJacobian();</span>
+<span class="fc" id="L77">            current = new VectorialPointValuePair(point, objective);</span>
+
+            // build the linear problem
+<span class="fc" id="L80">            final double[]   b = new double[cols];</span>
+<span class="fc" id="L81">            final double[][] a = new double[cols][cols];</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">            for (int i = 0; i &lt; rows; ++i) {</span>
+
+<span class="fc" id="L84">                final double[] grad   = jacobian[i];</span>
+<span class="fc" id="L85">                final double weight   = residualsWeights[i];</span>
+<span class="fc" id="L86">                final double residual = objective[i] - targetValues[i];</span>
+
+                // compute the normal equation
+<span class="fc" id="L89">                final double wr = weight * residual;</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">                for (int j = 0; j &lt; cols; ++j) {</span>
+<span class="fc" id="L91">                    b[j] += wr * grad[j];</span>
+                }
+
+                // build the contribution matrix for measurement i
+<span class="fc bfc" id="L95" title="All 2 branches covered.">                for (int k = 0; k &lt; cols; ++k) {</span>
+<span class="fc" id="L96">                    double[] ak = a[k];</span>
+<span class="fc" id="L97">                    double wgk = weight * grad[k];</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">                    for (int l = 0; l &lt; cols; ++l) {</span>
+<span class="fc" id="L99">                        ak[l] += wgk * grad[l];</span>
+                    }
+                }
+
+            }
+
+            try {
+
+                // solve the linearized least squares problem
+<span class="fc" id="L108">                RealMatrix mA = new BlockRealMatrix(a);</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                DecompositionSolver solver = useLU ?</span>
+<span class="fc" id="L110">                        new LUDecompositionImpl(mA).getSolver() :</span>
+<span class="fc" id="L111">                        new QRDecompositionImpl(mA).getSolver();</span>
+<span class="fc" id="L112">                final double[] dX = solver.solve(b);</span>
+
+                // update the estimated parameters
+<span class="fc bfc" id="L115" title="All 2 branches covered.">                for (int i = 0; i &lt; cols; ++i) {</span>
+<span class="fc" id="L116">                    point[i] += dX[i];</span>
+                }
+
+<span class="fc" id="L119">            } catch(InvalidMatrixException e) {</span>
+<span class="fc" id="L120">                throw new OptimizationException(LocalizedFormats.UNABLE_TO_SOLVE_SINGULAR_PROBLEM);</span>
+<span class="fc" id="L121">            }</span>
+
+            // check convergence
+<span class="fc bfc" id="L124" title="All 2 branches covered.">            if (previous != null) {</span>
+<span class="fc" id="L125">                converged = checker.converged(getIterations(), previous, current);</span>
+            }
+
+<span class="fc" id="L128">        }</span>
+
+        // we have converged
+<span class="fc" id="L131">        return current;</span>
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

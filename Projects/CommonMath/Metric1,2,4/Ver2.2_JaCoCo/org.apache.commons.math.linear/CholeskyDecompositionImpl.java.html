@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CholeskyDecompositionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">CholeskyDecompositionImpl.java</span></div><h1>CholeskyDecompositionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+
+/**
+ * Calculates the Cholesky decomposition of a matrix.
+ * &lt;p&gt;The Cholesky decomposition of a real symmetric positive-definite
+ * matrix A consists of a lower triangular matrix L with same size that
+ * satisfy: A = LL&lt;sup&gt;T&lt;/sup&gt;Q = I). In a sense, this is the square root of A.&lt;/p&gt;
+ *
+ * @see &lt;a href=&quot;http://mathworld.wolfram.com/CholeskyDecomposition.html&quot;&gt;MathWorld&lt;/a&gt;
+ * @see &lt;a href=&quot;http://en.wikipedia.org/wiki/Cholesky_decomposition&quot;&gt;Wikipedia&lt;/a&gt;
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class CholeskyDecompositionImpl implements CholeskyDecomposition {
+
+    /** Default threshold above which off-diagonal elements are considered too different
+     * and matrix not symmetric. */
+    public static final double DEFAULT_RELATIVE_SYMMETRY_THRESHOLD = 1.0e-15;
+
+    /** Default threshold below which diagonal elements are considered null
+     * and matrix not positive definite. */
+    public static final double DEFAULT_ABSOLUTE_POSITIVITY_THRESHOLD = 1.0e-10;
+
+    /** Row-oriented storage for L&lt;sup&gt;T&lt;/sup&gt; matrix data. */
+    private double[][] lTData;
+
+    /** Cached value of L. */
+    private RealMatrix cachedL;
+
+    /** Cached value of LT. */
+    private RealMatrix cachedLT;
+
+    /**
+     * Calculates the Cholesky decomposition of the given matrix.
+     * &lt;p&gt;
+     * Calling this constructor is equivalent to call {@link
+     * #CholeskyDecompositionImpl(RealMatrix, double, double)} with the
+     * thresholds set to the default values {@link
+     * #DEFAULT_RELATIVE_SYMMETRY_THRESHOLD} and {@link
+     * #DEFAULT_ABSOLUTE_POSITIVITY_THRESHOLD}
+     * &lt;/p&gt;
+     * @param matrix the matrix to decompose
+     * @exception NonSquareMatrixException if matrix is not square
+     * @exception NotSymmetricMatrixException if matrix is not symmetric
+     * @exception NotPositiveDefiniteMatrixException if the matrix is not
+     * strictly positive definite
+     * @see #CholeskyDecompositionImpl(RealMatrix, double, double)
+     * @see #DEFAULT_RELATIVE_SYMMETRY_THRESHOLD
+     * @see #DEFAULT_ABSOLUTE_POSITIVITY_THRESHOLD
+     */
+    public CholeskyDecompositionImpl(final RealMatrix matrix)
+        throws NonSquareMatrixException,
+               NotSymmetricMatrixException, NotPositiveDefiniteMatrixException {
+<span class="fc" id="L76">        this(matrix, DEFAULT_RELATIVE_SYMMETRY_THRESHOLD,</span>
+             DEFAULT_ABSOLUTE_POSITIVITY_THRESHOLD);
+<span class="fc" id="L78">    }</span>
+
+    /**
+     * Calculates the Cholesky decomposition of the given matrix.
+     * @param matrix the matrix to decompose
+     * @param relativeSymmetryThreshold threshold above which off-diagonal
+     * elements are considered too different and matrix not symmetric
+     * @param absolutePositivityThreshold threshold below which diagonal
+     * elements are considered null and matrix not positive definite
+     * @exception NonSquareMatrixException if matrix is not square
+     * @exception NotSymmetricMatrixException if matrix is not symmetric
+     * @exception NotPositiveDefiniteMatrixException if the matrix is not
+     * strictly positive definite
+     * @see #CholeskyDecompositionImpl(RealMatrix)
+     * @see #DEFAULT_RELATIVE_SYMMETRY_THRESHOLD
+     * @see #DEFAULT_ABSOLUTE_POSITIVITY_THRESHOLD
+     */
+    public CholeskyDecompositionImpl(final RealMatrix matrix,
+                                     final double relativeSymmetryThreshold,
+                                     final double absolutePositivityThreshold)
+        throws NonSquareMatrixException,
+<span class="fc" id="L99">               NotSymmetricMatrixException, NotPositiveDefiniteMatrixException {</span>
+
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        if (!matrix.isSquare()) {</span>
+<span class="fc" id="L102">            throw new NonSquareMatrixException(matrix.getRowDimension(),</span>
+<span class="fc" id="L103">                                               matrix.getColumnDimension());</span>
+        }
+
+<span class="fc" id="L106">        final int order = matrix.getRowDimension();</span>
+<span class="fc" id="L107">        lTData   = matrix.getData();</span>
+<span class="fc" id="L108">        cachedL  = null;</span>
+<span class="fc" id="L109">        cachedLT = null;</span>
+
+        // check the matrix before transformation
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        for (int i = 0; i &lt; order; ++i) {</span>
+
+<span class="fc" id="L114">            final double[] lI = lTData[i];</span>
+
+            // check off-diagonal elements (and reset them to 0)
+<span class="fc bfc" id="L117" title="All 2 branches covered.">            for (int j = i + 1; j &lt; order; ++j) {</span>
+<span class="fc" id="L118">                final double[] lJ = lTData[j];</span>
+<span class="fc" id="L119">                final double lIJ = lI[j];</span>
+<span class="fc" id="L120">                final double lJI = lJ[i];</span>
+<span class="fc" id="L121">                final double maxDelta =</span>
+<span class="fc" id="L122">                    relativeSymmetryThreshold * FastMath.max(FastMath.abs(lIJ), FastMath.abs(lJI));</span>
+<span class="fc bfc" id="L123" title="All 2 branches covered.">                if (FastMath.abs(lIJ - lJI) &gt; maxDelta) {</span>
+<span class="fc" id="L124">                    throw new NotSymmetricMatrixException();</span>
+                }
+<span class="fc" id="L126">                lJ[i] = 0;</span>
+           }
+        }
+
+        // transform the matrix
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        for (int i = 0; i &lt; order; ++i) {</span>
+
+<span class="fc" id="L133">            final double[] ltI = lTData[i];</span>
+
+            // check diagonal element
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            if (ltI[i] &lt; absolutePositivityThreshold) {</span>
+<span class="fc" id="L137">                throw new NotPositiveDefiniteMatrixException();</span>
+            }
+
+<span class="fc" id="L140">            ltI[i] = FastMath.sqrt(ltI[i]);</span>
+<span class="fc" id="L141">            final double inverse = 1.0 / ltI[i];</span>
+
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            for (int q = order - 1; q &gt; i; --q) {</span>
+<span class="fc" id="L144">                ltI[q] *= inverse;</span>
+<span class="fc" id="L145">                final double[] ltQ = lTData[q];</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                for (int p = q; p &lt; order; ++p) {</span>
+<span class="fc" id="L147">                    ltQ[p] -= ltI[q] * ltI[p];</span>
+                }
+            }
+
+        }
+
+<span class="fc" id="L153">    }</span>
+
+    /** {@inheritDoc} */
+    public RealMatrix getL() {
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (cachedL == null) {</span>
+<span class="fc" id="L158">            cachedL = getLT().transpose();</span>
+        }
+<span class="fc" id="L160">        return cachedL;</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getLT() {
+
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        if (cachedLT == null) {</span>
+<span class="fc" id="L167">            cachedLT = MatrixUtils.createRealMatrix(lTData);</span>
+        }
+
+        // return the cached matrix
+<span class="fc" id="L171">        return cachedLT;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public double getDeterminant() {
+<span class="fc" id="L177">        double determinant = 1.0;</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        for (int i = 0; i &lt; lTData.length; ++i) {</span>
+<span class="fc" id="L179">            double lTii = lTData[i][i];</span>
+<span class="fc" id="L180">            determinant *= lTii * lTii;</span>
+        }
+<span class="fc" id="L182">        return determinant;</span>
+    }
+
+    /** {@inheritDoc} */
+    public DecompositionSolver getSolver() {
+<span class="fc" id="L187">        return new Solver(lTData);</span>
+    }
+
+    /** Specialized solver. */
+    private static class Solver implements DecompositionSolver {
+
+        /** Row-oriented storage for L&lt;sup&gt;T&lt;/sup&gt; matrix data. */
+        private final double[][] lTData;
+
+        /**
+         * Build a solver from decomposed matrix.
+         * @param lTData row-oriented storage for L&lt;sup&gt;T&lt;/sup&gt; matrix data
+         */
+<span class="fc" id="L200">        private Solver(final double[][] lTData) {</span>
+<span class="fc" id="L201">            this.lTData = lTData;</span>
+<span class="fc" id="L202">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean isNonSingular() {
+            // if we get this far, the matrix was positive definite, hence non-singular
+<span class="nc" id="L207">            return true;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[] solve(double[] b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L214">            final int m = lTData.length;</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">            if (b.length != m) {</span>
+<span class="fc" id="L216">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                        LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L218">                        b.length, m);</span>
+            }
+
+<span class="fc" id="L221">            final double[] x = b.clone();</span>
+
+            // Solve LY = b
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            for (int j = 0; j &lt; m; j++) {</span>
+<span class="fc" id="L225">                final double[] lJ = lTData[j];</span>
+<span class="fc" id="L226">                x[j] /= lJ[j];</span>
+<span class="fc" id="L227">                final double xJ = x[j];</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                for (int i = j + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L229">                    x[i] -= xJ * lJ[i];</span>
+                }
+            }
+
+            // Solve LTX = Y
+<span class="fc bfc" id="L234" title="All 2 branches covered.">            for (int j = m - 1; j &gt;= 0; j--) {</span>
+<span class="fc" id="L235">                x[j] /= lTData[j][j];</span>
+<span class="fc" id="L236">                final double xJ = x[j];</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                for (int i = 0; i &lt; j; i++) {</span>
+<span class="fc" id="L238">                    x[i] -= xJ * lTData[i][j];</span>
+                }
+            }
+
+<span class="fc" id="L242">            return x;</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public RealVector solve(RealVector b)
+            throws IllegalArgumentException, InvalidMatrixException {
+            try {
+<span class="fc" id="L250">                return solve((ArrayRealVector) b);</span>
+<span class="fc" id="L251">            } catch (ClassCastException cce) {</span>
+
+<span class="fc" id="L253">                final int m = lTData.length;</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">                if (b.getDimension() != m) {</span>
+<span class="fc" id="L255">                    throw MathRuntimeException.createIllegalArgumentException(</span>
+                            LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L257">                            b.getDimension(), m);</span>
+                }
+
+<span class="fc" id="L260">                final double[] x = b.getData();</span>
+
+                // Solve LY = b
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                for (int j = 0; j &lt; m; j++) {</span>
+<span class="fc" id="L264">                    final double[] lJ = lTData[j];</span>
+<span class="fc" id="L265">                    x[j] /= lJ[j];</span>
+<span class="fc" id="L266">                    final double xJ = x[j];</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">                    for (int i = j + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L268">                        x[i] -= xJ * lJ[i];</span>
+                    }
+                }
+
+                // Solve LTX = Y
+<span class="fc bfc" id="L273" title="All 2 branches covered.">                for (int j = m - 1; j &gt;= 0; j--) {</span>
+<span class="fc" id="L274">                    x[j] /= lTData[j][j];</span>
+<span class="fc" id="L275">                    final double xJ = x[j];</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">                    for (int i = 0; i &lt; j; i++) {</span>
+<span class="fc" id="L277">                        x[i] -= xJ * lTData[i][j];</span>
+                    }
+                }
+
+<span class="fc" id="L281">                return new ArrayRealVector(x, false);</span>
+
+            }
+        }
+
+        /** Solve the linear equation A &amp;times; X = B.
+         * &lt;p&gt;The A matrix is implicit here. It is &lt;/p&gt;
+         * @param b right-hand side of the equation A &amp;times; X = B
+         * @return a vector X such that A &amp;times; X = B
+         * @exception IllegalArgumentException if matrices dimensions don't match
+         * @exception InvalidMatrixException if decomposed matrix is singular
+         */
+        public ArrayRealVector solve(ArrayRealVector b)
+            throws IllegalArgumentException, InvalidMatrixException {
+<span class="fc" id="L295">            return new ArrayRealVector(solve(b.getDataRef()), false);</span>
+        }
+
+        /** {@inheritDoc} */
+        public RealMatrix solve(RealMatrix b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L302">            final int m = lTData.length;</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            if (b.getRowDimension() != m) {</span>
+<span class="fc" id="L304">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                        LocalizedFormats.DIMENSIONS_MISMATCH_2x2,
+<span class="fc" id="L306">                        b.getRowDimension(), b.getColumnDimension(), m, &quot;n&quot;);</span>
+            }
+
+<span class="fc" id="L309">            final int nColB = b.getColumnDimension();</span>
+<span class="fc" id="L310">            double[][] x = b.getData();</span>
+
+            // Solve LY = b
+<span class="fc bfc" id="L313" title="All 2 branches covered.">            for (int j = 0; j &lt; m; j++) {</span>
+<span class="fc" id="L314">                final double[] lJ = lTData[j];</span>
+<span class="fc" id="L315">                final double lJJ = lJ[j];</span>
+<span class="fc" id="L316">                final double[] xJ = x[j];</span>
+<span class="fc bfc" id="L317" title="All 2 branches covered.">                for (int k = 0; k &lt; nColB; ++k) {</span>
+<span class="fc" id="L318">                    xJ[k] /= lJJ;</span>
+                }
+<span class="fc bfc" id="L320" title="All 2 branches covered.">                for (int i = j + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L321">                    final double[] xI = x[i];</span>
+<span class="fc" id="L322">                    final double lJI = lJ[i];</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">                    for (int k = 0; k &lt; nColB; ++k) {</span>
+<span class="fc" id="L324">                        xI[k] -= xJ[k] * lJI;</span>
+                    }
+                }
+            }
+
+            // Solve LTX = Y
+<span class="fc bfc" id="L330" title="All 2 branches covered.">            for (int j = m - 1; j &gt;= 0; j--) {</span>
+<span class="fc" id="L331">                final double lJJ = lTData[j][j];</span>
+<span class="fc" id="L332">                final double[] xJ = x[j];</span>
+<span class="fc bfc" id="L333" title="All 2 branches covered.">                for (int k = 0; k &lt; nColB; ++k) {</span>
+<span class="fc" id="L334">                    xJ[k] /= lJJ;</span>
+                }
+<span class="fc bfc" id="L336" title="All 2 branches covered.">                for (int i = 0; i &lt; j; i++) {</span>
+<span class="fc" id="L337">                    final double[] xI = x[i];</span>
+<span class="fc" id="L338">                    final double lIJ = lTData[i][j];</span>
+<span class="fc bfc" id="L339" title="All 2 branches covered.">                    for (int k = 0; k &lt; nColB; ++k) {</span>
+<span class="fc" id="L340">                        xI[k] -= xJ[k] * lIJ;</span>
+                    }
+                }
+            }
+
+<span class="fc" id="L345">            return new Array2DRowRealMatrix(x, false);</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public RealMatrix getInverse() throws InvalidMatrixException {
+<span class="nc" id="L351">            return solve(MatrixUtils.createRealIdentityMatrix(lTData.length));</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,640 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SimpleRegression.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.stat.regression</a> &gt; <span class="el_source">SimpleRegression.java</span></div><h1>SimpleRegression.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.stat.regression;
+import java.io.Serializable;
+
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.distribution.TDistribution;
+import org.apache.commons.math.distribution.TDistributionImpl;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Estimates an ordinary least squares regression model
+ * with one independent variable.
+ * &lt;p&gt;
+ * &lt;code&gt; y = intercept + slope * x  &lt;/code&gt;&lt;/p&gt;
+ * &lt;p&gt;
+ * Standard errors for &lt;code&gt;intercept&lt;/code&gt; and &lt;code&gt;slope&lt;/code&gt; are
+ * available as well as ANOVA, r-square and Pearson's r statistics.&lt;/p&gt;
+ * &lt;p&gt;
+ * Observations (x,y pairs) can be added to the model one at a time or they
+ * can be provided in a 2-dimensional array.  The observations are not stored
+ * in memory, so there is no limit to the number of observations that can be
+ * added to the model.&lt;/p&gt;
+ * &lt;p&gt;
+ * &lt;strong&gt;Usage Notes&lt;/strong&gt;: &lt;ul&gt;
+ * &lt;li&gt; When there are fewer than two observations in the model, or when
+ * there is no variation in the x values (i.e. all x values are the same)
+ * all statistics return &lt;code&gt;NaN&lt;/code&gt;. At least two observations with
+ * different x coordinates are requred to estimate a bivariate regression
+ * model.
+ * &lt;/li&gt;
+ * &lt;li&gt; getters for the statistics always compute values based on the current
+ * set of observations -- i.e., you can get statistics, then add more data
+ * and get updated statistics without using a new instance.  There is no
+ * &quot;compute&quot; method that updates all statistics.  Each of the getters performs
+ * the necessary computations to return the requested statistic.&lt;/li&gt;
+ * &lt;/ul&gt;&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public class SimpleRegression implements Serializable {
+
+    /** Serializable version identifier */
+    private static final long serialVersionUID = -3004689053607543335L;
+
+    /** the distribution used to compute inference statistics. */
+    private TDistribution distribution;
+
+    /** sum of x values */
+<span class="pc" id="L67">    private double sumX = 0d;</span>
+
+    /** total variation in x (sum of squared deviations from xbar) */
+<span class="pc" id="L70">    private double sumXX = 0d;</span>
+
+    /** sum of y values */
+<span class="pc" id="L73">    private double sumY = 0d;</span>
+
+    /** total variation in y (sum of squared deviations from ybar) */
+<span class="pc" id="L76">    private double sumYY = 0d;</span>
+
+    /** sum of products */
+<span class="pc" id="L79">    private double sumXY = 0d;</span>
+
+    /** number of observations */
+<span class="pc" id="L82">    private long n = 0;</span>
+
+    /** mean of accumulated x values, used in updating formulas */
+<span class="pc" id="L85">    private double xbar = 0;</span>
+
+    /** mean of accumulated y values, used in updating formulas */
+<span class="pc" id="L88">    private double ybar = 0;</span>
+
+    // ---------------------Public methods--------------------------------------
+
+    /**
+     * Create an empty SimpleRegression instance
+     */
+    public SimpleRegression() {
+<span class="fc" id="L96">        this(new TDistributionImpl(1.0));</span>
+<span class="fc" id="L97">    }</span>
+
+    /**
+     * Create an empty SimpleRegression using the given distribution object to
+     * compute inference statistics.
+     * @param t the distribution used to compute inference statistics.
+     * @since 1.2
+     * @deprecated in 2.2 (to be removed in 3.0). Please use the {@link
+     * #SimpleRegression(int) other constructor} instead.
+     */
+    @Deprecated
+    public SimpleRegression(TDistribution t) {
+<span class="fc" id="L109">        super();</span>
+<span class="fc" id="L110">        setDistribution(t);</span>
+<span class="fc" id="L111">    }</span>
+
+    /**
+     * Create an empty SimpleRegression.
+     *
+     * @param degrees Number of degrees of freedom of the distribution
+     * used to compute inference statistics.
+     * @since 2.2
+     */
+<span class="nc" id="L120">    public SimpleRegression(int degrees) {</span>
+<span class="nc" id="L121">        setDistribution(new TDistributionImpl(degrees));</span>
+<span class="nc" id="L122">    }</span>
+
+    /**
+     * Adds the observation (x,y) to the regression data set.
+     * &lt;p&gt;
+     * Uses updating formulas for means and sums of squares defined in
+     * &quot;Algorithms for Computing the Sample Variance: Analysis and
+     * Recommendations&quot;, Chan, T.F., Golub, G.H., and LeVeque, R.J.
+     * 1983, American Statistician, vol. 37, pp. 242-247, referenced in
+     * Weisberg, S. &quot;Applied Linear Regression&quot;. 2nd Ed. 1985.&lt;/p&gt;
+     *
+     *
+     * @param x independent variable value
+     * @param y dependent variable value
+     */
+    public void addData(double x, double y) {
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        if (n == 0) {</span>
+<span class="fc" id="L139">            xbar = x;</span>
+<span class="fc" id="L140">            ybar = y;</span>
+        } else {
+<span class="fc" id="L142">            double dx = x - xbar;</span>
+<span class="fc" id="L143">            double dy = y - ybar;</span>
+<span class="fc" id="L144">            sumXX += dx * dx * (double) n / (n + 1d);</span>
+<span class="fc" id="L145">            sumYY += dy * dy * (double) n / (n + 1d);</span>
+<span class="fc" id="L146">            sumXY += dx * dy * (double) n / (n + 1d);</span>
+<span class="fc" id="L147">            xbar += dx / (n + 1.0);</span>
+<span class="fc" id="L148">            ybar += dy / (n + 1.0);</span>
+        }
+<span class="fc" id="L150">        sumX += x;</span>
+<span class="fc" id="L151">        sumY += y;</span>
+<span class="fc" id="L152">        n++;</span>
+
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (n &gt; 2) {</span>
+<span class="fc" id="L155">            distribution.setDegreesOfFreedom(n - 2);</span>
+        }
+<span class="fc" id="L157">    }</span>
+
+
+    /**
+     * Removes the observation (x,y) from the regression data set.
+     * &lt;p&gt;
+     * Mirrors the addData method.  This method permits the use of
+     * SimpleRegression instances in streaming mode where the regression
+     * is applied to a sliding &quot;window&quot; of observations, however the caller is
+     * responsible for maintaining the set of observations in the window.&lt;/p&gt;
+     *
+     * The method has no effect if there are no points of data (i.e. n=0)
+     *
+     * @param x independent variable value
+     * @param y dependent variable value
+     */
+    public void removeData(double x, double y) {
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        if (n &gt; 0) {</span>
+<span class="fc" id="L175">            double dx = x - xbar;</span>
+<span class="fc" id="L176">            double dy = y - ybar;</span>
+<span class="fc" id="L177">            sumXX -= dx * dx * (double) n / (n - 1d);</span>
+<span class="fc" id="L178">            sumYY -= dy * dy * (double) n / (n - 1d);</span>
+<span class="fc" id="L179">            sumXY -= dx * dy * (double) n / (n - 1d);</span>
+<span class="fc" id="L180">            xbar -= dx / (n - 1.0);</span>
+<span class="fc" id="L181">            ybar -= dy / (n - 1.0);</span>
+<span class="fc" id="L182">            sumX -= x;</span>
+<span class="fc" id="L183">            sumY -= y;</span>
+<span class="fc" id="L184">            n--;</span>
+
+<span class="fc bfc" id="L186" title="All 2 branches covered.">            if (n &gt; 2) {</span>
+<span class="fc" id="L187">                distribution.setDegreesOfFreedom(n - 2);</span>
+            }
+        }
+<span class="fc" id="L190">    }</span>
+
+    /**
+     * Adds the observations represented by the elements in
+     * &lt;code&gt;data&lt;/code&gt;.
+     * &lt;p&gt;
+     * &lt;code&gt;(data[0][0],data[0][1])&lt;/code&gt; will be the first observation, then
+     * &lt;code&gt;(data[1][0],data[1][1])&lt;/code&gt;, etc.&lt;/p&gt;
+     * &lt;p&gt;
+     * This method does not replace data that has already been added.  The
+     * observations represented by &lt;code&gt;data&lt;/code&gt; are added to the existing
+     * dataset.&lt;/p&gt;
+     * &lt;p&gt;
+     * To replace all data, use &lt;code&gt;clear()&lt;/code&gt; before adding the new
+     * data.&lt;/p&gt;
+     *
+     * @param data array of observations to be added
+     */
+    public void addData(double[][] data) {
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L210">            addData(data[i][0], data[i][1]);</span>
+        }
+<span class="fc" id="L212">    }</span>
+
+
+    /**
+     * Removes observations represented by the elements in &lt;code&gt;data&lt;/code&gt;.
+      * &lt;p&gt;
+     * If the array is larger than the current n, only the first n elements are
+     * processed.  This method permits the use of SimpleRegression instances in
+     * streaming mode where the regression is applied to a sliding &quot;window&quot; of
+     * observations, however the caller is responsible for maintaining the set
+     * of observations in the window.&lt;/p&gt;
+     * &lt;p&gt;
+     * To remove all data, use &lt;code&gt;clear()&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @param data array of observations to be removed
+     */
+    public void removeData(double[][] data) {
+<span class="fc bfc" id="L229" title="All 4 branches covered.">        for (int i = 0; i &lt; data.length &amp;&amp; n &gt; 0; i++) {</span>
+<span class="fc" id="L230">            removeData(data[i][0], data[i][1]);</span>
+        }
+<span class="fc" id="L232">    }</span>
+
+    /**
+     * Clears all data from the model.
+     */
+    public void clear() {
+<span class="fc" id="L238">        sumX = 0d;</span>
+<span class="fc" id="L239">        sumXX = 0d;</span>
+<span class="fc" id="L240">        sumY = 0d;</span>
+<span class="fc" id="L241">        sumYY = 0d;</span>
+<span class="fc" id="L242">        sumXY = 0d;</span>
+<span class="fc" id="L243">        n = 0;</span>
+<span class="fc" id="L244">    }</span>
+
+    /**
+     * Returns the number of observations that have been added to the model.
+     *
+     * @return n number of observations that have been added.
+     */
+    public long getN() {
+<span class="fc" id="L252">        return n;</span>
+    }
+
+    /**
+     * Returns the &quot;predicted&quot; &lt;code&gt;y&lt;/code&gt; value associated with the
+     * supplied &lt;code&gt;x&lt;/code&gt; value,  based on the data that has been
+     * added to the model when this method is activated.
+     * &lt;p&gt;
+     * &lt;code&gt; predict(x) = intercept + slope * x &lt;/code&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double,NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param x input &lt;code&gt;x&lt;/code&gt; value
+     * @return predicted &lt;code&gt;y&lt;/code&gt; value
+     */
+    public double predict(double x) {
+<span class="fc" id="L273">        double b1 = getSlope();</span>
+<span class="fc" id="L274">        return getIntercept(b1) + b1 * x;</span>
+    }
+
+    /**
+     * Returns the intercept of the estimated regression line.
+     * &lt;p&gt;
+     * The least squares estimate of the intercept is computed using the
+     * &lt;a href=&quot;http://www.xycoon.com/estimation4.htm&quot;&gt;normal equations&lt;/a&gt;.
+     * The intercept is sometimes denoted b0.&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double,NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return the intercept of the regression line
+     */
+    public double getIntercept() {
+<span class="fc" id="L294">        return getIntercept(getSlope());</span>
+    }
+
+    /**
+    * Returns the slope of the estimated regression line.
+    * &lt;p&gt;
+    * The least squares estimate of the slope is computed using the
+    * &lt;a href=&quot;http://www.xycoon.com/estimation4.htm&quot;&gt;normal equations&lt;/a&gt;.
+    * The slope is sometimes denoted b1.&lt;/p&gt;
+    * &lt;p&gt;
+    * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+    * &lt;li&gt;At least two observations (with at least two different x values)
+    * must have been added before invoking this method. If this method is
+    * invoked before a model can be estimated, &lt;code&gt;Double.NaN&lt;/code&gt; is
+    * returned.
+    * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+    *
+    * @return the slope of the regression line
+    */
+    public double getSlope() {
+<span class="fc bfc" id="L314" title="All 2 branches covered.">        if (n &lt; 2) {</span>
+<span class="fc" id="L315">            return Double.NaN; //not enough data</span>
+        }
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        if (FastMath.abs(sumXX) &lt; 10 * Double.MIN_VALUE) {</span>
+<span class="fc" id="L318">            return Double.NaN; //not enough variation in x</span>
+        }
+<span class="fc" id="L320">        return sumXY / sumXX;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://www.xycoon.com/SumOfSquares.htm&quot;&gt;
+     * sum of squared errors&lt;/a&gt; (SSE) associated with the regression
+     * model.
+     * &lt;p&gt;
+     * The sum is computed using the computational formula&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;code&gt;SSE = SYY - (SXY * SXY / SXX)&lt;/code&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * where &lt;code&gt;SYY&lt;/code&gt; is the sum of the squared deviations of the y
+     * values about their mean, &lt;code&gt;SXX&lt;/code&gt; is similarly defined and
+     * &lt;code&gt;SXY&lt;/code&gt; is the sum of the products of x and y mean deviations.
+     * &lt;/p&gt;&lt;p&gt;
+     * The sums are accumulated using the updating algorithm referenced in
+     * {@link #addData}.&lt;/p&gt;
+     * &lt;p&gt;
+     * The return value is constrained to be non-negative - i.e., if due to
+     * rounding errors the computational formula returns a negative result,
+     * 0 is returned.&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double,NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return sum of squared errors associated with the regression model
+     */
+    public double getSumSquaredErrors() {
+<span class="fc" id="L353">        return FastMath.max(0d, sumYY - sumXY * sumXY / sumXX);</span>
+    }
+
+    /**
+     * Returns the sum of squared deviations of the y values about their mean.
+     * &lt;p&gt;
+     * This is defined as SSTO
+     * &lt;a href=&quot;http://www.xycoon.com/SumOfSquares.htm&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;
+     * &lt;p&gt;
+     * If &lt;code&gt;n &lt; 2&lt;/code&gt;, this returns &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @return sum of squared deviations of y values
+     */
+    public double getTotalSumSquares() {
+<span class="fc bfc" id="L367" title="All 2 branches covered.">        if (n &lt; 2) {</span>
+<span class="fc" id="L368">            return Double.NaN;</span>
+        }
+<span class="fc" id="L370">        return sumYY;</span>
+    }
+
+    /**
+     * Returns the sum of squared deviations of the x values about their mean.
+     *
+     * If &lt;code&gt;n &lt; 2&lt;/code&gt;, this returns &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @return sum of squared deviations of x values
+     */
+    public double getXSumSquares() {
+<span class="nc bnc" id="L381" title="All 2 branches missed.">        if (n &lt; 2) {</span>
+<span class="nc" id="L382">            return Double.NaN;</span>
+        }
+<span class="nc" id="L384">        return sumXX;</span>
+    }
+
+    /**
+     * Returns the sum of crossproducts, x&lt;sub&gt;i&lt;/sub&gt;*y&lt;sub&gt;i&lt;/sub&gt;.
+     *
+     * @return sum of cross products
+     */
+    public double getSumOfCrossProducts() {
+<span class="nc" id="L393">        return sumXY;</span>
+    }
+
+    /**
+     * Returns the sum of squared deviations of the predicted y values about
+     * their mean (which equals the mean of y).
+     * &lt;p&gt;
+     * This is usually abbreviated SSR or SSM.  It is defined as SSM
+     * &lt;a href=&quot;http://www.xycoon.com/SumOfSquares.htm&quot;&gt;here&lt;/a&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double.NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return sum of squared deviations of predicted y values
+     */
+    public double getRegressionSumSquares() {
+<span class="fc" id="L413">        return getRegressionSumSquares(getSlope());</span>
+    }
+
+    /**
+     * Returns the sum of squared errors divided by the degrees of freedom,
+     * usually abbreviated MSE.
+     * &lt;p&gt;
+     * If there are fewer than &lt;strong&gt;three&lt;/strong&gt; data pairs in the model,
+     * or if there is no variation in &lt;code&gt;x&lt;/code&gt;, this returns
+     * &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @return sum of squared deviations of y values
+     */
+    public double getMeanSquareError() {
+<span class="fc bfc" id="L427" title="All 2 branches covered.">        if (n &lt; 3) {</span>
+<span class="fc" id="L428">            return Double.NaN;</span>
+        }
+<span class="fc" id="L430">        return getSumSquaredErrors() / (n - 2);</span>
+    }
+
+    /**
+     * Returns &lt;a href=&quot;http://mathworld.wolfram.com/CorrelationCoefficient.html&quot;&gt;
+     * Pearson's product moment correlation coefficient&lt;/a&gt;,
+     * usually denoted r.
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double,NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return Pearson's r
+     */
+    public double getR() {
+<span class="fc" id="L448">        double b1 = getSlope();</span>
+<span class="fc" id="L449">        double result = FastMath.sqrt(getRSquare());</span>
+<span class="fc bfc" id="L450" title="All 2 branches covered.">        if (b1 &lt; 0) {</span>
+<span class="fc" id="L451">            result = -result;</span>
+        }
+<span class="fc" id="L453">        return result;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://www.xycoon.com/coefficient1.htm&quot;&gt;
+     * coefficient of determination&lt;/a&gt;,
+     * usually denoted r-square.
+     * &lt;p&gt;
+     * &lt;strong&gt;Preconditions&lt;/strong&gt;: &lt;ul&gt;
+     * &lt;li&gt;At least two observations (with at least two different x values)
+     * must have been added before invoking this method. If this method is
+     * invoked before a model can be estimated, &lt;code&gt;Double,NaN&lt;/code&gt; is
+     * returned.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return r-square
+     */
+    public double getRSquare() {
+<span class="fc" id="L471">        double ssto = getTotalSumSquares();</span>
+<span class="fc" id="L472">        return (ssto - getSumSquaredErrors()) / ssto;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://www.xycoon.com/standarderrorb0.htm&quot;&gt;
+     * standard error of the intercept estimate&lt;/a&gt;,
+     * usually denoted s(b0).
+     * &lt;p&gt;
+     * If there are fewer that &lt;strong&gt;three&lt;/strong&gt; observations in the
+     * model, or if there is no variation in x, this returns
+     * &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @return standard error associated with intercept estimate
+     */
+    public double getInterceptStdErr() {
+<span class="fc" id="L487">        return FastMath.sqrt(</span>
+<span class="fc" id="L488">            getMeanSquareError() * ((1d / (double) n) + (xbar * xbar) / sumXX));</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://www.xycoon.com/standerrorb(1).htm&quot;&gt;standard
+     * error of the slope estimate&lt;/a&gt;,
+     * usually denoted s(b1).
+     * &lt;p&gt;
+     * If there are fewer that &lt;strong&gt;three&lt;/strong&gt; data pairs in the model,
+     * or if there is no variation in x, this returns &lt;code&gt;Double.NaN&lt;/code&gt;.
+     * &lt;/p&gt;
+     *
+     * @return standard error associated with slope estimate
+     */
+    public double getSlopeStdErr() {
+<span class="fc" id="L503">        return FastMath.sqrt(getMeanSquareError() / sumXX);</span>
+    }
+
+    /**
+     * Returns the half-width of a 95% confidence interval for the slope
+     * estimate.
+     * &lt;p&gt;
+     * The 95% confidence interval is&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;code&gt;(getSlope() - getSlopeConfidenceInterval(),
+     * getSlope() + getSlopeConfidenceInterval())&lt;/code&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * If there are fewer that &lt;strong&gt;three&lt;/strong&gt; observations in the
+     * model, or if there is no variation in x, this returns
+     * &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Usage Note&lt;/strong&gt;:&lt;br&gt;
+     * The validity of this statistic depends on the assumption that the
+     * observations included in the model are drawn from a
+     * &lt;a href=&quot;http://mathworld.wolfram.com/BivariateNormalDistribution.html&quot;&gt;
+     * Bivariate Normal Distribution&lt;/a&gt;.&lt;/p&gt;
+     *
+     * @return half-width of 95% confidence interval for the slope estimate
+     * @throws MathException if the confidence interval can not be computed.
+     */
+    public double getSlopeConfidenceInterval() throws MathException {
+<span class="fc" id="L529">        return getSlopeConfidenceInterval(0.05d);</span>
+    }
+
+    /**
+     * Returns the half-width of a (100-100*alpha)% confidence interval for
+     * the slope estimate.
+     * &lt;p&gt;
+     * The (100-100*alpha)% confidence interval is &lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;code&gt;(getSlope() - getSlopeConfidenceInterval(),
+     * getSlope() + getSlopeConfidenceInterval())&lt;/code&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * To request, for example, a 99% confidence interval, use
+     * &lt;code&gt;alpha = .01&lt;/code&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Usage Note&lt;/strong&gt;:&lt;br&gt;
+     * The validity of this statistic depends on the assumption that the
+     * observations included in the model are drawn from a
+     * &lt;a href=&quot;http://mathworld.wolfram.com/BivariateNormalDistribution.html&quot;&gt;
+     * Bivariate Normal Distribution&lt;/a&gt;.&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt; Preconditions:&lt;/strong&gt;&lt;ul&gt;
+     * &lt;li&gt;If there are fewer that &lt;strong&gt;three&lt;/strong&gt; observations in the
+     * model, or if there is no variation in x, this returns
+     * &lt;code&gt;Double.NaN&lt;/code&gt;.
+     * &lt;/li&gt;
+     * &lt;li&gt;&lt;code&gt;(0 &lt; alpha &lt; 1)&lt;/code&gt;; otherwise an
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown.
+     * &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param alpha the desired significance level
+     * @return half-width of 95% confidence interval for the slope estimate
+     * @throws MathException if the confidence interval can not be computed.
+     */
+    public double getSlopeConfidenceInterval(double alpha)
+        throws MathException {
+<span class="pc bpc" id="L565" title="1 of 4 branches missed.">        if (alpha &gt;= 1 || alpha &lt;= 0) {</span>
+<span class="fc" id="L566">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.OUT_OF_BOUND_SIGNIFICANCE_LEVEL,
+<span class="fc" id="L568">                  alpha, 0.0, 1.0);</span>
+        }
+<span class="fc" id="L570">        return getSlopeStdErr() *</span>
+<span class="fc" id="L571">            distribution.inverseCumulativeProbability(1d - alpha / 2d);</span>
+    }
+
+    /**
+     * Returns the significance level of the slope (equiv) correlation.
+     * &lt;p&gt;
+     * Specifically, the returned value is the smallest &lt;code&gt;alpha&lt;/code&gt;
+     * such that the slope confidence interval with significance level
+     * equal to &lt;code&gt;alpha&lt;/code&gt; does not include &lt;code&gt;0&lt;/code&gt;.
+     * On regression output, this is often denoted &lt;code&gt;Prob(|t| &gt; 0)&lt;/code&gt;
+     * &lt;/p&gt;&lt;p&gt;
+     * &lt;strong&gt;Usage Note&lt;/strong&gt;:&lt;br&gt;
+     * The validity of this statistic depends on the assumption that the
+     * observations included in the model are drawn from a
+     * &lt;a href=&quot;http://mathworld.wolfram.com/BivariateNormalDistribution.html&quot;&gt;
+     * Bivariate Normal Distribution&lt;/a&gt;.&lt;/p&gt;
+     * &lt;p&gt;
+     * If there are fewer that &lt;strong&gt;three&lt;/strong&gt; observations in the
+     * model, or if there is no variation in x, this returns
+     * &lt;code&gt;Double.NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @return significance level for slope/correlation
+     * @throws MathException if the significance level can not be computed.
+     */
+    public double getSignificance() throws MathException {
+<span class="fc" id="L596">        return 2d * (1.0 - distribution.cumulativeProbability(</span>
+<span class="fc" id="L597">                    FastMath.abs(getSlope()) / getSlopeStdErr()));</span>
+    }
+
+    // ---------------------Private methods-----------------------------------
+
+    /**
+    * Returns the intercept of the estimated regression line, given the slope.
+    * &lt;p&gt;
+    * Will return &lt;code&gt;NaN&lt;/code&gt; if slope is &lt;code&gt;NaN&lt;/code&gt;.&lt;/p&gt;
+    *
+    * @param slope current slope
+    * @return the intercept of the regression line
+    */
+    private double getIntercept(double slope) {
+<span class="fc" id="L611">        return (sumY - slope * sumX) / n;</span>
+    }
+
+    /**
+     * Computes SSR from b1.
+     *
+     * @param slope regression slope estimate
+     * @return sum of squared deviations of predicted y values
+     */
+    private double getRegressionSumSquares(double slope) {
+<span class="fc" id="L621">        return slope * slope * sumXX;</span>
+    }
+
+    /**
+     * Modify the distribution used to compute inference statistics.
+     * @param value the new distribution
+     * @since 1.2
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public void setDistribution(TDistribution value) {
+<span class="fc" id="L632">        distribution = value;</span>
+
+        // modify degrees of freedom
+<span class="pc bpc" id="L635" title="1 of 2 branches missed.">        if (n &gt; 2) {</span>
+<span class="nc" id="L636">            distribution.setDegreesOfFreedom(n - 2);</span>
+        }
+<span class="fc" id="L638">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

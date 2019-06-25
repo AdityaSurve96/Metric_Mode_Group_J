@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SingularValueDecompositionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">SingularValueDecompositionImpl.java</span></div><h1>SingularValueDecompositionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Calculates the compact Singular Value Decomposition of a matrix.
+ * &lt;p&gt;
+ * The Singular Value Decomposition of matrix A is a set of three matrices: U,
+ * &amp;Sigma; and V such that A = U &amp;times; &amp;Sigma; &amp;times; V&lt;sup&gt;T&lt;/sup&gt;. Let A be
+ * a m &amp;times; n matrix, then U is a m &amp;times; p orthogonal matrix, &amp;Sigma; is a
+ * p &amp;times; p diagonal matrix with positive or null elements, V is a p &amp;times;
+ * n orthogonal matrix (hence V&lt;sup&gt;T&lt;/sup&gt; is also orthogonal) where
+ * p=min(m,n).
+ * &lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class SingularValueDecompositionImpl implements
+        SingularValueDecomposition {
+
+    /** Number of rows of the initial matrix. */
+    private int m;
+
+    /** Number of columns of the initial matrix. */
+    private int n;
+
+    /** Eigen decomposition of the tridiagonal matrix. */
+    private EigenDecomposition eigenDecomposition;
+
+    /** Singular values. */
+    private double[] singularValues;
+
+    /** Cached value of U. */
+    private RealMatrix cachedU;
+
+    /** Cached value of U&lt;sup&gt;T&lt;/sup&gt;. */
+    private RealMatrix cachedUt;
+
+    /** Cached value of S. */
+    private RealMatrix cachedS;
+
+    /** Cached value of V. */
+    private RealMatrix cachedV;
+
+    /** Cached value of V&lt;sup&gt;T&lt;/sup&gt;. */
+    private RealMatrix cachedVt;
+
+    /**
+     * Calculates the compact Singular Value Decomposition of the given matrix.
+     * @param matrix
+     *            The matrix to decompose.
+     * @exception InvalidMatrixException
+     *                (wrapping a
+     *                {@link org.apache.commons.math.ConvergenceException} if
+     *                algorithm fails to converge
+     */
+    public SingularValueDecompositionImpl(final RealMatrix matrix)
+<span class="fc" id="L77">            throws InvalidMatrixException {</span>
+
+<span class="fc" id="L79">        m = matrix.getRowDimension();</span>
+<span class="fc" id="L80">        n = matrix.getColumnDimension();</span>
+
+<span class="fc" id="L82">        cachedU = null;</span>
+<span class="fc" id="L83">        cachedS = null;</span>
+<span class="fc" id="L84">        cachedV = null;</span>
+<span class="fc" id="L85">        cachedVt = null;</span>
+
+<span class="fc" id="L87">        double[][] localcopy = matrix.getData();</span>
+<span class="fc" id="L88">        double[][] matATA = new double[n][n];</span>
+        //
+        // create A^T*A
+        //
+<span class="fc bfc" id="L92" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            for (int j = i; j &lt; n; j++) {</span>
+<span class="fc" id="L94">                matATA[i][j] = 0.0;</span>
+<span class="fc bfc" id="L95" title="All 2 branches covered.">                for (int k = 0; k &lt; m; k++) {</span>
+<span class="fc" id="L96">                    matATA[i][j] += localcopy[k][i] * localcopy[k][j];</span>
+                }
+<span class="fc" id="L98">                matATA[j][i]=matATA[i][j];</span>
+            }
+        }
+
+<span class="fc" id="L102">        double[][] matAAT = new double[m][m];</span>
+        //
+        // create A*A^T
+        //
+<span class="fc bfc" id="L106" title="All 2 branches covered.">        for (int i = 0; i &lt; m; i++) {</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">            for (int j = i; j &lt; m; j++) {</span>
+<span class="fc" id="L108">                matAAT[i][j] = 0.0;</span>
+<span class="fc bfc" id="L109" title="All 2 branches covered.">                for (int k = 0; k &lt; n; k++) {</span>
+<span class="fc" id="L110">                    matAAT[i][j] += localcopy[i][k] * localcopy[j][k];</span>
+                }
+<span class="fc" id="L112">                 matAAT[j][i]=matAAT[i][j];</span>
+            }
+        }
+        int p;
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        if (m&gt;=n) {</span>
+<span class="fc" id="L117">            p=n;</span>
+            // compute eigen decomposition of A^T*A
+<span class="fc" id="L119">            eigenDecomposition = new EigenDecompositionImpl(</span>
+                    new Array2DRowRealMatrix(matATA),1.0);
+<span class="fc" id="L121">            singularValues = eigenDecomposition.getRealEigenvalues();</span>
+<span class="fc" id="L122">            cachedV = eigenDecomposition.getV();</span>
+            // compute eigen decomposition of A*A^T
+<span class="fc" id="L124">            eigenDecomposition = new EigenDecompositionImpl(</span>
+                    new Array2DRowRealMatrix(matAAT),1.0);
+<span class="fc" id="L126">            cachedU = eigenDecomposition.getV().getSubMatrix(0, m - 1, 0, p - 1);</span>
+        } else {
+<span class="fc" id="L128">            p=m;</span>
+            // compute eigen decomposition of A*A^T
+<span class="fc" id="L130">            eigenDecomposition = new EigenDecompositionImpl(</span>
+                    new Array2DRowRealMatrix(matAAT),1.0);
+<span class="fc" id="L132">            singularValues = eigenDecomposition.getRealEigenvalues();</span>
+<span class="fc" id="L133">            cachedU = eigenDecomposition.getV();</span>
+
+            // compute eigen decomposition of A^T*A
+<span class="fc" id="L136">            eigenDecomposition = new EigenDecompositionImpl(</span>
+                    new Array2DRowRealMatrix(matATA),1.0);
+<span class="fc" id="L138">            cachedV = eigenDecomposition.getV().getSubMatrix(0,n-1,0,p-1);</span>
+        }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        for (int i = 0; i &lt; p; i++) {</span>
+<span class="fc" id="L141">            singularValues[i] = FastMath.sqrt(FastMath.abs(singularValues[i]));</span>
+        }
+        // Up to this point, U and V are computed independently of each other.
+        // There still a sign indetermination of each column of, say, U.
+        // The sign is set such that A.V_i=sigma_i.U_i (i&lt;=p)
+        // The right sign corresponds to a positive dot product of A.V_i and U_i
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        for (int i = 0; i &lt; p; i++) {</span>
+<span class="fc" id="L148">          RealVector tmp = cachedU.getColumnVector(i);</span>
+<span class="fc" id="L149">          double product=matrix.operate(cachedV.getColumnVector(i)).dotProduct(tmp);</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">          if (product&lt;0) {</span>
+<span class="fc" id="L151">            cachedU.setColumnVector(i, tmp.mapMultiply(-1.0));</span>
+          }
+        }
+<span class="fc" id="L154">    }</span>
+
+    /** {@inheritDoc} */
+    public RealMatrix getU() throws InvalidMatrixException {
+        // return the cached matrix
+<span class="fc" id="L159">        return cachedU;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getUT() throws InvalidMatrixException {
+
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">        if (cachedUt == null) {</span>
+<span class="fc" id="L167">            cachedUt = getU().transpose();</span>
+        }
+
+        // return the cached matrix
+<span class="fc" id="L171">        return cachedUt;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getS() throws InvalidMatrixException {
+
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        if (cachedS == null) {</span>
+
+            // cache the matrix for subsequent calls
+<span class="fc" id="L181">            cachedS = MatrixUtils.createRealDiagonalMatrix(singularValues);</span>
+
+        }
+<span class="fc" id="L184">        return cachedS;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double[] getSingularValues() throws InvalidMatrixException {
+<span class="fc" id="L189">        return singularValues.clone();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getV() throws InvalidMatrixException {
+        // return the cached matrix
+<span class="fc" id="L195">        return cachedV;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getVT() throws InvalidMatrixException {
+
+<span class="fc bfc" id="L202" title="All 2 branches covered.">        if (cachedVt == null) {</span>
+<span class="fc" id="L203">            cachedVt = getV().transpose();</span>
+        }
+
+        // return the cached matrix
+<span class="fc" id="L207">        return cachedVt;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public RealMatrix getCovariance(final double minSingularValue) {
+
+        // get the number of singular values to consider
+<span class="fc" id="L215">        final int p = singularValues.length;</span>
+<span class="fc" id="L216">        int dimension = 0;</span>
+<span class="fc bfc" id="L217" title="All 4 branches covered.">        while ((dimension &lt; p) &amp;&amp; (singularValues[dimension] &gt;= minSingularValue)) {</span>
+<span class="fc" id="L218">            ++dimension;</span>
+        }
+
+<span class="pc bpc" id="L221" title="1 of 2 branches missed.">        if (dimension == 0) {</span>
+<span class="nc" id="L222">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.TOO_LARGE_CUTOFF_SINGULAR_VALUE,
+<span class="nc" id="L224">                    minSingularValue, singularValues[0]);</span>
+        }
+
+<span class="fc" id="L227">        final double[][] data = new double[dimension][p];</span>
+<span class="fc" id="L228">        getVT().walkInOptimizedOrder(new DefaultRealMatrixPreservingVisitor() {</span>
+            /** {@inheritDoc} */
+            @Override
+            public void visit(final int row, final int column,
+                    final double value) {
+<span class="fc" id="L233">                data[row][column] = value / singularValues[row];</span>
+<span class="fc" id="L234">            }</span>
+        }, 0, dimension - 1, 0, p - 1);
+
+<span class="fc" id="L237">        RealMatrix jv = new Array2DRowRealMatrix(data, false);</span>
+<span class="fc" id="L238">        return jv.transpose().multiply(jv);</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public double getNorm() throws InvalidMatrixException {
+<span class="nc" id="L244">        return singularValues[0];</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getConditionNumber() throws InvalidMatrixException {
+<span class="fc" id="L249">        return singularValues[0] / singularValues[singularValues.length - 1];</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getRank() throws IllegalStateException {
+
+<span class="fc" id="L255">        final double threshold = FastMath.max(m, n) * FastMath.ulp(singularValues[0]);</span>
+
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">        for (int i = singularValues.length - 1; i &gt;= 0; --i) {</span>
+<span class="fc bfc" id="L258" title="All 2 branches covered.">            if (singularValues[i] &gt; threshold) {</span>
+<span class="fc" id="L259">                return i + 1;</span>
+            }
+        }
+<span class="nc" id="L262">        return 0;</span>
+
+    }
+
+    /** {@inheritDoc} */
+    public DecompositionSolver getSolver() {
+<span class="fc" id="L268">        return new Solver(singularValues, getUT(), getV(), getRank() == Math</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">                .max(m, n));</span>
+    }
+
+    /** Specialized solver. */
+    private static class Solver implements DecompositionSolver {
+
+        /** Pseudo-inverse of the initial matrix. */
+        private final RealMatrix pseudoInverse;
+
+        /** Singularity indicator. */
+        private boolean nonSingular;
+
+        /**
+         * Build a solver from decomposed matrix.
+         * @param singularValues
+         *            singularValues
+         * @param uT
+         *            U&lt;sup&gt;T&lt;/sup&gt; matrix of the decomposition
+         * @param v
+         *            V matrix of the decomposition
+         * @param nonSingular
+         *            singularity indicator
+         */
+        private Solver(final double[] singularValues, final RealMatrix uT,
+<span class="fc" id="L293">                final RealMatrix v, final boolean nonSingular) {</span>
+<span class="fc" id="L294">            double[][] suT = uT.getData();</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">            for (int i = 0; i &lt; singularValues.length; ++i) {</span>
+                final double a;
+<span class="fc bfc" id="L297" title="All 2 branches covered.">                if (singularValues[i]&gt;0) {</span>
+<span class="fc" id="L298">                 a=1.0 / singularValues[i];</span>
+                } else {
+<span class="fc" id="L300">                 a=0.0;</span>
+                }
+<span class="fc" id="L302">                final double[] suTi = suT[i];</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">                for (int j = 0; j &lt; suTi.length; ++j) {</span>
+<span class="fc" id="L304">                    suTi[j] *= a;</span>
+                }
+            }
+<span class="fc" id="L307">            pseudoInverse = v.multiply(new Array2DRowRealMatrix(suT, false));</span>
+<span class="fc" id="L308">            this.nonSingular = nonSingular;</span>
+<span class="fc" id="L309">        }</span>
+
+        /**
+         * Solve the linear equation A &amp;times; X = B in least square sense.
+         * &lt;p&gt;
+         * The m&amp;times;n matrix A may not be square, the solution X is such that
+         * ||A &amp;times; X - B|| is minimal.
+         * &lt;/p&gt;
+         * @param b
+         *            right-hand side of the equation A &amp;times; X = B
+         * @return a vector X that minimizes the two norm of A &amp;times; X - B
+         * @exception IllegalArgumentException
+         *                if matrices dimensions don't match
+         */
+        public double[] solve(final double[] b) throws IllegalArgumentException {
+<span class="fc" id="L324">            return pseudoInverse.operate(b);</span>
+        }
+
+        /**
+         * Solve the linear equation A &amp;times; X = B in least square sense.
+         * &lt;p&gt;
+         * The m&amp;times;n matrix A may not be square, the solution X is such that
+         * ||A &amp;times; X - B|| is minimal.
+         * &lt;/p&gt;
+         * @param b
+         *            right-hand side of the equation A &amp;times; X = B
+         * @return a vector X that minimizes the two norm of A &amp;times; X - B
+         * @exception IllegalArgumentException
+         *                if matrices dimensions don't match
+         */
+        public RealVector solve(final RealVector b)
+                throws IllegalArgumentException {
+<span class="fc" id="L341">            return pseudoInverse.operate(b);</span>
+        }
+
+        /**
+         * Solve the linear equation A &amp;times; X = B in least square sense.
+         * &lt;p&gt;
+         * The m&amp;times;n matrix A may not be square, the solution X is such that
+         * ||A &amp;times; X - B|| is minimal.
+         * &lt;/p&gt;
+         * @param b
+         *            right-hand side of the equation A &amp;times; X = B
+         * @return a matrix X that minimizes the two norm of A &amp;times; X - B
+         * @exception IllegalArgumentException
+         *                if matrices dimensions don't match
+         */
+        public RealMatrix solve(final RealMatrix b)
+                throws IllegalArgumentException {
+<span class="fc" id="L358">            return pseudoInverse.multiply(b);</span>
+        }
+
+        /**
+         * Check if the decomposed matrix is non-singular.
+         * @return true if the decomposed matrix is non-singular
+         */
+        public boolean isNonSingular() {
+<span class="nc" id="L366">            return nonSingular;</span>
+        }
+
+        /**
+         * Get the pseudo-inverse of the decomposed matrix.
+         * @return inverse matrix
+         */
+        public RealMatrix getInverse() {
+<span class="nc" id="L374">            return pseudoInverse;</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>BrentOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.univariate</a> &gt; <span class="el_source">BrentOptimizer.java</span></div><h1>BrentOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.optimization.univariate;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.exception.NotStrictlyPositiveException;
+import org.apache.commons.math.optimization.GoalType;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements Richard Brent's algorithm (from his book &quot;Algorithms for
+ * Minimization without Derivatives&quot;, p. 79) for finding minima of real
+ * univariate functions. This implementation is an adaptation partly
+ * based on the Python code from SciPy (module &quot;optimize.py&quot; v0.5).
+ *
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class BrentOptimizer extends AbstractUnivariateRealOptimizer {
+    /**
+     * Golden section.
+     */
+<span class="fc" id="L38">    private static final double GOLDEN_SECTION = 0.5 * (3 - FastMath.sqrt(5));</span>
+
+    /**
+     * Construct a solver.
+     */
+<span class="fc" id="L43">    public BrentOptimizer() {</span>
+<span class="fc" id="L44">        setMaxEvaluations(1000);</span>
+<span class="fc" id="L45">        setMaximalIterationCount(100);</span>
+<span class="fc" id="L46">        setAbsoluteAccuracy(1e-11);</span>
+<span class="fc" id="L47">        setRelativeAccuracy(1e-9);</span>
+<span class="fc" id="L48">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    protected double doOptimize()
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        return localMin(getGoalType() == GoalType.MINIMIZE,</span>
+<span class="fc" id="L55">                        getMin(), getStartValue(), getMax(),</span>
+<span class="fc" id="L56">                        getRelativeAccuracy(), getAbsoluteAccuracy());</span>
+    }
+
+    /**
+     * Find the minimum of the function within the interval {@code (lo, hi)}.
+     *
+     * If the function is defined on the interval {@code (lo, hi)}, then
+     * this method finds an approximation {@code x} to the point at which
+     * the function attains its minimum.&lt;br/&gt;
+     * {@code t} and {@code eps} define a tolerance {@code tol = eps |x| + t}
+     * and the function is never evaluated at two points closer together than
+     * {@code tol}. {@code eps} should be no smaller than &lt;em&gt;2 macheps&lt;/em&gt; and
+     * preferable not much less than &lt;em&gt;sqrt(macheps)&lt;/em&gt;, where
+     * &lt;em&gt;macheps&lt;/em&gt; is the relative machine precision. {@code t} should be
+     * positive.
+     * @param isMinim {@code true} when minimizing the function.
+     * @param lo Lower bound of the interval.
+     * @param mid Point inside the interval {@code [lo, hi]}.
+     * @param hi Higher bound of the interval.
+     * @param eps Relative accuracy.
+     * @param t Absolute accuracy.
+     * @return the optimum point.
+     * @throws MaxIterationsExceededException if the maximum iteration count
+     * is exceeded.
+     * @throws FunctionEvaluationException if an error occurs evaluating the function.
+     */
+    private double localMin(boolean isMinim,
+                            double lo, double mid, double hi,
+                            double eps, double t)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">        if (eps &lt;= 0) {</span>
+<span class="nc" id="L87">            throw new NotStrictlyPositiveException(eps);</span>
+        }
+<span class="pc bpc" id="L89" title="1 of 2 branches missed.">        if (t &lt;= 0) {</span>
+<span class="nc" id="L90">            throw new NotStrictlyPositiveException(t);</span>
+        }
+        double a;
+        double b;
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        if (lo &lt; hi) {</span>
+<span class="fc" id="L95">            a = lo;</span>
+<span class="fc" id="L96">            b = hi;</span>
+        } else {
+<span class="fc" id="L98">            a = hi;</span>
+<span class="fc" id="L99">            b = lo;</span>
+        }
+
+<span class="fc" id="L102">        double x = mid;</span>
+<span class="fc" id="L103">        double v = x;</span>
+<span class="fc" id="L104">        double w = x;</span>
+<span class="fc" id="L105">        double d = 0;</span>
+<span class="fc" id="L106">        double e = 0;</span>
+<span class="fc" id="L107">        double fx = computeObjectiveValue(x);</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        if (!isMinim) {</span>
+<span class="fc" id="L109">            fx = -fx;</span>
+        }
+<span class="fc" id="L111">        double fv = fx;</span>
+<span class="fc" id="L112">        double fw = fx;</span>
+
+        while (true) {
+<span class="fc" id="L115">            double m = 0.5 * (a + b);</span>
+<span class="fc" id="L116">            final double tol1 = eps * FastMath.abs(x) + t;</span>
+<span class="fc" id="L117">            final double tol2 = 2 * tol1;</span>
+
+            // Check stopping criterion.
+<span class="fc bfc" id="L120" title="All 2 branches covered.">            if (FastMath.abs(x - m) &gt; tol2 - 0.5 * (b - a)) {</span>
+<span class="fc" id="L121">                double p = 0;</span>
+<span class="fc" id="L122">                double q = 0;</span>
+<span class="fc" id="L123">                double r = 0;</span>
+<span class="fc" id="L124">                double u = 0;</span>
+
+<span class="fc bfc" id="L126" title="All 2 branches covered.">                if (FastMath.abs(e) &gt; tol1) { // Fit parabola.</span>
+<span class="fc" id="L127">                    r = (x - w) * (fx - fv);</span>
+<span class="fc" id="L128">                    q = (x - v) * (fx - fw);</span>
+<span class="fc" id="L129">                    p = (x - v) * q - (x - w) * r;</span>
+<span class="fc" id="L130">                    q = 2 * (q - r);</span>
+
+<span class="fc bfc" id="L132" title="All 2 branches covered.">                    if (q &gt; 0) {</span>
+<span class="fc" id="L133">                        p = -p;</span>
+                    } else {
+<span class="fc" id="L135">                        q = -q;</span>
+                    }
+
+<span class="fc" id="L138">                    r = e;</span>
+<span class="fc" id="L139">                    e = d;</span>
+
+<span class="fc bfc" id="L141" title="All 4 branches covered.">                    if (p &gt; q * (a - x) &amp;&amp;</span>
+                        p &lt; q * (b - x) &amp;&amp;
+<span class="fc bfc" id="L143" title="All 2 branches covered.">                        FastMath.abs(p) &lt; FastMath.abs(0.5 * q * r)) {</span>
+                        // Parabolic interpolation step.
+<span class="fc" id="L145">                        d = p / q;</span>
+<span class="fc" id="L146">                        u = x + d;</span>
+
+                        // f must not be evaluated too close to a or b.
+<span class="fc bfc" id="L149" title="All 4 branches covered.">                        if (u - a &lt; tol2 || b - u &lt; tol2) {</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">                            if (x &lt;= m) {</span>
+<span class="fc" id="L151">                                d = tol1;</span>
+                            } else {
+<span class="fc" id="L153">                                d = -tol1;</span>
+                            }
+                        }
+                    } else {
+                        // Golden section step.
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                        if (x &lt; m) {</span>
+<span class="fc" id="L159">                            e = b - x;</span>
+                        } else {
+<span class="fc" id="L161">                            e = a - x;</span>
+                        }
+<span class="fc" id="L163">                        d = GOLDEN_SECTION * e;</span>
+                    }
+                } else {
+                    // Golden section step.
+<span class="fc bfc" id="L167" title="All 2 branches covered.">                    if (x &lt; m) {</span>
+<span class="fc" id="L168">                        e = b - x;</span>
+                    } else {
+<span class="fc" id="L170">                        e = a - x;</span>
+                    }
+<span class="fc" id="L172">                    d = GOLDEN_SECTION * e;</span>
+                }
+
+                // Update by at least &quot;tol1&quot;.
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                if (FastMath.abs(d) &lt; tol1) {</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">                    if (d &gt;= 0) {</span>
+<span class="fc" id="L178">                        u = x + tol1;</span>
+                    } else {
+<span class="fc" id="L180">                        u = x - tol1;</span>
+                    }
+                } else {
+<span class="fc" id="L183">                    u = x + d;</span>
+                }
+
+<span class="fc" id="L186">                double fu = computeObjectiveValue(u);</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                if (!isMinim) {</span>
+<span class="fc" id="L188">                    fu = -fu;</span>
+                }
+
+                // Update a, b, v, w and x.
+<span class="fc bfc" id="L192" title="All 2 branches covered.">                if (fu &lt;= fx) {</span>
+<span class="fc bfc" id="L193" title="All 2 branches covered.">                    if (u &lt; x) {</span>
+<span class="fc" id="L194">                        b = x;</span>
+                    } else {
+<span class="fc" id="L196">                        a = x;</span>
+                    }
+<span class="fc" id="L198">                    v = w;</span>
+<span class="fc" id="L199">                    fv = fw;</span>
+<span class="fc" id="L200">                    w = x;</span>
+<span class="fc" id="L201">                    fw = fx;</span>
+<span class="fc" id="L202">                    x = u;</span>
+<span class="fc" id="L203">                    fx = fu;</span>
+                } else {
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                    if (u &lt; x) {</span>
+<span class="fc" id="L206">                        a = u;</span>
+                    } else {
+<span class="fc" id="L208">                        b = u;</span>
+                    }
+<span class="fc bfc" id="L210" title="All 4 branches covered.">                    if (fu &lt;= fw || w == x) {</span>
+<span class="fc" id="L211">                        v = w;</span>
+<span class="fc" id="L212">                        fv = fw;</span>
+<span class="fc" id="L213">                        w = u;</span>
+<span class="fc" id="L214">                        fw = fu;</span>
+<span class="fc bfc" id="L215" title="All 6 branches covered.">                    } else if (fu &lt;= fv || v == x || v == w) {</span>
+<span class="fc" id="L216">                        v = u;</span>
+<span class="fc" id="L217">                        fv = fu;</span>
+                    }
+                }
+<span class="fc" id="L220">            } else { // termination</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">                setFunctionValue(isMinim ? fx : -fx);</span>
+<span class="fc" id="L222">                return x;</span>
+            }
+<span class="fc" id="L224">            incrementIterationsCounter();</span>
+<span class="fc" id="L225">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
