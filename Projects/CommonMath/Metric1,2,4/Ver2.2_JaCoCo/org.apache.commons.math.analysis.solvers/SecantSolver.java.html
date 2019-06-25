@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SecantSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">SecantSolver.java</span></div><h1>SecantSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+
+/**
+ * Implements a modified version of the
+ * &lt;a href=&quot;http://mathworld.wolfram.com/SecantMethod.html&quot;&gt;secant method&lt;/a&gt;
+ * for approximating a zero of a real univariate function.
+ * &lt;p&gt;
+ * The algorithm is modified to maintain bracketing of a root by successive
+ * approximations. Because of forced bracketing, convergence may be slower than
+ * the unrestricted secant algorithm. However, this implementation should in
+ * general outperform the
+ * &lt;a href=&quot;http://mathworld.wolfram.com/MethodofFalsePosition.html&quot;&gt;
+ * regula falsi method.&lt;/a&gt;&lt;/p&gt;
+ * &lt;p&gt;
+ * The function is assumed to be continuous but not necessarily smooth.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public class SecantSolver extends UnivariateRealSolverImpl {
+
+    /**
+     * Construct a solver for the given function.
+     * @param f function to solve.
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public SecantSolver(UnivariateRealFunction f) {
+<span class="fc" id="L56">        super(f, 100, 1E-6);</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Construct a solver.
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public SecantSolver() {
+<span class="fc" id="L65">        super(100, 1E-6);</span>
+<span class="fc" id="L66">    }</span>
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L72">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L79">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a zero in the given interval.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use (ignored)
+     * @param maxEval Maximum number of evaluations.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min is not less than max or the
+     * signs of the values of the function at the endpoints are not opposites
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L100">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L101">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a zero in the given interval.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use (ignored)
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min is not less than max or the
+     * signs of the values of the function at the endpoints are not opposites
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L122">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a zero in the given interval.
+     * @param f the function to solve
+     * @param min the lower bound for the interval.
+     * @param max the upper bound for the interval.
+     * @param maxEval Maximum number of evaluations.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException  if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min is not less than max or the
+     * signs of the values of the function at the endpoints are not opposites
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L141">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L142">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a zero in the given interval.
+     * @param f the function to solve
+     * @param min the lower bound for the interval.
+     * @param max the upper bound for the interval.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException  if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min is not less than max or the
+     * signs of the values of the function at the endpoints are not opposites
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+<span class="fc" id="L162">        clearResult();</span>
+<span class="fc" id="L163">        verifyInterval(min, max);</span>
+
+        // Index 0 is the old approximation for the root.
+        // Index 1 is the last calculated approximation  for the root.
+        // Index 2 is a bracket for the root with respect to x0.
+        // OldDelta is the length of the bracketing interval of the last
+        // iteration.
+<span class="fc" id="L170">        double x0 = min;</span>
+<span class="fc" id="L171">        double x1 = max;</span>
+<span class="fc" id="L172">        double y0 = f.value(x0);</span>
+<span class="fc" id="L173">        double y1 = f.value(x1);</span>
+
+        // Verify bracketing
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">        if (y0 * y1 &gt;= 0) {</span>
+<span class="nc" id="L177">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L178">                  LocalizedFormats.SAME_SIGN_AT_ENDPOINTS, min, max, y0, y1);</span>
+        }
+
+<span class="fc" id="L181">        double x2 = x0;</span>
+<span class="fc" id="L182">        double y2 = y0;</span>
+<span class="fc" id="L183">        double oldDelta = x2 - x1;</span>
+<span class="fc" id="L184">        int i = 0;</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">        while (i &lt; maximalIterationCount) {</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">            if (FastMath.abs(y2) &lt; FastMath.abs(y1)) {</span>
+<span class="fc" id="L187">                x0 = x1;</span>
+<span class="fc" id="L188">                x1 = x2;</span>
+<span class="fc" id="L189">                x2 = x0;</span>
+<span class="fc" id="L190">                y0 = y1;</span>
+<span class="fc" id="L191">                y1 = y2;</span>
+<span class="fc" id="L192">                y2 = y0;</span>
+            }
+<span class="fc bfc" id="L194" title="All 2 branches covered.">            if (FastMath.abs(y1) &lt;= functionValueAccuracy) {</span>
+<span class="fc" id="L195">                setResult(x1, i);</span>
+<span class="fc" id="L196">                return result;</span>
+            }
+<span class="fc" id="L198">            if (FastMath.abs(oldDelta) &lt;</span>
+<span class="fc bfc" id="L199" title="All 2 branches covered.">                FastMath.max(relativeAccuracy * FastMath.abs(x1), absoluteAccuracy)) {</span>
+<span class="fc" id="L200">                setResult(x1, i);</span>
+<span class="fc" id="L201">                return result;</span>
+            }
+            double delta;
+<span class="fc bfc" id="L204" title="All 2 branches covered.">            if (FastMath.abs(y1) &gt; FastMath.abs(y0)) {</span>
+                // Function value increased in last iteration. Force bisection.
+<span class="fc" id="L206">                delta = 0.5 * oldDelta;</span>
+            } else {
+<span class="fc" id="L208">                delta = (x0 - x1) / (1 - y0 / y1);</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">                if (delta / oldDelta &gt; 1) {</span>
+                    // New approximation falls outside bracket.
+                    // Fall back to bisection.
+<span class="fc" id="L212">                    delta = 0.5 * oldDelta;</span>
+                }
+            }
+<span class="fc" id="L215">            x0 = x1;</span>
+<span class="fc" id="L216">            y0 = y1;</span>
+<span class="fc" id="L217">            x1 = x1 + delta;</span>
+<span class="fc" id="L218">            y1 = f.value(x1);</span>
+<span class="fc bfc" id="L219" title="All 6 branches covered.">            if ((y1 &gt; 0) == (y2 &gt; 0)) {</span>
+                // New bracket is (x0,x1).
+<span class="fc" id="L221">                x2 = x0;</span>
+<span class="fc" id="L222">                y2 = y0;</span>
+            }
+<span class="fc" id="L224">            oldDelta = x2 - x1;</span>
+<span class="fc" id="L225">            i++;</span>
+<span class="fc" id="L226">        }</span>
+<span class="nc" id="L227">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

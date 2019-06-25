@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractStepInterpolator.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.ode.sampling</a> &gt; <span class="el_source">AbstractStepInterpolator.java</span></div><h1>AbstractStepInterpolator.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.ode.sampling;
+
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+
+import org.apache.commons.math.ode.DerivativeException;
+
+/** This abstract class represents an interpolator over the last step
+ * during an ODE integration.
+ *
+ * &lt;p&gt;The various ODE integrators provide objects extending this class
+ * to the step handlers. The handlers can use these objects to
+ * retrieve the state vector at intermediate times between the
+ * previous and the current grid points (dense output).&lt;/p&gt;
+ *
+ * @see org.apache.commons.math.ode.FirstOrderIntegrator
+ * @see org.apache.commons.math.ode.SecondOrderIntegrator
+ * @see StepHandler
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ *
+ */
+
+public abstract class AbstractStepInterpolator
+  implements StepInterpolator {
+
+  /** current time step */
+  protected double h;
+
+  /** current state */
+  protected double[] currentState;
+
+  /** interpolated time */
+  protected double interpolatedTime;
+
+  /** interpolated state */
+  protected double[] interpolatedState;
+
+  /** interpolated derivatives */
+  protected double[] interpolatedDerivatives;
+
+  /** global previous time */
+  private double globalPreviousTime;
+
+  /** global current time */
+  private double globalCurrentTime;
+
+  /** soft previous time */
+  private double softPreviousTime;
+
+  /** soft current time */
+  private double softCurrentTime;
+
+  /** indicate if the step has been finalized or not. */
+  private boolean finalized;
+
+  /** integration direction. */
+  private boolean forward;
+
+  /** indicator for dirty state. */
+  private boolean dirtyState;
+
+
+  /** Simple constructor.
+   * This constructor builds an instance that is not usable yet, the
+   * {@link #reinitialize} method should be called before using the
+   * instance in order to initialize the internal arrays. This
+   * constructor is used only in order to delay the initialization in
+   * some cases. As an example, the {@link
+   * org.apache.commons.math.ode.nonstiff.EmbeddedRungeKuttaIntegrator}
+   * class uses the prototyping design pattern to create the step
+   * interpolators by cloning an uninitialized model and latter
+   * initializing the copy.
+   */
+<span class="fc" id="L94">  protected AbstractStepInterpolator() {</span>
+<span class="fc" id="L95">    globalPreviousTime      = Double.NaN;</span>
+<span class="fc" id="L96">    globalCurrentTime       = Double.NaN;</span>
+<span class="fc" id="L97">    softPreviousTime        = Double.NaN;</span>
+<span class="fc" id="L98">    softCurrentTime         = Double.NaN;</span>
+<span class="fc" id="L99">    h                       = Double.NaN;</span>
+<span class="fc" id="L100">    interpolatedTime        = Double.NaN;</span>
+<span class="fc" id="L101">    currentState            = null;</span>
+<span class="fc" id="L102">    interpolatedState       = null;</span>
+<span class="fc" id="L103">    interpolatedDerivatives = null;</span>
+<span class="fc" id="L104">    finalized               = false;</span>
+<span class="fc" id="L105">    this.forward            = true;</span>
+<span class="fc" id="L106">    this.dirtyState         = true;</span>
+<span class="fc" id="L107">  }</span>
+
+  /** Simple constructor.
+   * @param y reference to the integrator array holding the state at
+   * the end of the step
+   * @param forward integration direction indicator
+   */
+<span class="fc" id="L114">  protected AbstractStepInterpolator(final double[] y, final boolean forward) {</span>
+
+<span class="fc" id="L116">    globalPreviousTime = Double.NaN;</span>
+<span class="fc" id="L117">    globalCurrentTime  = Double.NaN;</span>
+<span class="fc" id="L118">    softPreviousTime   = Double.NaN;</span>
+<span class="fc" id="L119">    softCurrentTime    = Double.NaN;</span>
+<span class="fc" id="L120">    h                  = Double.NaN;</span>
+<span class="fc" id="L121">    interpolatedTime   = Double.NaN;</span>
+
+<span class="fc" id="L123">    currentState            = y;</span>
+<span class="fc" id="L124">    interpolatedState       = new double[y.length];</span>
+<span class="fc" id="L125">    interpolatedDerivatives = new double[y.length];</span>
+
+<span class="fc" id="L127">    finalized         = false;</span>
+<span class="fc" id="L128">    this.forward      = forward;</span>
+<span class="fc" id="L129">    this.dirtyState   = true;</span>
+
+<span class="fc" id="L131">  }</span>
+
+  /** Copy constructor.
+
+   * &lt;p&gt;The copied interpolator should have been finalized before the
+   * copy, otherwise the copy will not be able to perform correctly
+   * any derivative computation and will throw a {@link
+   * NullPointerException} later. Since we don't want this constructor
+   * to throw the exceptions finalization may involve and since we
+   * don't want this method to modify the state of the copied
+   * interpolator, finalization is &lt;strong&gt;not&lt;/strong&gt; done
+   * automatically, it remains under user control.&lt;/p&gt;
+   *
+   * &lt;p&gt;The copy is a deep copy: its arrays are separated from the
+   * original arrays of the instance.&lt;/p&gt;
+   *
+   * @param interpolator interpolator to copy from.
+   *
+   */
+<span class="fc" id="L150">  protected AbstractStepInterpolator(final AbstractStepInterpolator interpolator) {</span>
+
+<span class="fc" id="L152">    globalPreviousTime = interpolator.globalPreviousTime;</span>
+<span class="fc" id="L153">    globalCurrentTime  = interpolator.globalCurrentTime;</span>
+<span class="fc" id="L154">    softPreviousTime   = interpolator.softPreviousTime;</span>
+<span class="fc" id="L155">    softCurrentTime    = interpolator.softCurrentTime;</span>
+<span class="fc" id="L156">    h                  = interpolator.h;</span>
+<span class="fc" id="L157">    interpolatedTime   = interpolator.interpolatedTime;</span>
+
+<span class="fc bfc" id="L159" title="All 2 branches covered.">    if (interpolator.currentState != null) {</span>
+<span class="fc" id="L160">      currentState            = interpolator.currentState.clone();</span>
+<span class="fc" id="L161">      interpolatedState       = interpolator.interpolatedState.clone();</span>
+<span class="fc" id="L162">      interpolatedDerivatives = interpolator.interpolatedDerivatives.clone();</span>
+    } else {
+<span class="fc" id="L164">      currentState            = null;</span>
+<span class="fc" id="L165">      interpolatedState       = null;</span>
+<span class="fc" id="L166">      interpolatedDerivatives = null;</span>
+    }
+
+<span class="fc" id="L169">    finalized  = interpolator.finalized;</span>
+<span class="fc" id="L170">    forward    = interpolator.forward;</span>
+<span class="fc" id="L171">    dirtyState = interpolator.dirtyState;</span>
+
+<span class="fc" id="L173">  }</span>
+
+  /** Reinitialize the instance
+   * @param y reference to the integrator array holding the state at
+   * the end of the step
+   * @param isForward integration direction indicator
+   */
+  protected void reinitialize(final double[] y, final boolean isForward) {
+
+<span class="fc" id="L182">    globalPreviousTime = Double.NaN;</span>
+<span class="fc" id="L183">    globalCurrentTime  = Double.NaN;</span>
+<span class="fc" id="L184">    softPreviousTime   = Double.NaN;</span>
+<span class="fc" id="L185">    softCurrentTime    = Double.NaN;</span>
+<span class="fc" id="L186">    h                  = Double.NaN;</span>
+<span class="fc" id="L187">    interpolatedTime   = Double.NaN;</span>
+
+<span class="fc" id="L189">    currentState            = y;</span>
+<span class="fc" id="L190">    interpolatedState       = new double[y.length];</span>
+<span class="fc" id="L191">    interpolatedDerivatives = new double[y.length];</span>
+
+<span class="fc" id="L193">    finalized         = false;</span>
+<span class="fc" id="L194">    this.forward      = isForward;</span>
+<span class="fc" id="L195">    this.dirtyState   = true;</span>
+
+<span class="fc" id="L197">  }</span>
+
+  /** {@inheritDoc} */
+   public StepInterpolator copy() throws DerivativeException {
+
+     // finalize the step before performing copy
+<span class="fc" id="L203">     finalizeStep();</span>
+
+     // create the new independent instance
+<span class="fc" id="L206">     return doCopy();</span>
+
+   }
+
+   /** Really copy the finalized instance.
+    * &lt;p&gt;This method is called by {@link #copy()} after the
+    * step has been finalized. It must perform a deep copy
+    * to have an new instance completely independent for the
+    * original instance.
+    * @return a copy of the finalized instance
+    */
+   protected abstract StepInterpolator doCopy();
+
+  /** Shift one step forward.
+   * Copy the current time into the previous time, hence preparing the
+   * interpolator for future calls to {@link #storeTime storeTime}
+   */
+  public void shift() {
+<span class="fc" id="L224">    globalPreviousTime = globalCurrentTime;</span>
+<span class="fc" id="L225">    softPreviousTime   = globalPreviousTime;</span>
+<span class="fc" id="L226">    softCurrentTime    = globalCurrentTime;</span>
+<span class="fc" id="L227">  }</span>
+
+  /** Store the current step time.
+   * @param t current time
+   */
+  public void storeTime(final double t) {
+
+<span class="fc" id="L234">    globalCurrentTime = t;</span>
+<span class="fc" id="L235">    softCurrentTime   = globalCurrentTime;</span>
+<span class="fc" id="L236">    h                 = globalCurrentTime - globalPreviousTime;</span>
+<span class="fc" id="L237">    setInterpolatedTime(t);</span>
+
+    // the step is not finalized anymore
+<span class="fc" id="L240">    finalized  = false;</span>
+
+<span class="fc" id="L242">  }</span>
+
+  /** Restrict step range to a limited part of the global step.
+   * &lt;p&gt;
+   * This method can be used to restrict a step and make it appear
+   * as if the original step was smaller. Calling this method
+   * &lt;em&gt;only&lt;/em&gt; changes the value returned by {@link #getPreviousTime()},
+   * it does not change any other property
+   * &lt;/p&gt;
+   * @param softPreviousTime start of the restricted step
+   * @since 2.2
+   */
+  public void setSoftPreviousTime(final double softPreviousTime) {
+<span class="fc" id="L255">      this.softPreviousTime = softPreviousTime;</span>
+<span class="fc" id="L256">  }</span>
+
+  /** Restrict step range to a limited part of the global step.
+   * &lt;p&gt;
+   * This method can be used to restrict a step and make it appear
+   * as if the original step was smaller. Calling this method
+   * &lt;em&gt;only&lt;/em&gt; changes the value returned by {@link #getCurrentTime()},
+   * it does not change any other property
+   * &lt;/p&gt;
+   * @param softCurrentTime end of the restricted step
+   * @since 2.2
+   */
+  public void setSoftCurrentTime(final double softCurrentTime) {
+<span class="fc" id="L269">      this.softCurrentTime  = softCurrentTime;</span>
+<span class="fc" id="L270">  }</span>
+
+  /**
+   * Get the previous global grid point time.
+   * @return previous global grid point time
+   * @since 2.2
+   */
+  public double getGlobalPreviousTime() {
+<span class="fc" id="L278">    return globalPreviousTime;</span>
+  }
+
+  /**
+   * Get the current global grid point time.
+   * @return current global grid point time
+   * @since 2.2
+   */
+  public double getGlobalCurrentTime() {
+<span class="fc" id="L287">    return globalCurrentTime;</span>
+  }
+
+  /**
+   * Get the previous soft grid point time.
+   * @return previous soft grid point time
+   * @see #setSoftPreviousTime(double)
+   */
+  public double getPreviousTime() {
+<span class="fc" id="L296">    return softPreviousTime;</span>
+  }
+
+  /**
+   * Get the current soft grid point time.
+   * @return current soft grid point time
+   * @see #setSoftCurrentTime(double)
+   */
+  public double getCurrentTime() {
+<span class="fc" id="L305">    return softCurrentTime;</span>
+  }
+
+  /** {@inheritDoc} */
+  public double getInterpolatedTime() {
+<span class="fc" id="L310">    return interpolatedTime;</span>
+  }
+
+  /** {@inheritDoc} */
+  public void setInterpolatedTime(final double time) {
+<span class="fc" id="L315">      interpolatedTime = time;</span>
+<span class="fc" id="L316">      dirtyState       = true;</span>
+<span class="fc" id="L317">  }</span>
+
+  /** {@inheritDoc} */
+  public boolean isForward() {
+<span class="fc" id="L321">    return forward;</span>
+  }
+
+  /** Compute the state and derivatives at the interpolated time.
+   * This is the main processing method that should be implemented by
+   * the derived classes to perform the interpolation.
+   * @param theta normalized interpolation abscissa within the step
+   * (theta is zero at the previous time step and one at the current time step)
+   * @param oneMinusThetaH time gap between the interpolated time and
+   * the current time
+   * @throws DerivativeException this exception is propagated to the caller if the
+   * underlying user function triggers one
+   */
+  protected abstract void computeInterpolatedStateAndDerivatives(double theta,
+                                                                 double oneMinusThetaH)
+    throws DerivativeException;
+
+  /** {@inheritDoc} */
+  public double[] getInterpolatedState() throws DerivativeException {
+
+      // lazy evaluation of the state
+<span class="fc bfc" id="L342" title="All 2 branches covered.">      if (dirtyState) {</span>
+<span class="fc" id="L343">          final double oneMinusThetaH = globalCurrentTime - interpolatedTime;</span>
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">          final double theta = (h == 0) ? 0 : (h - oneMinusThetaH) / h;</span>
+<span class="fc" id="L345">          computeInterpolatedStateAndDerivatives(theta, oneMinusThetaH);</span>
+<span class="fc" id="L346">          dirtyState = false;</span>
+      }
+
+<span class="fc" id="L349">      return interpolatedState;</span>
+
+  }
+
+  /** {@inheritDoc} */
+  public double[] getInterpolatedDerivatives() throws DerivativeException {
+
+      // lazy evaluation of the state
+<span class="fc bfc" id="L357" title="All 2 branches covered.">      if (dirtyState) {</span>
+<span class="fc" id="L358">          final double oneMinusThetaH = globalCurrentTime - interpolatedTime;</span>
+<span class="pc bpc" id="L359" title="1 of 2 branches missed.">          final double theta = (h == 0) ? 0 : (h - oneMinusThetaH) / h;</span>
+<span class="fc" id="L360">          computeInterpolatedStateAndDerivatives(theta, oneMinusThetaH);</span>
+<span class="fc" id="L361">          dirtyState = false;</span>
+      }
+
+<span class="fc" id="L364">      return interpolatedDerivatives;</span>
+
+  }
+
+  /**
+   * Finalize the step.
+   *
+   * &lt;p&gt;Some embedded Runge-Kutta integrators need fewer functions
+   * evaluations than their counterpart step interpolators. These
+   * interpolators should perform the last evaluations they need by
+   * themselves only if they need them. This method triggers these
+   * extra evaluations. It can be called directly by the user step
+   * handler and it is called automatically if {@link
+   * #setInterpolatedTime} is called.&lt;/p&gt;
+   *
+   * &lt;p&gt;Once this method has been called, &lt;strong&gt;no&lt;/strong&gt; other
+   * evaluation will be performed on this step. If there is a need to
+   * have some side effects between the step handler and the
+   * differential equations (for example update some data in the
+   * equations once the step has been done), it is advised to call
+   * this method explicitly from the step handler before these side
+   * effects are set up. If the step handler induces no side effect,
+   * then this method can safely be ignored, it will be called
+   * transparently as needed.&lt;/p&gt;
+   *
+   * &lt;p&gt;&lt;strong&gt;Warning&lt;/strong&gt;: since the step interpolator provided
+   * to the step handler as a parameter of the {@link
+   * StepHandler#handleStep handleStep} is valid only for the duration
+   * of the {@link StepHandler#handleStep handleStep} call, one cannot
+   * simply store a reference and reuse it later. One should first
+   * finalize the instance, then copy this finalized instance into a
+   * new object that can be kept.&lt;/p&gt;
+   *
+   * &lt;p&gt;This method calls the protected &lt;code&gt;doFinalize&lt;/code&gt; method
+   * if it has never been called during this step and set a flag
+   * indicating that it has been called once. It is the &lt;code&gt;
+   * doFinalize&lt;/code&gt; method which should perform the evaluations.
+   * This wrapping prevents from calling &lt;code&gt;doFinalize&lt;/code&gt; several
+   * times and hence evaluating the differential equations too often.
+   * Therefore, subclasses are not allowed not reimplement it, they
+   * should rather reimplement &lt;code&gt;doFinalize&lt;/code&gt;.&lt;/p&gt;
+   *
+   * @throws DerivativeException this exception is propagated to the
+   * caller if the underlying user function triggers one
+   */
+  public final void finalizeStep()
+    throws DerivativeException {
+<span class="fc bfc" id="L411" title="All 2 branches covered.">    if (! finalized) {</span>
+<span class="fc" id="L412">      doFinalize();</span>
+<span class="fc" id="L413">      finalized = true;</span>
+    }
+<span class="fc" id="L415">  }</span>
+
+  /**
+   * Really finalize the step.
+   * The default implementation of this method does nothing.
+   * @throws DerivativeException this exception is propagated to the
+   * caller if the underlying user function triggers one
+   */
+  protected void doFinalize()
+    throws DerivativeException {
+<span class="fc" id="L425">  }</span>
+
+  /** {@inheritDoc} */
+  public abstract void writeExternal(ObjectOutput out)
+    throws IOException;
+
+  /** {@inheritDoc} */
+  public abstract void readExternal(ObjectInput in)
+    throws IOException, ClassNotFoundException;
+
+  /** Save the base state of the instance.
+   * This method performs step finalization if it has not been done
+   * before.
+   * @param out stream where to save the state
+   * @exception IOException in case of write error
+   */
+  protected void writeBaseExternal(final ObjectOutput out)
+    throws IOException {
+
+<span class="pc bpc" id="L444" title="1 of 2 branches missed.">    if (currentState == null) {</span>
+<span class="nc" id="L445">        out.writeInt(-1);</span>
+    } else {
+<span class="fc" id="L447">        out.writeInt(currentState.length);</span>
+    }
+<span class="fc" id="L449">    out.writeDouble(globalPreviousTime);</span>
+<span class="fc" id="L450">    out.writeDouble(globalCurrentTime);</span>
+<span class="fc" id="L451">    out.writeDouble(softPreviousTime);</span>
+<span class="fc" id="L452">    out.writeDouble(softCurrentTime);</span>
+<span class="fc" id="L453">    out.writeDouble(h);</span>
+<span class="fc" id="L454">    out.writeBoolean(forward);</span>
+
+<span class="pc bpc" id="L456" title="1 of 2 branches missed.">    if (currentState != null) {</span>
+<span class="fc bfc" id="L457" title="All 2 branches covered.">        for (int i = 0; i &lt; currentState.length; ++i) {</span>
+<span class="fc" id="L458">            out.writeDouble(currentState[i]);</span>
+        }
+    }
+
+<span class="fc" id="L462">    out.writeDouble(interpolatedTime);</span>
+
+    // we do not store the interpolated state,
+    // it will be recomputed as needed after reading
+
+    // finalize the step (and don't bother saving the now true flag)
+    try {
+<span class="fc" id="L469">      finalizeStep();</span>
+<span class="fc" id="L470">    } catch (DerivativeException e) {</span>
+<span class="fc" id="L471">        IOException ioe = new IOException(e.getLocalizedMessage());</span>
+<span class="fc" id="L472">        ioe.initCause(e);</span>
+<span class="fc" id="L473">        throw ioe;</span>
+<span class="fc" id="L474">    }</span>
+
+<span class="fc" id="L476">  }</span>
+
+  /** Read the base state of the instance.
+   * This method does &lt;strong&gt;neither&lt;/strong&gt; set the interpolated
+   * time nor state. It is up to the derived class to reset it
+   * properly calling the {@link #setInterpolatedTime} method later,
+   * once all rest of the object state has been set up properly.
+   * @param in stream where to read the state from
+   * @return interpolated time be set later by the caller
+   * @exception IOException in case of read error
+   */
+  protected double readBaseExternal(final ObjectInput in)
+    throws IOException {
+
+<span class="fc" id="L490">    final int dimension = in.readInt();</span>
+<span class="fc" id="L491">    globalPreviousTime  = in.readDouble();</span>
+<span class="fc" id="L492">    globalCurrentTime   = in.readDouble();</span>
+<span class="fc" id="L493">    softPreviousTime    = in.readDouble();</span>
+<span class="fc" id="L494">    softCurrentTime     = in.readDouble();</span>
+<span class="fc" id="L495">    h                   = in.readDouble();</span>
+<span class="fc" id="L496">    forward             = in.readBoolean();</span>
+<span class="fc" id="L497">    dirtyState          = true;</span>
+
+<span class="pc bpc" id="L499" title="1 of 2 branches missed.">    if (dimension &lt; 0) {</span>
+<span class="nc" id="L500">        currentState = null;</span>
+    } else {
+<span class="fc" id="L502">        currentState  = new double[dimension];</span>
+<span class="fc bfc" id="L503" title="All 2 branches covered.">        for (int i = 0; i &lt; currentState.length; ++i) {</span>
+<span class="fc" id="L504">            currentState[i] = in.readDouble();</span>
+        }
+    }
+
+    // we do NOT handle the interpolated time and state here
+<span class="fc" id="L509">    interpolatedTime        = Double.NaN;</span>
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">    interpolatedState       = (dimension &lt; 0) ? null : new double[dimension];</span>
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">    interpolatedDerivatives = (dimension &lt; 0) ? null : new double[dimension];</span>
+
+<span class="fc" id="L513">    finalized = true;</span>
+
+<span class="fc" id="L515">    return in.readDouble();</span>
+
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

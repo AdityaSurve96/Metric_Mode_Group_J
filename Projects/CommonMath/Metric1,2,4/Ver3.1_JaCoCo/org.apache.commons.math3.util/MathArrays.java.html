@@ -1,0 +1,1276 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MathArrays.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math3.util</a> &gt; <span class="el_source">MathArrays.java</span></div><h1>MathArrays.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math3.util;
+
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Collections;
+
+import org.apache.commons.math3.exception.DimensionMismatchException;
+import org.apache.commons.math3.exception.MathInternalError;
+import org.apache.commons.math3.exception.NonMonotonicSequenceException;
+import org.apache.commons.math3.exception.NotPositiveException;
+import org.apache.commons.math3.exception.NotStrictlyPositiveException;
+import org.apache.commons.math3.exception.NullArgumentException;
+import org.apache.commons.math3.exception.MathIllegalArgumentException;
+import org.apache.commons.math3.exception.util.LocalizedFormats;
+import org.apache.commons.math3.exception.MathArithmeticException;
+
+/**
+ * Arrays utilities.
+ *
+ * @since 3.0
+ * @version $Id$
+ */
+public class MathArrays {
+    /** Factor used for splitting double numbers: n = 2^27 + 1 (i.e. {@value}). */
+    private static final int SPLIT_FACTOR = 0x8000001;
+
+    /**
+     * Private constructor.
+     */
+<span class="nc" id="L48">    private MathArrays() {}</span>
+
+    /**
+     * Real-valued function that operate on an array or a part of it.
+     * @since 3.1
+     */
+    public interface Function {
+        /**
+         * Operates on an entire array.
+         *
+         * @param array Array to operate on.
+         * @return the result of the operation.
+         */
+        double evaluate(double[] array);
+        /**
+         * @param array Array to operate on.
+         * @param startIndex Index of the first element to take into account.
+         * @param numElements Number of elements to take into account.
+         * @return the result of the operation.
+         */
+        double evaluate(double[] array,
+                        int startIndex,
+                        int numElements);
+    }
+
+    /**
+     * Creates an array whose contents will be the element-by-element
+     * addition of the arguments.
+     *
+     * @param a First term of the addition.
+     * @param b Second term of the addition.
+     * @return a new array {@code r} where {@code r[i] = a[i] + b[i]}.
+     * @throws DimensionMismatchException if the array lengths differ.
+     * @since 3.1
+     */
+    public static double[] ebeAdd(double[] a,
+                                  double[] b) {
+<span class="fc bfc" id="L85" title="All 2 branches covered.">        if (a.length != b.length) {</span>
+<span class="fc" id="L86">            throw new DimensionMismatchException(a.length, b.length);</span>
+        }
+
+<span class="fc" id="L89">        final double[] result = a.clone();</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        for (int i = 0; i &lt; a.length; i++) {</span>
+<span class="fc" id="L91">            result[i] += b[i];</span>
+        }
+<span class="fc" id="L93">        return result;</span>
+    }
+    /**
+     * Creates an array whose contents will be the element-by-element
+     * subtraction of the second argument from the first.
+     *
+     * @param a First term.
+     * @param b Element to be subtracted.
+     * @return a new array {@code r} where {@code r[i] = a[i] - b[i]}.
+     * @throws DimensionMismatchException if the array lengths differ.
+     * @since 3.1
+     */
+    public static double[] ebeSubtract(double[] a,
+                                       double[] b) {
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (a.length != b.length) {</span>
+<span class="fc" id="L108">            throw new DimensionMismatchException(a.length, b.length);</span>
+        }
+
+<span class="fc" id="L111">        final double[] result = a.clone();</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        for (int i = 0; i &lt; a.length; i++) {</span>
+<span class="fc" id="L113">            result[i] -= b[i];</span>
+        }
+<span class="fc" id="L115">        return result;</span>
+    }
+    /**
+     * Creates an array whose contents will be the element-by-element
+     * multiplication of the arguments.
+     *
+     * @param a First factor of the multiplication.
+     * @param b Second factor of the multiplication.
+     * @return a new array {@code r} where {@code r[i] = a[i] * b[i]}.
+     * @throws DimensionMismatchException if the array lengths differ.
+     * @since 3.1
+     */
+    public static double[] ebeMultiply(double[] a,
+                                       double[] b) {
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        if (a.length != b.length) {</span>
+<span class="fc" id="L130">            throw new DimensionMismatchException(a.length, b.length);</span>
+        }
+
+<span class="fc" id="L133">        final double[] result = a.clone();</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        for (int i = 0; i &lt; a.length; i++) {</span>
+<span class="fc" id="L135">            result[i] *= b[i];</span>
+        }
+<span class="fc" id="L137">        return result;</span>
+    }
+    /**
+     * Creates an array whose contents will be the element-by-element
+     * division of the first argument by the second.
+     *
+     * @param a Numerator of the division.
+     * @param b Denominator of the division.
+     * @return a new array {@code r} where {@code r[i] = a[i] / b[i]}.
+     * @throws DimensionMismatchException if the array lengths differ.
+     * @since 3.1
+     */
+    public static double[] ebeDivide(double[] a,
+                                     double[] b) {
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        if (a.length != b.length) {</span>
+<span class="fc" id="L152">            throw new DimensionMismatchException(a.length, b.length);</span>
+        }
+
+<span class="fc" id="L155">        final double[] result = a.clone();</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        for (int i = 0; i &lt; a.length; i++) {</span>
+<span class="fc" id="L157">            result[i] /= b[i];</span>
+        }
+<span class="fc" id="L159">        return result;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;1&lt;/sub&gt; (sum of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;1&lt;/sub&gt; distance between the two points
+     */
+    public static double distance1(double[] p1, double[] p2) {
+<span class="fc" id="L170">        double sum = 0;</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L172">            sum += FastMath.abs(p1[i] - p2[i]);</span>
+        }
+<span class="fc" id="L174">        return sum;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;1&lt;/sub&gt; (sum of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;1&lt;/sub&gt; distance between the two points
+     */
+    public static int distance1(int[] p1, int[] p2) {
+<span class="fc" id="L185">      int sum = 0;</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">      for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L187">          sum += FastMath.abs(p1[i] - p2[i]);</span>
+      }
+<span class="fc" id="L189">      return sum;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;2&lt;/sub&gt; (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;2&lt;/sub&gt; distance between the two points
+     */
+    public static double distance(double[] p1, double[] p2) {
+<span class="fc" id="L200">        double sum = 0;</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L202">            final double dp = p1[i] - p2[i];</span>
+<span class="fc" id="L203">            sum += dp * dp;</span>
+        }
+<span class="fc" id="L205">        return FastMath.sqrt(sum);</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;2&lt;/sub&gt; (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;2&lt;/sub&gt; distance between the two points
+     */
+    public static double distance(int[] p1, int[] p2) {
+<span class="fc" id="L216">      double sum = 0;</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">      for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L218">          final double dp = p1[i] - p2[i];</span>
+<span class="fc" id="L219">          sum += dp * dp;</span>
+      }
+<span class="fc" id="L221">      return FastMath.sqrt(sum);</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; (max of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; distance between the two points
+     */
+    public static double distanceInf(double[] p1, double[] p2) {
+<span class="fc" id="L232">        double max = 0;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L234">            max = FastMath.max(max, FastMath.abs(p1[i] - p2[i]));</span>
+        }
+<span class="fc" id="L236">        return max;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; (max of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; distance between the two points
+     */
+    public static int distanceInf(int[] p1, int[] p2) {
+<span class="fc" id="L247">        int max = 0;</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L249">            max = FastMath.max(max, FastMath.abs(p1[i] - p2[i]));</span>
+        }
+<span class="fc" id="L251">        return max;</span>
+    }
+
+    /**
+     * Specification of ordering direction.
+     */
+<span class="pc" id="L257">    public static enum OrderDirection {</span>
+        /** Constant for increasing direction. */
+<span class="fc" id="L259">        INCREASING,</span>
+        /** Constant for decreasing direction. */
+<span class="fc" id="L261">        DECREASING</span>
+    }
+
+    /**
+     * Check that an array is monotonically increasing or decreasing.
+     *
+     * @param &lt;T&gt; the type of the elements in the specified array
+     * @param val Values.
+     * @param dir Ordering direction.
+     * @param strict Whether the order should be strict.
+     * @return {@code true} if sorted, {@code false} otherwise.
+     */
+    public static  &lt;T extends Comparable&lt;? super T&gt;&gt; boolean isMonotonic(T[] val,
+                                      OrderDirection dir,
+                                      boolean strict) {
+<span class="fc" id="L276">        T previous = val[0];</span>
+<span class="fc" id="L277">        final int max = val.length;</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        for (int i = 1; i &lt; max; i++) {</span>
+            final int comp;
+<span class="pc bpc" id="L280" title="1 of 3 branches missed.">            switch (dir) {</span>
+            case INCREASING:
+<span class="fc" id="L282">                comp = previous.compareTo(val[i]);</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">                    if (comp &gt;= 0) {</span>
+<span class="fc" id="L285">                        return false;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L288" title="All 2 branches covered.">                    if (comp &gt; 0) {</span>
+<span class="fc" id="L289">                        return false;</span>
+                    }
+                }
+                break;
+            case DECREASING:
+<span class="fc" id="L294">                comp = val[i].compareTo(previous);</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">                    if (comp &gt;= 0) {</span>
+<span class="fc" id="L297">                        return false;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L300" title="All 2 branches covered.">                    if (comp &gt; 0) {</span>
+<span class="fc" id="L301">                       return false;</span>
+                    }
+                }
+                break;
+            default:
+                // Should never happen.
+<span class="nc" id="L307">                throw new MathInternalError();</span>
+            }
+
+<span class="fc" id="L310">            previous = val[i];</span>
+        }
+<span class="fc" id="L312">        return true;</span>
+    }
+
+    /**
+     * Check that an array is monotonically increasing or decreasing.
+     *
+     * @param val Values.
+     * @param dir Ordering direction.
+     * @param strict Whether the order should be strict.
+     * @return {@code true} if sorted, {@code false} otherwise.
+     */
+    public static boolean isMonotonic(double[] val,
+                                      OrderDirection dir,
+                                      boolean strict) {
+<span class="fc" id="L326">        return checkOrder(val, dir, strict, false);</span>
+    }
+
+    /**
+     * Check that the given array is sorted.
+     *
+     * @param val Values.
+     * @param dir Ordering direction.
+     * @param strict Whether the order should be strict.
+     * @param abort Whether to throw an exception if the check fails.
+     * @return {@code true} if the array is sorted.
+     * @throws NonMonotonicSequenceException if the array is not sorted
+     * and {@code abort} is {@code true}.
+     */
+    public static boolean checkOrder(double[] val, OrderDirection dir,
+                                     boolean strict, boolean abort)
+        throws NonMonotonicSequenceException {
+<span class="fc" id="L343">        double previous = val[0];</span>
+<span class="fc" id="L344">        final int max = val.length;</span>
+
+        int index;
+        ITEM:
+<span class="fc bfc" id="L348" title="All 2 branches covered.">        for (index = 1; index &lt; max; index++) {</span>
+<span class="pc bpc" id="L349" title="1 of 3 branches missed.">            switch (dir) {</span>
+            case INCREASING:
+<span class="fc bfc" id="L351" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">                    if (val[index] &lt;= previous) {</span>
+<span class="fc" id="L353">                        break ITEM;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L356" title="All 2 branches covered.">                    if (val[index] &lt; previous) {</span>
+<span class="fc" id="L357">                        break ITEM;</span>
+                    }
+                }
+                break;
+            case DECREASING:
+<span class="fc bfc" id="L362" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L363" title="All 2 branches covered.">                    if (val[index] &gt;= previous) {</span>
+<span class="fc" id="L364">                        break ITEM;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L367" title="All 2 branches covered.">                    if (val[index] &gt; previous) {</span>
+<span class="fc" id="L368">                        break ITEM;</span>
+                    }
+                }
+                break;
+            default:
+                // Should never happen.
+<span class="nc" id="L374">                throw new MathInternalError();</span>
+            }
+
+<span class="fc" id="L377">            previous = val[index];</span>
+        }
+
+<span class="fc bfc" id="L380" title="All 2 branches covered.">        if (index == max) {</span>
+            // Loop completed.
+<span class="fc" id="L382">            return true;</span>
+        }
+
+        // Loop early exit means wrong ordering.
+<span class="fc bfc" id="L386" title="All 2 branches covered.">        if (abort) {</span>
+<span class="fc" id="L387">            throw new NonMonotonicSequenceException(val[index], previous, index, dir, strict);</span>
+        } else {
+<span class="fc" id="L389">            return false;</span>
+        }
+    }
+
+    /**
+     * Check that the given array is sorted.
+     *
+     * @param val Values.
+     * @param dir Ordering direction.
+     * @param strict Whether the order should be strict.
+     * @throws NonMonotonicSequenceException if the array is not sorted.
+     * @since 2.2
+     */
+    public static void checkOrder(double[] val, OrderDirection dir,
+                                  boolean strict) throws NonMonotonicSequenceException {
+<span class="fc" id="L404">        checkOrder(val, dir, strict, true);</span>
+<span class="fc" id="L405">    }</span>
+
+    /**
+     * Check that the given array is sorted in strictly increasing order.
+     *
+     * @param val Values.
+     * @throws NonMonotonicSequenceException if the array is not sorted.
+     * @since 2.2
+     */
+    public static void checkOrder(double[] val) throws NonMonotonicSequenceException {
+<span class="fc" id="L415">        checkOrder(val, OrderDirection.INCREASING, true);</span>
+<span class="fc" id="L416">    }</span>
+
+    /**
+     * Throws DimensionMismatchException if the input array is not rectangular.
+     *
+     * @param in array to be tested
+     * @throws NullArgumentException if input array is null
+     * @throws DimensionMismatchException if input array is not rectangular
+     * @since 3.1
+     */
+    public static void checkRectangular(final long[][] in)
+        throws NullArgumentException, DimensionMismatchException {
+<span class="fc" id="L428">        MathUtils.checkNotNull(in);</span>
+<span class="fc bfc" id="L429" title="All 2 branches covered.">        for (int i = 1; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">            if (in[i].length != in[0].length) {</span>
+<span class="fc" id="L431">                throw new DimensionMismatchException(</span>
+                        LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+                        in[i].length, in[0].length);
+            }
+        }
+<span class="fc" id="L436">    }</span>
+
+    /**
+     * Check that all entries of the input array are strictly positive.
+     *
+     * @param in Array to be tested
+     * @throws NotStrictlyPositiveException if any entries of the array are not
+     * strictly positive.
+     * @since 3.1
+     */
+    public static void checkPositive(final double[] in)
+        throws NotStrictlyPositiveException {
+<span class="fc bfc" id="L448" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">            if (in[i] &lt;= 0) {</span>
+<span class="fc" id="L450">                throw new NotStrictlyPositiveException(in[i]);</span>
+            }
+        }
+<span class="fc" id="L453">    }</span>
+
+    /**
+     * Check that all entries of the input array are &gt;= 0.
+     *
+     * @param in Array to be tested
+     * @throws NotPositiveException if any array entries are less than 0.
+     * @since 3.1
+     */
+    public static void checkNonNegative(final long[] in)
+        throws NotPositiveException {
+<span class="fc bfc" id="L464" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L465" title="All 2 branches covered.">            if (in[i] &lt; 0) {</span>
+<span class="fc" id="L466">                throw new NotPositiveException(in[i]);</span>
+            }
+        }
+<span class="fc" id="L469">    }</span>
+
+    /**
+     * Check all entries of the input array are &gt;= 0.
+     *
+     * @param in Array to be tested
+     * @throws NotPositiveException if any array entries are less than 0.
+     * @since 3.1
+     */
+    public static void checkNonNegative(final long[][] in)
+        throws NotPositiveException {
+<span class="fc bfc" id="L480" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i ++) {</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">            for (int j = 0; j &lt; in[i].length; j++) {</span>
+<span class="fc bfc" id="L482" title="All 2 branches covered.">                if (in[i][j] &lt; 0) {</span>
+<span class="fc" id="L483">                    throw new NotPositiveException(in[i][j]);</span>
+                }
+            }
+        }
+<span class="fc" id="L487">    }</span>
+
+    /**
+     * Returns the Cartesian norm (2-norm), handling both overflow and underflow.
+     * Translation of the minpack enorm subroutine.
+     *
+     * The redistribution policy for MINPACK is available
+     * &lt;a href=&quot;http://www.netlib.org/minpack/disclaimer&quot;&gt;here&lt;/a&gt;, for
+     * convenience, it is reproduced below.&lt;/p&gt;
+     *
+     * &lt;table border=&quot;0&quot; width=&quot;80%&quot; cellpadding=&quot;10&quot; align=&quot;center&quot; bgcolor=&quot;#E0E0E0&quot;&gt;
+     * &lt;tr&gt;&lt;td&gt;
+     *    Minpack Copyright Notice (1999) University of Chicago.
+     *    All rights reserved
+     * &lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;
+     * Redistribution and use in source and binary forms, with or without
+     * modification, are permitted provided that the following conditions
+     * are met:
+     * &lt;ol&gt;
+     *  &lt;li&gt;Redistributions of source code must retain the above copyright
+     *      notice, this list of conditions and the following disclaimer.&lt;/li&gt;
+     * &lt;li&gt;Redistributions in binary form must reproduce the above
+     *     copyright notice, this list of conditions and the following
+     *     disclaimer in the documentation and/or other materials provided
+     *     with the distribution.&lt;/li&gt;
+     * &lt;li&gt;The end-user documentation included with the redistribution, if any,
+     *     must include the following acknowledgment:
+     *     {@code This product includes software developed by the University of
+     *           Chicago, as Operator of Argonne National Laboratory.}
+     *     Alternately, this acknowledgment may appear in the software itself,
+     *     if and wherever such third-party acknowledgments normally appear.&lt;/li&gt;
+     * &lt;li&gt;&lt;strong&gt;WARRANTY DISCLAIMER. THE SOFTWARE IS SUPPLIED &quot;AS IS&quot;
+     *     WITHOUT WARRANTY OF ANY KIND. THE COPYRIGHT HOLDER, THE
+     *     UNITED STATES, THE UNITED STATES DEPARTMENT OF ENERGY, AND
+     *     THEIR EMPLOYEES: (1) DISCLAIM ANY WARRANTIES, EXPRESS OR
+     *     IMPLIED, INCLUDING BUT NOT LIMITED TO ANY IMPLIED WARRANTIES
+     *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE
+     *     OR NON-INFRINGEMENT, (2) DO NOT ASSUME ANY LEGAL LIABILITY
+     *     OR RESPONSIBILITY FOR THE ACCURACY, COMPLETENESS, OR
+     *     USEFULNESS OF THE SOFTWARE, (3) DO NOT REPRESENT THAT USE OF
+     *     THE SOFTWARE WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS, (4)
+     *     DO NOT WARRANT THAT THE SOFTWARE WILL FUNCTION
+     *     UNINTERRUPTED, THAT IT IS ERROR-FREE OR THAT ANY ERRORS WILL
+     *     BE CORRECTED.&lt;/strong&gt;&lt;/li&gt;
+     * &lt;li&gt;&lt;strong&gt;LIMITATION OF LIABILITY. IN NO EVENT WILL THE COPYRIGHT
+     *     HOLDER, THE UNITED STATES, THE UNITED STATES DEPARTMENT OF
+     *     ENERGY, OR THEIR EMPLOYEES: BE LIABLE FOR ANY INDIRECT,
+     *     INCIDENTAL, CONSEQUENTIAL, SPECIAL OR PUNITIVE DAMAGES OF
+     *     ANY KIND OR NATURE, INCLUDING BUT NOT LIMITED TO LOSS OF
+     *     PROFITS OR LOSS OF DATA, FOR ANY REASON WHATSOEVER, WHETHER
+     *     SUCH LIABILITY IS ASSERTED ON THE BASIS OF CONTRACT, TORT
+     *     (INCLUDING NEGLIGENCE OR STRICT LIABILITY), OR OTHERWISE,
+     *     EVEN IF ANY OF SAID PARTIES HAS BEEN WARNED OF THE
+     *     POSSIBILITY OF SUCH LOSS OR DAMAGES.&lt;/strong&gt;&lt;/li&gt;
+     * &lt;ol&gt;&lt;/td&gt;&lt;/tr&gt;
+     * &lt;/table&gt;
+     *
+     * @param v Vector of doubles.
+     * @return the 2-norm of the vector.
+     * @since 2.2
+     */
+    public static double safeNorm(double[] v) {
+<span class="nc" id="L550">        double rdwarf = 3.834e-20;</span>
+<span class="nc" id="L551">        double rgiant = 1.304e+19;</span>
+<span class="nc" id="L552">        double s1 = 0;</span>
+<span class="nc" id="L553">        double s2 = 0;</span>
+<span class="nc" id="L554">        double s3 = 0;</span>
+<span class="nc" id="L555">        double x1max = 0;</span>
+<span class="nc" id="L556">        double x3max = 0;</span>
+<span class="nc" id="L557">        double floatn = v.length;</span>
+<span class="nc" id="L558">        double agiant = rgiant / floatn;</span>
+<span class="nc bnc" id="L559" title="All 2 branches missed.">        for (int i = 0; i &lt; v.length; i++) {</span>
+<span class="nc" id="L560">            double xabs = Math.abs(v[i]);</span>
+<span class="nc bnc" id="L561" title="All 4 branches missed.">            if (xabs &lt; rdwarf || xabs &gt; agiant) {</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">                if (xabs &gt; rdwarf) {</span>
+<span class="nc bnc" id="L563" title="All 2 branches missed.">                    if (xabs &gt; x1max) {</span>
+<span class="nc" id="L564">                        double r = x1max / xabs;</span>
+<span class="nc" id="L565">                        s1= 1 + s1 * r * r;</span>
+<span class="nc" id="L566">                        x1max = xabs;</span>
+<span class="nc" id="L567">                    } else {</span>
+<span class="nc" id="L568">                        double r = xabs / x1max;</span>
+<span class="nc" id="L569">                        s1 += r * r;</span>
+<span class="nc" id="L570">                    }</span>
+                } else {
+<span class="nc bnc" id="L572" title="All 2 branches missed.">                    if (xabs &gt; x3max) {</span>
+<span class="nc" id="L573">                        double r = x3max / xabs;</span>
+<span class="nc" id="L574">                        s3= 1 + s3 * r * r;</span>
+<span class="nc" id="L575">                        x3max = xabs;</span>
+<span class="nc" id="L576">                    } else {</span>
+<span class="nc bnc" id="L577" title="All 2 branches missed.">                        if (xabs != 0) {</span>
+<span class="nc" id="L578">                            double r = xabs / x3max;</span>
+<span class="nc" id="L579">                            s3 += r * r;</span>
+<span class="nc" id="L580">                        }</span>
+                    }
+                }
+            } else {
+<span class="nc" id="L584">                s2 += xabs * xabs;</span>
+            }
+        }
+        double norm;
+<span class="nc bnc" id="L588" title="All 2 branches missed.">        if (s1 != 0) {</span>
+<span class="nc" id="L589">            norm = x1max * Math.sqrt(s1 + (s2 / x1max) / x1max);</span>
+        } else {
+<span class="nc bnc" id="L591" title="All 2 branches missed.">            if (s2 == 0) {</span>
+<span class="nc" id="L592">                norm = x3max * Math.sqrt(s3);</span>
+            } else {
+<span class="nc bnc" id="L594" title="All 2 branches missed.">                if (s2 &gt;= x3max) {</span>
+<span class="nc" id="L595">                    norm = Math.sqrt(s2 * (1 + (x3max / s2) * (x3max * s3)));</span>
+                } else {
+<span class="nc" id="L597">                    norm = Math.sqrt(x3max * ((s2 / x3max) + (x3max * s3)));</span>
+                }
+            }
+        }
+<span class="nc" id="L601">        return norm;</span>
+    }
+
+    /**
+     * Sort an array in ascending order in place and perform the same reordering
+     * of entries on other arrays. For example, if
+     * {@code x = [3, 1, 2], y = [1, 2, 3]} and {@code z = [0, 5, 7]}, then
+     * {@code sortInPlace(x, y, z)} will update {@code x} to {@code [1, 2, 3]},
+     * {@code y} to {@code [2, 3, 1]} and {@code z} to {@code [5, 7, 0]}.
+     *
+     * @param x Array to be sorted and used as a pattern for permutation
+     * of the other arrays.
+     * @param yList Set of arrays whose permutations of entries will follow
+     * those performed on {@code x}.
+     * @throws DimensionMismatchException if any {@code y} is not the same
+     * size as {@code x}.
+     * @throws NullArgumentException if {@code x} or any {@code y} is null.
+     * @since 3.0
+     */
+    public static void sortInPlace(double[] x, double[] ... yList)
+        throws DimensionMismatchException, NullArgumentException {
+<span class="fc" id="L622">        sortInPlace(x, OrderDirection.INCREASING, yList);</span>
+<span class="fc" id="L623">    }</span>
+
+    /**
+     * Sort an array in place and perform the same reordering of entries on
+     * other arrays.  This method works the same as the other
+     * {@link #sortInPlace(double[], double[][]) sortInPlace} method, but
+     * allows the order of the sort to be provided in the {@code dir}
+     * parameter.
+     *
+     * @param x Array to be sorted and used as a pattern for permutation
+     * of the other arrays.
+     * @param dir Order direction.
+     * @param yList Set of arrays whose permutations of entries will follow
+     * those performed on {@code x}.
+     * @throws DimensionMismatchException if any {@code y} is not the same
+     * size as {@code x}.
+     * @throws NullArgumentException if {@code x} or any {@code y} is null
+     * @since 3.0
+     */
+    public static void sortInPlace(double[] x,
+                                   final OrderDirection dir,
+                                   double[] ... yList)
+        throws NullArgumentException, DimensionMismatchException {
+<span class="pc bpc" id="L646" title="1 of 2 branches missed.">        if (x == null) {</span>
+<span class="nc" id="L647">            throw new NullArgumentException();</span>
+        }
+
+<span class="fc" id="L650">        final int len = x.length;</span>
+<span class="fc" id="L651">        final List&lt;Pair&lt;Double, double[]&gt;&gt; list</span>
+            = new ArrayList&lt;Pair&lt;Double, double[]&gt;&gt;(len);
+
+<span class="fc" id="L654">        final int yListLen = yList.length;</span>
+<span class="fc bfc" id="L655" title="All 2 branches covered.">        for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc" id="L656">            final double[] yValues = new double[yListLen];</span>
+<span class="fc bfc" id="L657" title="All 2 branches covered.">            for (int j = 0; j &lt; yListLen; j++) {</span>
+<span class="fc" id="L658">                double[] y = yList[j];</span>
+<span class="fc bfc" id="L659" title="All 2 branches covered.">                if (y == null) {</span>
+<span class="fc" id="L660">                    throw new NullArgumentException();</span>
+                }
+<span class="fc bfc" id="L662" title="All 2 branches covered.">                if (y.length != len) {</span>
+<span class="fc" id="L663">                    throw new DimensionMismatchException(y.length, len);</span>
+                }
+<span class="fc" id="L665">                yValues[j] = y[i];</span>
+            }
+<span class="fc" id="L667">            list.add(new Pair&lt;Double, double[]&gt;(x[i], yValues));</span>
+        }
+
+<span class="fc" id="L670">        final Comparator&lt;Pair&lt;Double, double[]&gt;&gt; comp</span>
+<span class="fc" id="L671">            = new Comparator&lt;Pair&lt;Double, double[]&gt;&gt;() {</span>
+            public int compare(Pair&lt;Double, double[]&gt; o1,
+                               Pair&lt;Double, double[]&gt; o2) {
+                int val;
+<span class="pc bpc" id="L675" title="2 of 3 branches missed.">                switch (dir) {</span>
+                case INCREASING:
+<span class="fc" id="L677">                    val = o1.getKey().compareTo(o2.getKey());</span>
+<span class="fc" id="L678">                break;</span>
+                case DECREASING:
+<span class="nc" id="L680">                    val = o2.getKey().compareTo(o1.getKey());</span>
+<span class="nc" id="L681">                break;</span>
+                default:
+                    // Should never happen.
+<span class="nc" id="L684">                    throw new MathInternalError();</span>
+                }
+<span class="fc" id="L686">                return val;</span>
+            }
+        };
+
+<span class="fc" id="L690">        Collections.sort(list, comp);</span>
+
+<span class="fc bfc" id="L692" title="All 2 branches covered.">        for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc" id="L693">            final Pair&lt;Double, double[]&gt; e = list.get(i);</span>
+<span class="fc" id="L694">            x[i] = e.getKey();</span>
+<span class="fc" id="L695">            final double[] yValues = e.getValue();</span>
+<span class="fc bfc" id="L696" title="All 2 branches covered.">            for (int j = 0; j &lt; yListLen; j++) {</span>
+<span class="fc" id="L697">                yList[j][i] = yValues[j];</span>
+            }
+        }
+<span class="fc" id="L700">    }</span>
+
+    /**
+     * Creates a copy of the {@code source} array.
+     *
+     * @param source Array to be copied.
+     * @return the copied array.
+     */
+     public static int[] copyOf(int[] source) {
+<span class="fc" id="L709">         return copyOf(source, source.length);</span>
+     }
+
+    /**
+     * Creates a copy of the {@code source} array.
+     *
+     * @param source Array to be copied.
+     * @return the copied array.
+     */
+     public static double[] copyOf(double[] source) {
+<span class="fc" id="L719">         return copyOf(source, source.length);</span>
+     }
+
+    /**
+     * Creates a copy of the {@code source} array.
+     *
+     * @param source Array to be copied.
+     * @param len Number of entries to copy. If smaller then the source
+     * length, the copy will be truncated, if larger it will padded with
+     * zeroes.
+     * @return the copied array.
+     */
+    public static int[] copyOf(int[] source, int len) {
+<span class="fc" id="L732">         final int[] output = new int[len];</span>
+<span class="fc" id="L733">         System.arraycopy(source, 0, output, 0, FastMath.min(len, source.length));</span>
+<span class="fc" id="L734">         return output;</span>
+     }
+
+    /**
+     * Creates a copy of the {@code source} array.
+     *
+     * @param source Array to be copied.
+     * @param len Number of entries to copy. If smaller then the source
+     * length, the copy will be truncated, if larger it will padded with
+     * zeroes.
+     * @return the copied array.
+     */
+    public static double[] copyOf(double[] source, int len) {
+<span class="fc" id="L747">         final double[] output = new double[len];</span>
+<span class="fc" id="L748">         System.arraycopy(source, 0, output, 0, FastMath.min(len, source.length));</span>
+<span class="fc" id="L749">         return output;</span>
+     }
+
+    /**
+     * Compute a linear combination accurately.
+     * This method computes the sum of the products
+     * &lt;code&gt;a&lt;sub&gt;i&lt;/sub&gt; b&lt;sub&gt;i&lt;/sub&gt;&lt;/code&gt; to high accuracy.
+     * It does so by using specific multiplication and addition algorithms to
+     * preserve accuracy and reduce cancellation effects.
+     * &lt;br/&gt;
+     * It is based on the 2005 paper
+     * &lt;a href=&quot;http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.2.1547&quot;&gt;
+     * Accurate Sum and Dot Product&lt;/a&gt; by Takeshi Ogita, Siegfried M. Rump,
+     * and Shin'ichi Oishi published in SIAM J. Sci. Comput.
+     *
+     * @param a Factors.
+     * @param b Factors.
+     * @return &lt;code&gt;&amp;Sigma;&lt;sub&gt;i&lt;/sub&gt; a&lt;sub&gt;i&lt;/sub&gt; b&lt;sub&gt;i&lt;/sub&gt;&lt;/code&gt;.
+     * @throws DimensionMismatchException if arrays dimensions don't match
+     */
+    public static double linearCombination(final double[] a, final double[] b)
+        throws DimensionMismatchException {
+<span class="fc" id="L771">        final int len = a.length;</span>
+<span class="pc bpc" id="L772" title="1 of 2 branches missed.">        if (len != b.length) {</span>
+<span class="nc" id="L773">            throw new DimensionMismatchException(len, b.length);</span>
+        }
+
+<span class="fc" id="L776">        final double[] prodHigh = new double[len];</span>
+<span class="fc" id="L777">        double prodLowSum = 0;</span>
+
+<span class="fc bfc" id="L779" title="All 2 branches covered.">        for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc" id="L780">            final double ai = a[i];</span>
+<span class="fc" id="L781">            final double ca = SPLIT_FACTOR * ai;</span>
+<span class="fc" id="L782">            final double aHigh = ca - (ca - ai);</span>
+<span class="fc" id="L783">            final double aLow = ai - aHigh;</span>
+
+<span class="fc" id="L785">            final double bi = b[i];</span>
+<span class="fc" id="L786">            final double cb = SPLIT_FACTOR * bi;</span>
+<span class="fc" id="L787">            final double bHigh = cb - (cb - bi);</span>
+<span class="fc" id="L788">            final double bLow = bi - bHigh;</span>
+<span class="fc" id="L789">            prodHigh[i] = ai * bi;</span>
+<span class="fc" id="L790">            final double prodLow = aLow * bLow - (((prodHigh[i] -</span>
+                                                    aHigh * bHigh) -
+                                                   aLow * bHigh) -
+                                                  aHigh * bLow);
+<span class="fc" id="L794">            prodLowSum += prodLow;</span>
+        }
+
+
+<span class="fc" id="L798">        final double prodHighCur = prodHigh[0];</span>
+<span class="fc" id="L799">        double prodHighNext = prodHigh[1];</span>
+<span class="fc" id="L800">        double sHighPrev = prodHighCur + prodHighNext;</span>
+<span class="fc" id="L801">        double sPrime = sHighPrev - prodHighNext;</span>
+<span class="fc" id="L802">        double sLowSum = (prodHighNext - (sHighPrev - sPrime)) + (prodHighCur - sPrime);</span>
+
+<span class="fc" id="L804">        final int lenMinusOne = len - 1;</span>
+<span class="fc bfc" id="L805" title="All 2 branches covered.">        for (int i = 1; i &lt; lenMinusOne; i++) {</span>
+<span class="fc" id="L806">            prodHighNext = prodHigh[i + 1];</span>
+<span class="fc" id="L807">            final double sHighCur = sHighPrev + prodHighNext;</span>
+<span class="fc" id="L808">            sPrime = sHighCur - prodHighNext;</span>
+<span class="fc" id="L809">            sLowSum += (prodHighNext - (sHighCur - sPrime)) + (sHighPrev - sPrime);</span>
+<span class="fc" id="L810">            sHighPrev = sHighCur;</span>
+        }
+
+<span class="fc" id="L813">        double result = sHighPrev + (prodLowSum + sLowSum);</span>
+
+<span class="fc bfc" id="L815" title="All 2 branches covered.">        if (Double.isNaN(result)) {</span>
+            // either we have split infinite numbers or some coefficients were NaNs,
+            // just rely on the naive implementation and let IEEE754 handle this
+<span class="fc" id="L818">            result = 0;</span>
+<span class="fc bfc" id="L819" title="All 2 branches covered.">            for (int i = 0; i &lt; len; ++i) {</span>
+<span class="fc" id="L820">                result += a[i] * b[i];</span>
+            }
+        }
+
+<span class="fc" id="L824">        return result;</span>
+    }
+
+    /**
+     * Compute a linear combination accurately.
+     * &lt;p&gt;
+     * This method computes a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt; to high accuracy. It does
+     * so by using specific multiplication and addition algorithms to
+     * preserve accuracy and reduce cancellation effects. It is based
+     * on the 2005 paper &lt;a
+     * href=&quot;http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.2.1547&quot;&gt;
+     * Accurate Sum and Dot Product&lt;/a&gt; by Takeshi Ogita,
+     * Siegfried M. Rump, and Shin'ichi Oishi published in SIAM J. Sci. Comput.
+     * &lt;/p&gt;
+     * @param a1 first factor of the first term
+     * @param b1 second factor of the first term
+     * @param a2 first factor of the second term
+     * @param b2 second factor of the second term
+     * @return a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt;
+     * @see #linearCombination(double, double, double, double, double, double)
+     * @see #linearCombination(double, double, double, double, double, double, double, double)
+     */
+    public static double linearCombination(final double a1, final double b1,
+                                           final double a2, final double b2) {
+
+        // the code below is split in many additions/subtractions that may
+        // appear redundant. However, they should NOT be simplified, as they
+        // use IEEE754 floating point arithmetic rounding properties.
+        // as an example, the expression &quot;ca1 - (ca1 - a1)&quot; is NOT the same as &quot;a1&quot;
+        // The variable naming conventions are that xyzHigh contains the most significant
+        // bits of xyz and xyzLow contains its least significant bits. So theoretically
+        // xyz is the sum xyzHigh + xyzLow, but in many cases below, this sum cannot
+        // be represented in only one double precision number so we preserve two numbers
+        // to hold it as long as we can, combining the high and low order bits together
+        // only at the end, after cancellation may have occurred on high order bits
+
+        // split a1 and b1 as two 26 bits numbers
+<span class="fc" id="L863">        final double ca1        = SPLIT_FACTOR * a1;</span>
+<span class="fc" id="L864">        final double a1High     = ca1 - (ca1 - a1);</span>
+<span class="fc" id="L865">        final double a1Low      = a1 - a1High;</span>
+<span class="fc" id="L866">        final double cb1        = SPLIT_FACTOR * b1;</span>
+<span class="fc" id="L867">        final double b1High     = cb1 - (cb1 - b1);</span>
+<span class="fc" id="L868">        final double b1Low      = b1 - b1High;</span>
+
+        // accurate multiplication a1 * b1
+<span class="fc" id="L871">        final double prod1High  = a1 * b1;</span>
+<span class="fc" id="L872">        final double prod1Low   = a1Low * b1Low - (((prod1High - a1High * b1High) - a1Low * b1High) - a1High * b1Low);</span>
+
+        // split a2 and b2 as two 26 bits numbers
+<span class="fc" id="L875">        final double ca2        = SPLIT_FACTOR * a2;</span>
+<span class="fc" id="L876">        final double a2High     = ca2 - (ca2 - a2);</span>
+<span class="fc" id="L877">        final double a2Low      = a2 - a2High;</span>
+<span class="fc" id="L878">        final double cb2        = SPLIT_FACTOR * b2;</span>
+<span class="fc" id="L879">        final double b2High     = cb2 - (cb2 - b2);</span>
+<span class="fc" id="L880">        final double b2Low      = b2 - b2High;</span>
+
+        // accurate multiplication a2 * b2
+<span class="fc" id="L883">        final double prod2High  = a2 * b2;</span>
+<span class="fc" id="L884">        final double prod2Low   = a2Low * b2Low - (((prod2High - a2High * b2High) - a2Low * b2High) - a2High * b2Low);</span>
+
+        // accurate addition a1 * b1 + a2 * b2
+<span class="fc" id="L887">        final double s12High    = prod1High + prod2High;</span>
+<span class="fc" id="L888">        final double s12Prime   = s12High - prod2High;</span>
+<span class="fc" id="L889">        final double s12Low     = (prod2High - (s12High - s12Prime)) + (prod1High - s12Prime);</span>
+
+        // final rounding, s12 may have suffered many cancellations, we try
+        // to recover some bits from the extra words we have saved up to now
+<span class="fc" id="L893">        double result = s12High + (prod1Low + prod2Low + s12Low);</span>
+
+<span class="fc bfc" id="L895" title="All 2 branches covered.">        if (Double.isNaN(result)) {</span>
+            // either we have split infinite numbers or some coefficients were NaNs,
+            // just rely on the naive implementation and let IEEE754 handle this
+<span class="fc" id="L898">            result = a1 * b1 + a2 * b2;</span>
+        }
+
+<span class="fc" id="L901">        return result;</span>
+    }
+
+    /**
+     * Compute a linear combination accurately.
+     * &lt;p&gt;
+     * This method computes a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt; + a&lt;sub&gt;3&lt;/sub&gt;&amp;times;b&lt;sub&gt;3&lt;/sub&gt;
+     * to high accuracy. It does so by using specific multiplication and
+     * addition algorithms to preserve accuracy and reduce cancellation effects.
+     * It is based on the 2005 paper &lt;a
+     * href=&quot;http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.2.1547&quot;&gt;
+     * Accurate Sum and Dot Product&lt;/a&gt; by Takeshi Ogita,
+     * Siegfried M. Rump, and Shin'ichi Oishi published in SIAM J. Sci. Comput.
+     * &lt;/p&gt;
+     * @param a1 first factor of the first term
+     * @param b1 second factor of the first term
+     * @param a2 first factor of the second term
+     * @param b2 second factor of the second term
+     * @param a3 first factor of the third term
+     * @param b3 second factor of the third term
+     * @return a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt; + a&lt;sub&gt;3&lt;/sub&gt;&amp;times;b&lt;sub&gt;3&lt;/sub&gt;
+     * @see #linearCombination(double, double, double, double)
+     * @see #linearCombination(double, double, double, double, double, double, double, double)
+     */
+    public static double linearCombination(final double a1, final double b1,
+                                           final double a2, final double b2,
+                                           final double a3, final double b3) {
+
+        // the code below is split in many additions/subtractions that may
+        // appear redundant. However, they should NOT be simplified, as they
+        // do use IEEE754 floating point arithmetic rounding properties.
+        // as an example, the expression &quot;ca1 - (ca1 - a1)&quot; is NOT the same as &quot;a1&quot;
+        // The variables naming conventions are that xyzHigh contains the most significant
+        // bits of xyz and xyzLow contains its least significant bits. So theoretically
+        // xyz is the sum xyzHigh + xyzLow, but in many cases below, this sum cannot
+        // be represented in only one double precision number so we preserve two numbers
+        // to hold it as long as we can, combining the high and low order bits together
+        // only at the end, after cancellation may have occurred on high order bits
+
+        // split a1 and b1 as two 26 bits numbers
+<span class="fc" id="L943">        final double ca1        = SPLIT_FACTOR * a1;</span>
+<span class="fc" id="L944">        final double a1High     = ca1 - (ca1 - a1);</span>
+<span class="fc" id="L945">        final double a1Low      = a1 - a1High;</span>
+<span class="fc" id="L946">        final double cb1        = SPLIT_FACTOR * b1;</span>
+<span class="fc" id="L947">        final double b1High     = cb1 - (cb1 - b1);</span>
+<span class="fc" id="L948">        final double b1Low      = b1 - b1High;</span>
+
+        // accurate multiplication a1 * b1
+<span class="fc" id="L951">        final double prod1High  = a1 * b1;</span>
+<span class="fc" id="L952">        final double prod1Low   = a1Low * b1Low - (((prod1High - a1High * b1High) - a1Low * b1High) - a1High * b1Low);</span>
+
+        // split a2 and b2 as two 26 bits numbers
+<span class="fc" id="L955">        final double ca2        = SPLIT_FACTOR * a2;</span>
+<span class="fc" id="L956">        final double a2High     = ca2 - (ca2 - a2);</span>
+<span class="fc" id="L957">        final double a2Low      = a2 - a2High;</span>
+<span class="fc" id="L958">        final double cb2        = SPLIT_FACTOR * b2;</span>
+<span class="fc" id="L959">        final double b2High     = cb2 - (cb2 - b2);</span>
+<span class="fc" id="L960">        final double b2Low      = b2 - b2High;</span>
+
+        // accurate multiplication a2 * b2
+<span class="fc" id="L963">        final double prod2High  = a2 * b2;</span>
+<span class="fc" id="L964">        final double prod2Low   = a2Low * b2Low - (((prod2High - a2High * b2High) - a2Low * b2High) - a2High * b2Low);</span>
+
+        // split a3 and b3 as two 26 bits numbers
+<span class="fc" id="L967">        final double ca3        = SPLIT_FACTOR * a3;</span>
+<span class="fc" id="L968">        final double a3High     = ca3 - (ca3 - a3);</span>
+<span class="fc" id="L969">        final double a3Low      = a3 - a3High;</span>
+<span class="fc" id="L970">        final double cb3        = SPLIT_FACTOR * b3;</span>
+<span class="fc" id="L971">        final double b3High     = cb3 - (cb3 - b3);</span>
+<span class="fc" id="L972">        final double b3Low      = b3 - b3High;</span>
+
+        // accurate multiplication a3 * b3
+<span class="fc" id="L975">        final double prod3High  = a3 * b3;</span>
+<span class="fc" id="L976">        final double prod3Low   = a3Low * b3Low - (((prod3High - a3High * b3High) - a3Low * b3High) - a3High * b3Low);</span>
+
+        // accurate addition a1 * b1 + a2 * b2
+<span class="fc" id="L979">        final double s12High    = prod1High + prod2High;</span>
+<span class="fc" id="L980">        final double s12Prime   = s12High - prod2High;</span>
+<span class="fc" id="L981">        final double s12Low     = (prod2High - (s12High - s12Prime)) + (prod1High - s12Prime);</span>
+
+        // accurate addition a1 * b1 + a2 * b2 + a3 * b3
+<span class="fc" id="L984">        final double s123High   = s12High + prod3High;</span>
+<span class="fc" id="L985">        final double s123Prime  = s123High - prod3High;</span>
+<span class="fc" id="L986">        final double s123Low    = (prod3High - (s123High - s123Prime)) + (s12High - s123Prime);</span>
+
+        // final rounding, s123 may have suffered many cancellations, we try
+        // to recover some bits from the extra words we have saved up to now
+<span class="fc" id="L990">        double result = s123High + (prod1Low + prod2Low + prod3Low + s12Low + s123Low);</span>
+
+<span class="fc bfc" id="L992" title="All 2 branches covered.">        if (Double.isNaN(result)) {</span>
+            // either we have split infinite numbers or some coefficients were NaNs,
+            // just rely on the naive implementation and let IEEE754 handle this
+<span class="fc" id="L995">            result = a1 * b1 + a2 * b2 + a3 * b3;</span>
+        }
+
+<span class="fc" id="L998">        return result;</span>
+    }
+
+    /**
+     * Compute a linear combination accurately.
+     * &lt;p&gt;
+     * This method computes a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt; + a&lt;sub&gt;3&lt;/sub&gt;&amp;times;b&lt;sub&gt;3&lt;/sub&gt; +
+     * a&lt;sub&gt;4&lt;/sub&gt;&amp;times;b&lt;sub&gt;4&lt;/sub&gt;
+     * to high accuracy. It does so by using specific multiplication and
+     * addition algorithms to preserve accuracy and reduce cancellation effects.
+     * It is based on the 2005 paper &lt;a
+     * href=&quot;http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.2.1547&quot;&gt;
+     * Accurate Sum and Dot Product&lt;/a&gt; by Takeshi Ogita,
+     * Siegfried M. Rump, and Shin'ichi Oishi published in SIAM J. Sci. Comput.
+     * &lt;/p&gt;
+     * @param a1 first factor of the first term
+     * @param b1 second factor of the first term
+     * @param a2 first factor of the second term
+     * @param b2 second factor of the second term
+     * @param a3 first factor of the third term
+     * @param b3 second factor of the third term
+     * @param a4 first factor of the third term
+     * @param b4 second factor of the third term
+     * @return a&lt;sub&gt;1&lt;/sub&gt;&amp;times;b&lt;sub&gt;1&lt;/sub&gt; +
+     * a&lt;sub&gt;2&lt;/sub&gt;&amp;times;b&lt;sub&gt;2&lt;/sub&gt; + a&lt;sub&gt;3&lt;/sub&gt;&amp;times;b&lt;sub&gt;3&lt;/sub&gt; +
+     * a&lt;sub&gt;4&lt;/sub&gt;&amp;times;b&lt;sub&gt;4&lt;/sub&gt;
+     * @see #linearCombination(double, double, double, double)
+     * @see #linearCombination(double, double, double, double, double, double)
+     */
+    public static double linearCombination(final double a1, final double b1,
+                                           final double a2, final double b2,
+                                           final double a3, final double b3,
+                                           final double a4, final double b4) {
+
+        // the code below is split in many additions/subtractions that may
+        // appear redundant. However, they should NOT be simplified, as they
+        // do use IEEE754 floating point arithmetic rounding properties.
+        // as an example, the expression &quot;ca1 - (ca1 - a1)&quot; is NOT the same as &quot;a1&quot;
+        // The variables naming conventions are that xyzHigh contains the most significant
+        // bits of xyz and xyzLow contains its least significant bits. So theoretically
+        // xyz is the sum xyzHigh + xyzLow, but in many cases below, this sum cannot
+        // be represented in only one double precision number so we preserve two numbers
+        // to hold it as long as we can, combining the high and low order bits together
+        // only at the end, after cancellation may have occurred on high order bits
+
+        // split a1 and b1 as two 26 bits numbers
+<span class="fc" id="L1045">        final double ca1        = SPLIT_FACTOR * a1;</span>
+<span class="fc" id="L1046">        final double a1High     = ca1 - (ca1 - a1);</span>
+<span class="fc" id="L1047">        final double a1Low      = a1 - a1High;</span>
+<span class="fc" id="L1048">        final double cb1        = SPLIT_FACTOR * b1;</span>
+<span class="fc" id="L1049">        final double b1High     = cb1 - (cb1 - b1);</span>
+<span class="fc" id="L1050">        final double b1Low      = b1 - b1High;</span>
+
+        // accurate multiplication a1 * b1
+<span class="fc" id="L1053">        final double prod1High  = a1 * b1;</span>
+<span class="fc" id="L1054">        final double prod1Low   = a1Low * b1Low - (((prod1High - a1High * b1High) - a1Low * b1High) - a1High * b1Low);</span>
+
+        // split a2 and b2 as two 26 bits numbers
+<span class="fc" id="L1057">        final double ca2        = SPLIT_FACTOR * a2;</span>
+<span class="fc" id="L1058">        final double a2High     = ca2 - (ca2 - a2);</span>
+<span class="fc" id="L1059">        final double a2Low      = a2 - a2High;</span>
+<span class="fc" id="L1060">        final double cb2        = SPLIT_FACTOR * b2;</span>
+<span class="fc" id="L1061">        final double b2High     = cb2 - (cb2 - b2);</span>
+<span class="fc" id="L1062">        final double b2Low      = b2 - b2High;</span>
+
+        // accurate multiplication a2 * b2
+<span class="fc" id="L1065">        final double prod2High  = a2 * b2;</span>
+<span class="fc" id="L1066">        final double prod2Low   = a2Low * b2Low - (((prod2High - a2High * b2High) - a2Low * b2High) - a2High * b2Low);</span>
+
+        // split a3 and b3 as two 26 bits numbers
+<span class="fc" id="L1069">        final double ca3        = SPLIT_FACTOR * a3;</span>
+<span class="fc" id="L1070">        final double a3High     = ca3 - (ca3 - a3);</span>
+<span class="fc" id="L1071">        final double a3Low      = a3 - a3High;</span>
+<span class="fc" id="L1072">        final double cb3        = SPLIT_FACTOR * b3;</span>
+<span class="fc" id="L1073">        final double b3High     = cb3 - (cb3 - b3);</span>
+<span class="fc" id="L1074">        final double b3Low      = b3 - b3High;</span>
+
+        // accurate multiplication a3 * b3
+<span class="fc" id="L1077">        final double prod3High  = a3 * b3;</span>
+<span class="fc" id="L1078">        final double prod3Low   = a3Low * b3Low - (((prod3High - a3High * b3High) - a3Low * b3High) - a3High * b3Low);</span>
+
+        // split a4 and b4 as two 26 bits numbers
+<span class="fc" id="L1081">        final double ca4        = SPLIT_FACTOR * a4;</span>
+<span class="fc" id="L1082">        final double a4High     = ca4 - (ca4 - a4);</span>
+<span class="fc" id="L1083">        final double a4Low      = a4 - a4High;</span>
+<span class="fc" id="L1084">        final double cb4        = SPLIT_FACTOR * b4;</span>
+<span class="fc" id="L1085">        final double b4High     = cb4 - (cb4 - b4);</span>
+<span class="fc" id="L1086">        final double b4Low      = b4 - b4High;</span>
+
+        // accurate multiplication a4 * b4
+<span class="fc" id="L1089">        final double prod4High  = a4 * b4;</span>
+<span class="fc" id="L1090">        final double prod4Low   = a4Low * b4Low - (((prod4High - a4High * b4High) - a4Low * b4High) - a4High * b4Low);</span>
+
+        // accurate addition a1 * b1 + a2 * b2
+<span class="fc" id="L1093">        final double s12High    = prod1High + prod2High;</span>
+<span class="fc" id="L1094">        final double s12Prime   = s12High - prod2High;</span>
+<span class="fc" id="L1095">        final double s12Low     = (prod2High - (s12High - s12Prime)) + (prod1High - s12Prime);</span>
+
+        // accurate addition a1 * b1 + a2 * b2 + a3 * b3
+<span class="fc" id="L1098">        final double s123High   = s12High + prod3High;</span>
+<span class="fc" id="L1099">        final double s123Prime  = s123High - prod3High;</span>
+<span class="fc" id="L1100">        final double s123Low    = (prod3High - (s123High - s123Prime)) + (s12High - s123Prime);</span>
+
+        // accurate addition a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4
+<span class="fc" id="L1103">        final double s1234High  = s123High + prod4High;</span>
+<span class="fc" id="L1104">        final double s1234Prime = s1234High - prod4High;</span>
+<span class="fc" id="L1105">        final double s1234Low   = (prod4High - (s1234High - s1234Prime)) + (s123High - s1234Prime);</span>
+
+        // final rounding, s1234 may have suffered many cancellations, we try
+        // to recover some bits from the extra words we have saved up to now
+<span class="fc" id="L1109">        double result = s1234High + (prod1Low + prod2Low + prod3Low + prod4Low + s12Low + s123Low + s1234Low);</span>
+
+<span class="fc bfc" id="L1111" title="All 2 branches covered.">        if (Double.isNaN(result)) {</span>
+            // either we have split infinite numbers or some coefficients were NaNs,
+            // just rely on the naive implementation and let IEEE754 handle this
+<span class="fc" id="L1114">            result = a1 * b1 + a2 * b2 + a3 * b3 + a4 * b4;</span>
+        }
+
+<span class="fc" id="L1117">        return result;</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link Precision#equals(float,float)}.
+     *
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension
+     * and equal elements.
+     */
+    public static boolean equals(float[] x, float[] y) {
+<span class="nc bnc" id="L1131" title="All 4 branches missed.">        if ((x == null) || (y == null)) {</span>
+<span class="nc bnc" id="L1132" title="All 6 branches missed.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="nc bnc" id="L1134" title="All 2 branches missed.">        if (x.length != y.length) {</span>
+<span class="nc" id="L1135">            return false;</span>
+        }
+<span class="nc bnc" id="L1137" title="All 2 branches missed.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="nc bnc" id="L1138" title="All 2 branches missed.">            if (!Precision.equals(x[i], y[i])) {</span>
+<span class="nc" id="L1139">                return false;</span>
+            }
+        }
+<span class="nc" id="L1142">        return true;</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link Precision#equalsIncludingNaN(double,double) this method}.
+     *
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension and
+     * equal elements
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(float[] x, float[] y) {
+<span class="nc bnc" id="L1157" title="All 4 branches missed.">        if ((x == null) || (y == null)) {</span>
+<span class="nc bnc" id="L1158" title="All 6 branches missed.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="nc bnc" id="L1160" title="All 2 branches missed.">        if (x.length != y.length) {</span>
+<span class="nc" id="L1161">            return false;</span>
+        }
+<span class="nc bnc" id="L1163" title="All 2 branches missed.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="nc bnc" id="L1164" title="All 2 branches missed.">            if (!Precision.equalsIncludingNaN(x[i], y[i])) {</span>
+<span class="nc" id="L1165">                return false;</span>
+            }
+        }
+<span class="nc" id="L1168">        return true;</span>
+    }
+
+    /**
+     * Returns {@code true} iff both arguments are {@code null} or have same
+     * dimensions and all their elements are equal as defined by
+     * {@link Precision#equals(double,double)}.
+     *
+     * @param x First array.
+     * @param y Second array.
+     * @return {@code true} if the values are both {@code null} or have same
+     * dimension and equal elements.
+     */
+    public static boolean equals(double[] x, double[] y) {
+<span class="fc bfc" id="L1182" title="All 4 branches covered.">        if ((x == null) || (y == null)) {</span>
+<span class="fc bfc" id="L1183" title="All 6 branches covered.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="fc bfc" id="L1185" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L1186">            return false;</span>
+        }
+<span class="fc bfc" id="L1188" title="All 2 branches covered.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="fc bfc" id="L1189" title="All 2 branches covered.">            if (!Precision.equals(x[i], y[i])) {</span>
+<span class="fc" id="L1190">                return false;</span>
+            }
+        }
+<span class="fc" id="L1193">        return true;</span>
+    }
+
+    /**
+     * Returns {@code true} iff both arguments are {@code null} or have same
+     * dimensions and all their elements are equal as defined by
+     * {@link Precision#equalsIncludingNaN(double,double) this method}.
+     *
+     * @param x First array.
+     * @param y Second array.
+     * @return {@code true} if the values are both {@code null} or have same
+     * dimension and equal elements.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(double[] x, double[] y) {
+<span class="fc bfc" id="L1208" title="All 4 branches covered.">        if ((x == null) || (y == null)) {</span>
+<span class="fc bfc" id="L1209" title="All 6 branches covered.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="fc bfc" id="L1211" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L1212">            return false;</span>
+        }
+<span class="fc bfc" id="L1214" title="All 2 branches covered.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="fc bfc" id="L1215" title="All 2 branches covered.">            if (!Precision.equalsIncludingNaN(x[i], y[i])) {</span>
+<span class="fc" id="L1216">                return false;</span>
+            }
+        }
+<span class="fc" id="L1219">        return true;</span>
+    }
+
+     /**
+      * Normalizes an array to make it sum to a specified value.
+      * Returns the result of the transformation &lt;pre&gt;
+      *    x |-&gt; x * normalizedSum / sum
+      * &lt;/pre&gt;
+      * applied to each non-NaN element x of the input array, where sum is the
+      * sum of the non-NaN entries in the input array.&lt;/p&gt;
+      *
+      * &lt;p&gt;Throws IllegalArgumentException if {@code normalizedSum} is infinite
+      * or NaN and ArithmeticException if the input array contains any infinite elements
+      * or sums to 0.&lt;/p&gt;
+      *
+      * &lt;p&gt;Ignores (i.e., copies unchanged to the output array) NaNs in the input array.&lt;/p&gt;
+      *
+      * @param values Input array to be normalized
+      * @param normalizedSum Target sum for the normalized array
+      * @return the normalized array.
+      * @throws MathArithmeticException if the input array contains infinite
+      * elements or sums to zero.
+      * @throws MathIllegalArgumentException if the target sum is infinite or {@code NaN}.
+      * @since 2.1
+      */
+     public static double[] normalizeArray(double[] values, double normalizedSum)
+         throws MathIllegalArgumentException, MathArithmeticException {
+<span class="fc bfc" id="L1246" title="All 2 branches covered.">         if (Double.isInfinite(normalizedSum)) {</span>
+<span class="fc" id="L1247">             throw new MathIllegalArgumentException(LocalizedFormats.NORMALIZE_INFINITE);</span>
+         }
+<span class="fc bfc" id="L1249" title="All 2 branches covered.">         if (Double.isNaN(normalizedSum)) {</span>
+<span class="fc" id="L1250">             throw new MathIllegalArgumentException(LocalizedFormats.NORMALIZE_NAN);</span>
+         }
+<span class="fc" id="L1252">         double sum = 0d;</span>
+<span class="fc" id="L1253">         final int len = values.length;</span>
+<span class="fc" id="L1254">         double[] out = new double[len];</span>
+<span class="fc bfc" id="L1255" title="All 2 branches covered.">         for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc bfc" id="L1256" title="All 2 branches covered.">             if (Double.isInfinite(values[i])) {</span>
+<span class="fc" id="L1257">                 throw new MathIllegalArgumentException(LocalizedFormats.INFINITE_ARRAY_ELEMENT, values[i], i);</span>
+             }
+<span class="fc bfc" id="L1259" title="All 2 branches covered.">             if (!Double.isNaN(values[i])) {</span>
+<span class="fc" id="L1260">                 sum += values[i];</span>
+             }
+         }
+<span class="fc bfc" id="L1263" title="All 2 branches covered.">         if (sum == 0) {</span>
+<span class="fc" id="L1264">             throw new MathArithmeticException(LocalizedFormats.ARRAY_SUMS_TO_ZERO);</span>
+         }
+<span class="fc bfc" id="L1266" title="All 2 branches covered.">         for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc bfc" id="L1267" title="All 2 branches covered.">             if (Double.isNaN(values[i])) {</span>
+<span class="fc" id="L1268">                 out[i] = Double.NaN;</span>
+             } else {
+<span class="fc" id="L1270">                 out[i] = values[i] * normalizedSum / sum;</span>
+             }
+         }
+<span class="fc" id="L1273">         return out;</span>
+     }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

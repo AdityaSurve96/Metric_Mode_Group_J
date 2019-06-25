@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>GaussianDerivativeFunction.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.fitting</a> &gt; <span class="el_source">GaussianDerivativeFunction.java</span></div><h1>GaussianDerivativeFunction.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.fitting;
+
+import java.io.Serializable;
+
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.DimensionMismatchException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.exception.ZeroException;
+import org.apache.commons.math.exception.NullArgumentException;
+
+/**
+ * The derivative of {@link GaussianFunction}.  Specifically:
+ * &lt;p&gt;
+ * &lt;tt&gt;f'(x) = (-b / (d^2)) * (x - c) * exp(-((x - c)^2) / (2*(d^2)))&lt;/tt&gt;
+ * &lt;p&gt;
+ * Notation key:
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;tt&gt;x^n&lt;/tt&gt;: &lt;tt&gt;x&lt;/tt&gt; raised to the power of &lt;tt&gt;n&lt;/tt&gt;
+ * &lt;li&gt;&lt;tt&gt;exp(x)&lt;/tt&gt;: &lt;i&gt;e&lt;/i&gt;&lt;tt&gt;^x&lt;/tt&gt;
+ * &lt;/ul&gt;
+ *
+ * @since 2.2
+ * @version $Revision$ $Date$
+ */
+public class GaussianDerivativeFunction implements UnivariateRealFunction, Serializable {
+
+    /** Serializable version identifier. */
+    private static final long serialVersionUID = -6500229089670174766L;
+
+    /** Parameter b of this function. */
+    private final double b;
+
+    /** Parameter c of this function. */
+    private final double c;
+
+    /** Square of the parameter d of this function. */
+    private final double d2;
+
+    /**
+     * Constructs an instance with the specified parameters.
+     *
+     * @param b &lt;tt&gt;b&lt;/tt&gt; parameter value
+     * @param c &lt;tt&gt;c&lt;/tt&gt; parameter value
+     * @param d &lt;tt&gt;d&lt;/tt&gt; parameter value
+     *
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is 0
+     */
+<span class="nc" id="L65">    public GaussianDerivativeFunction(double b, double c, double d) {</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (d == 0.0) {</span>
+<span class="nc" id="L67">            throw new ZeroException();</span>
+        }
+<span class="nc" id="L69">        this.b = b;</span>
+<span class="nc" id="L70">        this.c = c;</span>
+<span class="nc" id="L71">        this.d2 = d * d;</span>
+<span class="nc" id="L72">    }</span>
+
+    /**
+     * Constructs an instance with the specified parameters.
+     *
+     * @param parameters &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and &lt;tt&gt;d&lt;/tt&gt; parameter values
+     *
+     * @throws IllegalArgumentException if &lt;code&gt;parameters&lt;/code&gt; is null,
+     *         &lt;code&gt;parameters&lt;/code&gt; length is not 3, or if
+     *         &lt;code&gt;parameters[2]&lt;/code&gt; is 0
+     */
+<span class="nc" id="L83">    public GaussianDerivativeFunction(double[] parameters) {</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (parameters == null) {</span>
+<span class="nc" id="L85">            throw new NullArgumentException(LocalizedFormats.INPUT_ARRAY);</span>
+        }
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (parameters.length != 3) {</span>
+<span class="nc" id="L88">            throw new DimensionMismatchException(3, parameters.length);</span>
+        }
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (parameters[2] == 0.0) {</span>
+<span class="nc" id="L91">            throw new ZeroException();</span>
+        }
+<span class="nc" id="L93">        this.b = parameters[0];</span>
+<span class="nc" id="L94">        this.c = parameters[1];</span>
+<span class="nc" id="L95">        this.d2 = parameters[2] * parameters[2];</span>
+<span class="nc" id="L96">    }</span>
+
+    /** {@inheritDoc} */
+    public double value(double x) {
+<span class="nc" id="L100">        final double xMc = x - c;</span>
+<span class="nc" id="L101">        return (-b / d2) * xMc * Math.exp(-(xMc * xMc) / (2.0 * d2));</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

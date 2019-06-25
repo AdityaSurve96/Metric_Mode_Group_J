@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PolynomialFunctionLagrangeForm.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.polynomials</a> &gt; <span class="el_source">PolynomialFunctionLagrangeForm.java</span></div><h1>PolynomialFunctionLagrangeForm.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.polynomials;
+
+import org.apache.commons.math.DuplicateSampleAbscissaException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements the representation of a real polynomial function in
+ * &lt;a href=&quot;http://mathworld.wolfram.com/LagrangeInterpolatingPolynomial.html&quot;&gt;
+ * Lagrange Form&lt;/a&gt;. For reference, see &lt;b&gt;Introduction to Numerical
+ * Analysis&lt;/b&gt;, ISBN 038795452X, chapter 2.
+ * &lt;p&gt;
+ * The approximated function should be smooth enough for Lagrange polynomial
+ * to work well. Otherwise, consider using splines instead.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class PolynomialFunctionLagrangeForm implements UnivariateRealFunction {
+
+    /**
+     * The coefficients of the polynomial, ordered by degree -- i.e.
+     * coefficients[0] is the constant term and coefficients[n] is the
+     * coefficient of x^n where n is the degree of the polynomial.
+     */
+    private double coefficients[];
+
+    /**
+     * Interpolating points (abscissas).
+     */
+    private final double x[];
+
+    /**
+     * Function values at interpolating points.
+     */
+    private final double y[];
+
+    /**
+     * Whether the polynomial coefficients are available.
+     */
+    private boolean coefficientsComputed;
+
+    /**
+     * Construct a Lagrange polynomial with the given abscissas and function
+     * values. The order of interpolating points are not important.
+     * &lt;p&gt;
+     * The constructor makes copy of the input arrays and assigns them.&lt;/p&gt;
+     *
+     * @param x interpolating points
+     * @param y function values at interpolating points
+     * @throws IllegalArgumentException if input arrays are not valid
+     */
+    public PolynomialFunctionLagrangeForm(double x[], double y[])
+<span class="fc" id="L73">        throws IllegalArgumentException {</span>
+
+<span class="fc" id="L75">        verifyInterpolationArray(x, y);</span>
+<span class="fc" id="L76">        this.x = new double[x.length];</span>
+<span class="fc" id="L77">        this.y = new double[y.length];</span>
+<span class="fc" id="L78">        System.arraycopy(x, 0, this.x, 0, x.length);</span>
+<span class="fc" id="L79">        System.arraycopy(y, 0, this.y, 0, y.length);</span>
+<span class="fc" id="L80">        coefficientsComputed = false;</span>
+<span class="fc" id="L81">    }</span>
+
+    /** {@inheritDoc} */
+    public double value(double z) throws FunctionEvaluationException {
+        try {
+<span class="fc" id="L86">            return evaluate(x, y, z);</span>
+<span class="fc" id="L87">        } catch (DuplicateSampleAbscissaException e) {</span>
+<span class="fc" id="L88">            throw new FunctionEvaluationException(z, e.getSpecificPattern(), e.getGeneralPattern(), e.getArguments());</span>
+        }
+    }
+
+    /**
+     * Returns the degree of the polynomial.
+     *
+     * @return the degree of the polynomial
+     */
+    public int degree() {
+<span class="fc" id="L98">        return x.length - 1;</span>
+    }
+
+    /**
+     * Returns a copy of the interpolating points array.
+     * &lt;p&gt;
+     * Changes made to the returned copy will not affect the polynomial.&lt;/p&gt;
+     *
+     * @return a fresh copy of the interpolating points array
+     */
+    public double[] getInterpolatingPoints() {
+<span class="nc" id="L109">        double[] out = new double[x.length];</span>
+<span class="nc" id="L110">        System.arraycopy(x, 0, out, 0, x.length);</span>
+<span class="nc" id="L111">        return out;</span>
+    }
+
+    /**
+     * Returns a copy of the interpolating values array.
+     * &lt;p&gt;
+     * Changes made to the returned copy will not affect the polynomial.&lt;/p&gt;
+     *
+     * @return a fresh copy of the interpolating values array
+     */
+    public double[] getInterpolatingValues() {
+<span class="nc" id="L122">        double[] out = new double[y.length];</span>
+<span class="nc" id="L123">        System.arraycopy(y, 0, out, 0, y.length);</span>
+<span class="nc" id="L124">        return out;</span>
+    }
+
+    /**
+     * Returns a copy of the coefficients array.
+     * &lt;p&gt;
+     * Changes made to the returned copy will not affect the polynomial.&lt;/p&gt;
+     * &lt;p&gt;
+     * Note that coefficients computation can be ill-conditioned. Use with caution
+     * and only when it is necessary.&lt;/p&gt;
+     *
+     * @return a fresh copy of the coefficients array
+     */
+    public double[] getCoefficients() {
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">        if (!coefficientsComputed) {</span>
+<span class="fc" id="L139">            computeCoefficients();</span>
+        }
+<span class="fc" id="L141">        double[] out = new double[coefficients.length];</span>
+<span class="fc" id="L142">        System.arraycopy(coefficients, 0, out, 0, coefficients.length);</span>
+<span class="fc" id="L143">        return out;</span>
+    }
+
+    /**
+     * Evaluate the Lagrange polynomial using
+     * &lt;a href=&quot;http://mathworld.wolfram.com/NevillesAlgorithm.html&quot;&gt;
+     * Neville's Algorithm&lt;/a&gt;. It takes O(N^2) time.
+     * &lt;p&gt;
+     * This function is made public static so that users can call it directly
+     * without instantiating PolynomialFunctionLagrangeForm object.&lt;/p&gt;
+     *
+     * @param x the interpolating points array
+     * @param y the interpolating values array
+     * @param z the point at which the function value is to be computed
+     * @return the function value
+     * @throws DuplicateSampleAbscissaException if the sample has duplicate abscissas
+     * @throws IllegalArgumentException if inputs are not valid
+     */
+    public static double evaluate(double x[], double y[], double z) throws
+        DuplicateSampleAbscissaException, IllegalArgumentException {
+
+<span class="fc" id="L164">        verifyInterpolationArray(x, y);</span>
+
+<span class="fc" id="L166">        int nearest = 0;</span>
+<span class="fc" id="L167">        final int n = x.length;</span>
+<span class="fc" id="L168">        final double[] c = new double[n];</span>
+<span class="fc" id="L169">        final double[] d = new double[n];</span>
+<span class="fc" id="L170">        double min_dist = Double.POSITIVE_INFINITY;</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+            // initialize the difference arrays
+<span class="fc" id="L173">            c[i] = y[i];</span>
+<span class="fc" id="L174">            d[i] = y[i];</span>
+            // find out the abscissa closest to z
+<span class="fc" id="L176">            final double dist = FastMath.abs(z - x[i]);</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            if (dist &lt; min_dist) {</span>
+<span class="fc" id="L178">                nearest = i;</span>
+<span class="fc" id="L179">                min_dist = dist;</span>
+            }
+        }
+
+        // initial approximation to the function value at z
+<span class="fc" id="L184">        double value = y[nearest];</span>
+
+<span class="fc bfc" id="L186" title="All 2 branches covered.">        for (int i = 1; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">            for (int j = 0; j &lt; n-i; j++) {</span>
+<span class="fc" id="L188">                final double tc = x[j] - z;</span>
+<span class="fc" id="L189">                final double td = x[i+j] - z;</span>
+<span class="fc" id="L190">                final double divider = x[j] - x[i+j];</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">                if (divider == 0.0) {</span>
+                    // This happens only when two abscissas are identical.
+<span class="fc" id="L193">                    throw new DuplicateSampleAbscissaException(x[i], i, i+j);</span>
+                }
+                // update the difference arrays
+<span class="fc" id="L196">                final double w = (c[j+1] - d[j]) / divider;</span>
+<span class="fc" id="L197">                c[j] = tc * w;</span>
+<span class="fc" id="L198">                d[j] = td * w;</span>
+            }
+            // sum up the difference terms to get the final value
+<span class="fc bfc" id="L201" title="All 2 branches covered.">            if (nearest &lt; 0.5*(n-i+1)) {</span>
+<span class="fc" id="L202">                value += c[nearest];    // fork down</span>
+            } else {
+<span class="fc" id="L204">                nearest--;</span>
+<span class="fc" id="L205">                value += d[nearest];    // fork up</span>
+            }
+        }
+
+<span class="fc" id="L209">        return value;</span>
+    }
+
+    /**
+     * Calculate the coefficients of Lagrange polynomial from the
+     * interpolation data. It takes O(N^2) time.
+     * &lt;p&gt;
+     * Note this computation can be ill-conditioned. Use with caution
+     * and only when it is necessary.&lt;/p&gt;
+     *
+     * @throws ArithmeticException if any abscissas coincide
+     */
+    protected void computeCoefficients() throws ArithmeticException {
+
+<span class="fc" id="L223">        final int n = degree() + 1;</span>
+<span class="fc" id="L224">        coefficients = new double[n];</span>
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L226">            coefficients[i] = 0.0;</span>
+        }
+
+        // c[] are the coefficients of P(x) = (x-x[0])(x-x[1])...(x-x[n-1])
+<span class="fc" id="L230">        final double[] c = new double[n+1];</span>
+<span class="fc" id="L231">        c[0] = 1.0;</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">            for (int j = i; j &gt; 0; j--) {</span>
+<span class="fc" id="L234">                c[j] = c[j-1] - c[j] * x[i];</span>
+            }
+<span class="fc" id="L236">            c[0] *= -x[i];</span>
+<span class="fc" id="L237">            c[i+1] = 1;</span>
+        }
+
+<span class="fc" id="L240">        final double[] tc = new double[n];</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+            // d = (x[i]-x[0])...(x[i]-x[i-1])(x[i]-x[i+1])...(x[i]-x[n-1])
+<span class="fc" id="L243">            double d = 1;</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">            for (int j = 0; j &lt; n; j++) {</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">                if (i != j) {</span>
+<span class="fc" id="L246">                    d *= x[i] - x[j];</span>
+                }
+            }
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">            if (d == 0.0) {</span>
+                // This happens only when two abscissas are identical.
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                for (int k = 0; k &lt; n; ++k) {</span>
+<span class="nc bnc" id="L252" title="All 4 branches missed.">                    if ((i != k) &amp;&amp; (x[i] == x[k])) {</span>
+<span class="nc" id="L253">                        throw MathRuntimeException.createArithmeticException(</span>
+                              LocalizedFormats.IDENTICAL_ABSCISSAS_DIVISION_BY_ZERO,
+<span class="nc" id="L255">                              i, k, x[i]);</span>
+                    }
+                }
+            }
+<span class="fc" id="L259">            final double t = y[i] / d;</span>
+            // Lagrange polynomial is the sum of n terms, each of which is a
+            // polynomial of degree n-1. tc[] are the coefficients of the i-th
+            // numerator Pi(x) = (x-x[0])...(x-x[i-1])(x-x[i+1])...(x-x[n-1]).
+<span class="fc" id="L263">            tc[n-1] = c[n];     // actually c[n] = 1</span>
+<span class="fc" id="L264">            coefficients[n-1] += t * tc[n-1];</span>
+<span class="fc bfc" id="L265" title="All 2 branches covered.">            for (int j = n-2; j &gt;= 0; j--) {</span>
+<span class="fc" id="L266">                tc[j] = c[j+1] + tc[j+1] * x[i];</span>
+<span class="fc" id="L267">                coefficients[j] += t * tc[j];</span>
+            }
+        }
+
+<span class="fc" id="L271">        coefficientsComputed = true;</span>
+<span class="fc" id="L272">    }</span>
+
+    /**
+     * Verifies that the interpolation arrays are valid.
+     * &lt;p&gt;
+     * The arrays features checked by this method are that both arrays have the
+     * same length and this length is at least 2.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * The interpolating points must be distinct. However it is not
+     * verified here, it is checked in evaluate() and computeCoefficients().
+     * &lt;/p&gt;
+     *
+     * @param x the interpolating points array
+     * @param y the interpolating values array
+     * @throws IllegalArgumentException if not valid
+     * @see #evaluate(double[], double[], double)
+     * @see #computeCoefficients()
+     */
+    public static void verifyInterpolationArray(double x[], double y[])
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L294" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L295">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L296">                  LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE, x.length, y.length);</span>
+        }
+
+<span class="fc bfc" id="L299" title="All 2 branches covered.">        if (x.length &lt; 2) {</span>
+<span class="fc" id="L300">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L301">                  LocalizedFormats.WRONG_NUMBER_OF_POINTS, 2, x.length);</span>
+        }
+
+<span class="fc" id="L304">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,718 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MathRuntimeException.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math</a> &gt; <span class="el_source">MathRuntimeException.java</span></div><h1>MathRuntimeException.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math;
+
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.text.MessageFormat;
+import java.text.ParseException;
+import java.util.ConcurrentModificationException;
+import java.util.Locale;
+import java.util.NoSuchElementException;
+
+import org.apache.commons.math.exception.MathThrowable;
+import org.apache.commons.math.exception.util.DummyLocalizable;
+import org.apache.commons.math.exception.util.Localizable;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+
+/**
+* Base class for commons-math unchecked exceptions.
+*
+* @version $Revision$ $Date$
+* @since 2.0
+*/
+public class MathRuntimeException extends RuntimeException implements MathThrowable {
+
+    /** Serializable version identifier. */
+    private static final long serialVersionUID = 9058794795027570002L;
+
+    /**
+     * Pattern used to build the message.
+     */
+    private final Localizable pattern;
+
+    /**
+     * Arguments used to build the message.
+     */
+    private final Object[] arguments;
+
+    /**
+     * Constructs a new &lt;code&gt;MathRuntimeException&lt;/code&gt; with specified
+     * formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @deprecated as of 2.2 replaced by {@link #MathRuntimeException(Localizable, Object...)}
+     */
+    @Deprecated
+    public MathRuntimeException(final String pattern, final Object ... arguments) {
+<span class="nc" id="L65">        this(new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L66">    }</span>
+
+    /**
+     * Constructs a new &lt;code&gt;MathRuntimeException&lt;/code&gt; with specified
+     * formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+<span class="fc" id="L76">    public MathRuntimeException(final Localizable pattern, final Object ... arguments) {</span>
+<span class="fc" id="L77">        this.pattern   = pattern;</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        this.arguments = (arguments == null) ? new Object[0] : arguments.clone();</span>
+<span class="fc" id="L79">    }</span>
+
+    /**
+     * Constructs a new &lt;code&gt;MathRuntimeException&lt;/code&gt; with specified
+     * nested &lt;code&gt;Throwable&lt;/code&gt; root cause.
+     *
+     * @param rootCause  the exception or error that caused this exception
+     *                   to be thrown.
+     */
+    public MathRuntimeException(final Throwable rootCause) {
+<span class="nc" id="L89">        super(rootCause);</span>
+<span class="nc" id="L90">        this.pattern   = LocalizedFormats.SIMPLE_MESSAGE;</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        this.arguments = new Object[] { (rootCause == null) ? &quot;&quot; : rootCause.getMessage() };</span>
+<span class="nc" id="L92">    }</span>
+
+    /**
+     * Constructs a new &lt;code&gt;MathRuntimeException&lt;/code&gt; with specified
+     * formatted detail message and nested &lt;code&gt;Throwable&lt;/code&gt; root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param rootCause the exception or error that caused this exception
+     * to be thrown.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @deprecated as of 2.2 replaced by {@link #MathRuntimeException(Throwable, Localizable, Object...)}
+     */
+    @Deprecated
+    public MathRuntimeException(final Throwable rootCause,
+                                final String pattern, final Object ... arguments) {
+<span class="nc" id="L107">        this(rootCause, new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L108">    }</span>
+
+    /**
+     * Constructs a new &lt;code&gt;MathRuntimeException&lt;/code&gt; with specified
+     * formatted detail message and nested &lt;code&gt;Throwable&lt;/code&gt; root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param rootCause the exception or error that caused this exception
+     * to be thrown.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+    public MathRuntimeException(final Throwable rootCause,
+                                final Localizable pattern, final Object ... arguments) {
+<span class="nc" id="L122">        super(rootCause);</span>
+<span class="nc" id="L123">        this.pattern   = pattern;</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        this.arguments = (arguments == null) ? new Object[0] : arguments.clone();</span>
+<span class="nc" id="L125">    }</span>
+
+    /**
+     * Builds a message string by from a pattern and its arguments.
+     * @param locale Locale in which the message should be translated
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return a message string
+     * @since 2.2
+     */
+    private static String buildMessage(final Locale locale, final Localizable pattern,
+                                       final Object ... arguments) {
+<span class="fc" id="L137">        return new MessageFormat(pattern.getLocalizedString(locale), locale).format(arguments);</span>
+    }
+
+    /** Gets the pattern used to build the message of this throwable.
+    *
+    * @return the pattern used to build the message of this throwable
+    * @deprecated as of 2.2 replaced by {@link #getSpecificPattern()} and {@link #getGeneralPattern()}
+    */
+    @Deprecated
+    public String getPattern() {
+<span class="nc" id="L147">        return pattern.getSourceString();</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @since 2.2
+     */
+    public Localizable getSpecificPattern() {
+<span class="nc" id="L156">        return null;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @since 2.2
+     */
+    public Localizable getGeneralPattern() {
+<span class="nc" id="L165">        return pattern;</span>
+    }
+
+    /** {@inheritDoc} */
+    public Object[] getArguments() {
+<span class="fc" id="L170">        return arguments.clone();</span>
+    }
+
+    /** Gets the message in a specified locale.
+     *
+     * @param locale Locale in which the message should be translated
+     *
+     * @return localized message
+     */
+    public String getMessage(final Locale locale) {
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">        if (pattern != null) {</span>
+<span class="fc" id="L181">            return buildMessage(locale, pattern, arguments);</span>
+        }
+<span class="nc" id="L183">        return &quot;&quot;;</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getMessage() {
+<span class="fc" id="L189">        return getMessage(Locale.US);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getLocalizedMessage() {
+<span class="nc" id="L195">        return getMessage(Locale.getDefault());</span>
+    }
+
+    /**
+     * Prints the stack trace of this exception to the standard error stream.
+     */
+    @Override
+    public void printStackTrace() {
+<span class="nc" id="L203">        printStackTrace(System.err);</span>
+<span class="nc" id="L204">    }</span>
+
+    /**
+     * Prints the stack trace of this exception to the specified stream.
+     *
+     * @param out  the &lt;code&gt;PrintStream&lt;/code&gt; to use for output
+     */
+    @Override
+    public void printStackTrace(final PrintStream out) {
+<span class="nc" id="L213">        synchronized (out) {</span>
+<span class="nc" id="L214">            PrintWriter pw = new PrintWriter(out, false);</span>
+<span class="nc" id="L215">            printStackTrace(pw);</span>
+            // Flush the PrintWriter before it's GC'ed.
+<span class="nc" id="L217">            pw.flush();</span>
+<span class="nc" id="L218">        }</span>
+<span class="nc" id="L219">    }</span>
+
+    /**
+     * Constructs a new &lt;code&gt;ArithmeticException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createArithmeticException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static ArithmeticException createArithmeticException(final String pattern,
+                                                                final Object ... arguments) {
+<span class="nc" id="L232">        return createArithmeticException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ArithmeticException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static ArithmeticException createArithmeticException(final Localizable pattern,
+                                                                final Object ... arguments) {
+<span class="fc" id="L245">        return new ArithmeticException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 5305498554076846637L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="fc" id="L253">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L259">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ArrayIndexOutOfBoundsException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createArrayIndexOutOfBoundsException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static ArrayIndexOutOfBoundsException createArrayIndexOutOfBoundsException(final String pattern,
+                                                                                      final Object ... arguments) {
+<span class="nc" id="L276">        return createArrayIndexOutOfBoundsException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ArrayIndexOutOfBoundsException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static ArrayIndexOutOfBoundsException createArrayIndexOutOfBoundsException(final Localizable pattern,
+                                                                                      final Object ... arguments) {
+<span class="fc" id="L289">        return new ArrayIndexOutOfBoundsException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 6718518191249632175L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L297">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L303">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;EOFException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createEOFException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static EOFException createEOFException(final String pattern,
+                                                  final Object ... arguments) {
+<span class="nc" id="L320">        return createEOFException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;EOFException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static EOFException createEOFException(final Localizable pattern,
+                                                  final Object ... arguments) {
+<span class="fc" id="L333">        return new EOFException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 6067985859347601503L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L341">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L347">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IOException&lt;/code&gt; with specified nested
+     * &lt;code&gt;Throwable&lt;/code&gt; root cause.
+     * &lt;p&gt;This factory method allows chaining of other exceptions within an
+     * &lt;code&gt;IOException&lt;/code&gt; even for Java 5. The constructor for
+     * &lt;code&gt;IOException&lt;/code&gt; with a cause parameter was introduced only
+     * with Java 6.&lt;/p&gt;
+     * @param rootCause the exception or error that caused this exception
+     * to be thrown.
+     * @return built exception
+     */
+    public static IOException createIOException(final Throwable rootCause) {
+<span class="nc" id="L365">        IOException ioe = new IOException(rootCause.getLocalizedMessage());</span>
+<span class="nc" id="L366">        ioe.initCause(rootCause);</span>
+<span class="nc" id="L367">        return ioe;</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IllegalArgumentException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createIllegalArgumentException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static IllegalArgumentException createIllegalArgumentException(final String pattern,
+                                                                          final Object ... arguments) {
+<span class="nc" id="L381">        return createIllegalArgumentException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IllegalArgumentException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static IllegalArgumentException createIllegalArgumentException(final Localizable pattern,
+                                                                          final Object ... arguments) {
+<span class="fc" id="L394">        return new IllegalArgumentException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = -4284649691002411505L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L402">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L408">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IllegalArgumentException&lt;/code&gt; with specified nested
+     * &lt;code&gt;Throwable&lt;/code&gt; root cause.
+     * @param rootCause the exception or error that caused this exception
+     * to be thrown.
+     * @return built exception
+     */
+    public static IllegalArgumentException createIllegalArgumentException(final Throwable rootCause) {
+<span class="nc" id="L422">        IllegalArgumentException iae = new IllegalArgumentException(rootCause.getLocalizedMessage());</span>
+<span class="nc" id="L423">        iae.initCause(rootCause);</span>
+<span class="nc" id="L424">        return iae;</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IllegalStateException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createIllegalStateException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static IllegalStateException createIllegalStateException(final String pattern,
+                                                                    final Object ... arguments) {
+<span class="nc" id="L438">        return createIllegalStateException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;IllegalStateException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static IllegalStateException createIllegalStateException(final Localizable pattern,
+                                                                    final Object ... arguments) {
+<span class="fc" id="L451">        return new IllegalStateException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 6880901520234515725L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L459">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L465">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ConcurrentModificationException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createConcurrentModificationException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static ConcurrentModificationException createConcurrentModificationException(final String pattern,
+                                                                                        final Object ... arguments) {
+<span class="nc" id="L482">        return createConcurrentModificationException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ConcurrentModificationException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static ConcurrentModificationException createConcurrentModificationException(final Localizable pattern,
+                                                                                        final Object ... arguments) {
+<span class="fc" id="L495">        return new ConcurrentModificationException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = -1878427236170442052L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L503">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L509">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;NoSuchElementException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createNoSuchElementException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static NoSuchElementException createNoSuchElementException(final String pattern,
+                                                                      final Object ... arguments) {
+<span class="nc" id="L526">        return createNoSuchElementException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;NoSuchElementException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static NoSuchElementException createNoSuchElementException(final Localizable pattern,
+                                                                      final Object ... arguments) {
+<span class="fc" id="L539">        return new NoSuchElementException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 1632410088350355086L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L547">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L553">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;UnsupportedOperationException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     * @deprecated in 2.2. Please use {@link org.apache.commons.math.exception.MathUnsupportedOperationException}
+     * instead.
+     */
+    @Deprecated
+    public static UnsupportedOperationException createUnsupportedOperationException(final Localizable pattern,
+                                                                                    final Object ... arguments) {
+<span class="nc" id="L572">        return new UnsupportedOperationException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = -4284649691002411505L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L580">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L586">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;NullPointerException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createNullPointerException(Localizable, Object...)}
+     */
+    @Deprecated
+    public static NullPointerException createNullPointerException(final String pattern,
+                                                                  final Object ... arguments) {
+<span class="nc" id="L603">        return createNullPointerException(new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;NullPointerException&lt;/code&gt; with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     * @deprecated in 2.2. Checks for &quot;null&quot; must not be performed in Commons-Math.
+     */
+    @Deprecated
+    public static NullPointerException createNullPointerException(final Localizable pattern,
+                                                                  final Object ... arguments) {
+<span class="nc" id="L618">        return new NullPointerException() {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 451965530686593945L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L626">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L632">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+   /**
+     * Constructs a new &lt;code&gt;ParseException&lt;/code&gt; with specified
+     * formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param offset offset at which error occurred
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @deprecated as of 2.2 replaced by {@link #createParseException(int, Localizable, Object...)}
+     */
+    @Deprecated
+    public static ParseException createParseException(final int offset,
+                                                      final String pattern,
+                                                      final Object ... arguments) {
+<span class="nc" id="L652">        return createParseException(offset, new DummyLocalizable(pattern), arguments);</span>
+    }
+
+    /**
+     * Constructs a new &lt;code&gt;ParseException&lt;/code&gt; with specified
+     * formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param offset offset at which error occurred
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @return built exception
+     * @since 2.2
+     */
+    public static ParseException createParseException(final int offset,
+                                                      final Localizable pattern,
+                                                      final Object ... arguments) {
+<span class="fc" id="L668">        return new ParseException(null, offset) {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = 8153587599409010120L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L676">                return buildMessage(Locale.US, pattern, arguments);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L682">                return buildMessage(Locale.getDefault(), pattern, arguments);</span>
+            }
+
+        };
+    }
+
+    /** Create an {@link java.lang.RuntimeException} for an internal error.
+     * @param cause underlying cause
+     * @return an {@link java.lang.RuntimeException} for an internal error
+     */
+    public static RuntimeException createInternalError(final Throwable cause) {
+
+<span class="nc" id="L694">        final String argument = &quot;https://issues.apache.org/jira/browse/MATH&quot;;</span>
+
+<span class="nc" id="L696">        return new RuntimeException(cause) {</span>
+
+            /** Serializable version identifier. */
+            private static final long serialVersionUID = -201865440834027016L;
+
+            /** {@inheritDoc} */
+            @Override
+            public String getMessage() {
+<span class="nc" id="L704">                return buildMessage(Locale.US, LocalizedFormats.INTERNAL_ERROR, argument);</span>
+            }
+
+            /** {@inheritDoc} */
+            @Override
+            public String getLocalizedMessage() {
+<span class="nc" id="L710">                return buildMessage(Locale.getDefault(), LocalizedFormats.INTERNAL_ERROR, argument);</span>
+            }
+
+        };
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
