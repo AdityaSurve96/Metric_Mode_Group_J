@@ -1,0 +1,792 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>FunctionUtils.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math3.analysis</a> &gt; <span class="el_source">FunctionUtils.java</span></div><h1>FunctionUtils.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math3.analysis;
+
+import org.apache.commons.math3.analysis.differentiation.DerivativeStructure;
+import org.apache.commons.math3.analysis.differentiation.MultivariateDifferentiableFunction;
+import org.apache.commons.math3.analysis.differentiation.MultivariateDifferentiableVectorFunction;
+import org.apache.commons.math3.analysis.differentiation.UnivariateDifferentiableFunction;
+import org.apache.commons.math3.analysis.function.Identity;
+import org.apache.commons.math3.exception.DimensionMismatchException;
+import org.apache.commons.math3.exception.NotStrictlyPositiveException;
+import org.apache.commons.math3.exception.NumberIsTooLargeException;
+import org.apache.commons.math3.exception.util.LocalizedFormats;
+
+/**
+ * Utilities for manipulating function objects.
+ *
+ * @version $Id$
+ * @since 3.0
+ */
+public class FunctionUtils {
+    /**
+     * Class only contains static methods.
+     */
+<span class="nc" id="L40">    private FunctionUtils() {}</span>
+
+    /**
+     * Composes functions.
+     * &lt;br/&gt;
+     * The functions in the argument list are composed sequentially, in the
+     * given order.  For example, compose(f1,f2,f3) acts like f1(f2(f3(x))).
+     *
+     * @param f List of functions.
+     * @return the composite function.
+     */
+    public static UnivariateFunction compose(final UnivariateFunction ... f) {
+<span class="fc" id="L52">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L55">                double r = x;</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">                for (int i = f.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L57">                    r = f[i].value(r);</span>
+                }
+<span class="fc" id="L59">                return r;</span>
+            }
+        };
+    }
+
+    /**
+     * Composes functions.
+     * &lt;br/&gt;
+     * The functions in the argument list are composed sequentially, in the
+     * given order.  For example, compose(f1,f2,f3) acts like f1(f2(f3(x))).
+     *
+     * @param f List of functions.
+     * @return the composite function.
+     * @since 3.1
+     */
+    public static UnivariateDifferentiableFunction compose(final UnivariateDifferentiableFunction ... f) {
+<span class="fc" id="L75">        return new UnivariateDifferentiableFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double t) {
+<span class="nc" id="L79">                double r = t;</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                for (int i = f.length - 1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L81">                    r = f[i].value(r);</span>
+                }
+<span class="nc" id="L83">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public DerivativeStructure value(final DerivativeStructure t) {
+<span class="fc" id="L88">                DerivativeStructure r = t;</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">                for (int i = f.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L90">                    r = f[i].value(r);</span>
+                }
+<span class="fc" id="L92">                return r;</span>
+            }
+
+        };
+    }
+
+    /**
+     * Composes functions.
+     * &lt;br/&gt;
+     * The functions in the argument list are composed sequentially, in the
+     * given order.  For example, compose(f1,f2,f3) acts like f1(f2(f3(x))).
+     *
+     * @param f List of functions.
+     * @return the composite function.
+     * @deprecated as of 3.1 replaced by {@link #compose(UnivariateDifferentiableFunction...)}
+     */
+    public static DifferentiableUnivariateFunction compose(final DifferentiableUnivariateFunction ... f) {
+<span class="nc" id="L109">        return new DifferentiableUnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="nc" id="L112">                double r = x;</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                for (int i = f.length - 1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L114">                    r = f[i].value(r);</span>
+                }
+<span class="nc" id="L116">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public UnivariateFunction derivative() {
+<span class="nc" id="L121">                return new UnivariateFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double value(double x) {
+<span class="nc" id="L124">                        double p = 1;</span>
+<span class="nc" id="L125">                        double r = x;</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                        for (int i = f.length - 1; i &gt;= 0; i--) {</span>
+<span class="nc" id="L127">                            p *= f[i].derivative().value(r);</span>
+<span class="nc" id="L128">                            r = f[i].value(r);</span>
+                        }
+<span class="nc" id="L130">                        return p;</span>
+                    }
+                };
+            }
+        };
+    }
+
+    /**
+     * Adds functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the sum of the functions.
+     */
+    public static UnivariateFunction add(final UnivariateFunction ... f) {
+<span class="fc" id="L144">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L147">                double r = f[0].value(x);</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="fc" id="L149">                    r += f[i].value(x);</span>
+                }
+<span class="fc" id="L151">                return r;</span>
+            }
+        };
+    }
+
+    /**
+     * Adds functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the sum of the functions.
+     * @since 3.1
+     */
+    public static UnivariateDifferentiableFunction add(final UnivariateDifferentiableFunction ... f) {
+<span class="fc" id="L164">        return new UnivariateDifferentiableFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double t) {
+<span class="nc" id="L168">                double r = f[0].value(t);</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="nc" id="L170">                    r += f[i].value(t);</span>
+                }
+<span class="nc" id="L172">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public DerivativeStructure value(final DerivativeStructure t) {
+<span class="fc" id="L177">                DerivativeStructure r = f[0].value(t);</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="fc" id="L179">                    r = r.add(f[i].value(t));</span>
+                }
+<span class="fc" id="L181">                return r;</span>
+            }
+
+        };
+    }
+
+    /**
+     * Adds functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the sum of the functions.
+     * @deprecated as of 3.1 replaced by {@link #add(UnivariateDifferentiableFunction...)}
+     */
+    @Deprecated
+    public static DifferentiableUnivariateFunction add(final DifferentiableUnivariateFunction ... f) {
+<span class="nc" id="L196">        return new DifferentiableUnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="nc" id="L199">                double r = f[0].value(x);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="nc" id="L201">                    r += f[i].value(x);</span>
+                }
+<span class="nc" id="L203">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public UnivariateFunction derivative() {
+<span class="nc" id="L208">                return new UnivariateFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double value(double x) {
+<span class="nc" id="L211">                        double r = f[0].derivative().value(x);</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">                        for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="nc" id="L213">                            r += f[i].derivative().value(x);</span>
+                        }
+<span class="nc" id="L215">                        return r;</span>
+                    }
+                };
+            }
+        };
+    }
+
+    /**
+     * Multiplies functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the product of the functions.
+     */
+    public static UnivariateFunction multiply(final UnivariateFunction ... f) {
+<span class="fc" id="L229">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L232">                double r = f[0].value(x);</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="fc" id="L234">                    r *= f[i].value(x);</span>
+                }
+<span class="fc" id="L236">                return r;</span>
+            }
+        };
+    }
+
+    /**
+     * Multiplies functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the product of the functions.
+     * @since 3.1
+     */
+    public static UnivariateDifferentiableFunction multiply(final UnivariateDifferentiableFunction ... f) {
+<span class="fc" id="L249">        return new UnivariateDifferentiableFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double t) {
+<span class="nc" id="L253">                double r = f[0].value(t);</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="nc" id="L255">                    r  *= f[i].value(t);</span>
+                }
+<span class="nc" id="L257">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public DerivativeStructure value(final DerivativeStructure t) {
+<span class="fc" id="L262">                DerivativeStructure r = f[0].value(t);</span>
+<span class="fc bfc" id="L263" title="All 2 branches covered.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="fc" id="L264">                    r = r.multiply(f[i].value(t));</span>
+                }
+<span class="fc" id="L266">                return r;</span>
+            }
+
+        };
+    }
+
+    /**
+     * Multiplies functions.
+     *
+     * @param f List of functions.
+     * @return a function that computes the product of the functions.
+     * @deprecated as of 3.1 replaced by {@link #multiply(UnivariateDifferentiableFunction...)}
+     */
+    public static DifferentiableUnivariateFunction multiply(final DifferentiableUnivariateFunction ... f) {
+<span class="nc" id="L280">        return new DifferentiableUnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="nc" id="L283">                double r = f[0].value(x);</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">                for (int i = 1; i &lt; f.length; i++) {</span>
+<span class="nc" id="L285">                    r *= f[i].value(x);</span>
+                }
+<span class="nc" id="L287">                return r;</span>
+            }
+
+            /** {@inheritDoc} */
+            public UnivariateFunction derivative() {
+<span class="nc" id="L292">                return new UnivariateFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double value(double x) {
+<span class="nc" id="L295">                        double sum = 0;</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">                        for (int i = 0; i &lt; f.length; i++) {</span>
+<span class="nc" id="L297">                            double prod = f[i].derivative().value(x);</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                            for (int j = 0; j &lt; f.length; j++) {</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">                                if (i != j) {</span>
+<span class="nc" id="L300">                                    prod *= f[j].value(x);</span>
+                                }
+                            }
+<span class="nc" id="L303">                            sum += prod;</span>
+                        }
+<span class="nc" id="L305">                        return sum;</span>
+                    }
+                };
+            }
+        };
+    }
+
+    /**
+     * Returns the univariate function &lt;br/&gt;
+     * {@code h(x) = combiner(f(x), g(x))}.
+     *
+     * @param combiner Combiner function.
+     * @param f Function.
+     * @param g Function.
+     * @return the composite function.
+     */
+    public static UnivariateFunction combine(final BivariateFunction combiner,
+                                             final UnivariateFunction f,
+                                             final UnivariateFunction g) {
+<span class="fc" id="L324">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L327">                return combiner.value(f.value(x), g.value(x));</span>
+            }
+        };
+    }
+
+    /**
+     * Returns a MultivariateFunction h(x[]) defined by &lt;pre&gt; &lt;code&gt;
+     * h(x[]) = combiner(...combiner(combiner(initialValue,f(x[0])),f(x[1]))...),f(x[x.length-1]))
+     * &lt;/code&gt;&lt;/pre&gt;
+     *
+     * @param combiner Combiner function.
+     * @param f Function.
+     * @param initialValue Initial value.
+     * @return a collector function.
+     */
+    public static MultivariateFunction collector(final BivariateFunction combiner,
+                                                 final UnivariateFunction f,
+                                                 final double initialValue) {
+<span class="fc" id="L345">        return new MultivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double[] point) {
+<span class="fc" id="L348">                double result = combiner.value(initialValue, f.value(point[0]));</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">                for (int i = 1; i &lt; point.length; i++) {</span>
+<span class="fc" id="L350">                    result = combiner.value(result, f.value(point[i]));</span>
+                }
+<span class="fc" id="L352">                return result;</span>
+            }
+        };
+    }
+
+    /**
+     * Returns a MultivariateFunction h(x[]) defined by &lt;pre&gt; &lt;code&gt;
+     * h(x[]) = combiner(...combiner(combiner(initialValue,x[0]),x[1])...),x[x.length-1])
+     * &lt;/code&gt;&lt;/pre&gt;
+     *
+     * @param combiner Combiner function.
+     * @param initialValue Initial value.
+     * @return a collector function.
+     */
+    public static MultivariateFunction collector(final BivariateFunction combiner,
+                                                 final double initialValue) {
+<span class="fc" id="L368">        return collector(combiner, new Identity(), initialValue);</span>
+    }
+
+    /**
+     * Creates a unary function by fixing the first argument of a binary function.
+     *
+     * @param f Binary function.
+     * @param fixed Value to which the first argument of {@code f} is set.
+     * @return the unary function h(x) = f(fixed, x)
+     */
+    public static UnivariateFunction fix1stArgument(final BivariateFunction f,
+                                                    final double fixed) {
+<span class="fc" id="L380">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L383">                return f.value(fixed, x);</span>
+            }
+        };
+    }
+    /**
+     * Creates a unary function by fixing the second argument of a binary function.
+     *
+     * @param f Binary function.
+     * @param fixed Value to which the second argument of {@code f} is set.
+     * @return the unary function h(x) = f(x, fixed)
+     */
+    public static UnivariateFunction fix2ndArgument(final BivariateFunction f,
+                                                    final double fixed) {
+<span class="fc" id="L396">        return new UnivariateFunction() {</span>
+            /** {@inheritDoc} */
+            public double value(double x) {
+<span class="fc" id="L399">                return f.value(x, fixed);</span>
+            }
+        };
+    }
+
+    /**
+     * Samples the specified univariate real function on the specified interval.
+     * &lt;br/&gt;
+     * The interval is divided equally into {@code n} sections and sample points
+     * are taken from {@code min} to {@code max - (max - min) / n}; therefore
+     * {@code f} is not sampled at the upper bound {@code max}.
+     *
+     * @param f Function to be sampled
+     * @param min Lower bound of the interval (included).
+     * @param max Upper bound of the interval (excluded).
+     * @param n Number of sample points.
+     * @return the array of samples.
+     * @throws NumberIsTooLargeException if the lower bound {@code min} is
+     * greater than, or equal to the upper bound {@code max}.
+     * @throws NotStrictlyPositiveException if the number of sample points
+     * {@code n} is negative.
+     */
+    public static double[] sample(UnivariateFunction f,
+                                  double min, double max, int n) {
+
+<span class="fc bfc" id="L424" title="All 2 branches covered.">        if (n &lt;= 0) {</span>
+<span class="fc" id="L425">            throw new NotStrictlyPositiveException(</span>
+                    LocalizedFormats.NOT_POSITIVE_NUMBER_OF_SAMPLES,
+<span class="fc" id="L427">                    Integer.valueOf(n));</span>
+        }
+<span class="fc bfc" id="L429" title="All 2 branches covered.">        if (min &gt;= max) {</span>
+<span class="fc" id="L430">            throw new NumberIsTooLargeException(min, max, false);</span>
+        }
+
+<span class="fc" id="L433">        final double[] s = new double[n];</span>
+<span class="fc" id="L434">        final double h = (max - min) / n;</span>
+<span class="fc bfc" id="L435" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L436">            s[i] = f.value(min + i * h);</span>
+        }
+<span class="fc" id="L438">        return s;</span>
+    }
+
+    /** Convert a {@link UnivariateDifferentiableFunction} into a {@link DifferentiableUnivariateFunction}.
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableUnivariateFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static DifferentiableUnivariateFunction toDifferentiableUnivariateFunction(final UnivariateDifferentiableFunction f) {
+<span class="fc" id="L449">        return new DifferentiableUnivariateFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double x) {
+<span class="fc" id="L453">                return f.value(x);</span>
+            }
+
+            /** {@inheritDoc} */
+            public UnivariateFunction derivative() {
+<span class="fc" id="L458">                return new UnivariateFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double value(final double x) {
+<span class="fc" id="L461">                        return f.value(new DerivativeStructure(1, 1, 0, x)).getPartialDerivative(1);</span>
+                    }
+                };
+            }
+
+        };
+    }
+
+    /** Convert a {@link DifferentiableUnivariateFunction} into a {@link UnivariateDifferentiableFunction}.
+     * &lt;p&gt;
+     * Note that the converted function is able to handle {@link DerivativeStructure} up to order one.
+     * If the function is called with higher order, a {@link NumberIsTooLargeException} will be thrown.
+     * &lt;/p&gt;
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableUnivariateFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static UnivariateDifferentiableFunction toUnivariateDifferential(final DifferentiableUnivariateFunction f) {
+<span class="fc" id="L481">        return new UnivariateDifferentiableFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double x) {
+<span class="nc" id="L485">                return f.value(x);</span>
+            }
+
+            /** {@inheritDoc}
+             * @exception NumberIsTooLargeException if derivation order is greater than 1
+             */
+            public DerivativeStructure value(final DerivativeStructure t)
+                throws NumberIsTooLargeException {
+<span class="pc bpc" id="L493" title="2 of 3 branches missed.">                switch (t.getOrder()) {</span>
+                    case 0 :
+<span class="nc" id="L495">                        return new DerivativeStructure(t.getFreeParameters(), 0, f.value(t.getValue()));</span>
+                    case 1 : {
+<span class="fc" id="L497">                        final int parameters = t.getFreeParameters();</span>
+<span class="fc" id="L498">                        final double[] derivatives = new double[parameters + 1];</span>
+<span class="fc" id="L499">                        derivatives[0] = f.value(t.getValue());</span>
+<span class="fc" id="L500">                        final double fPrime = f.derivative().value(t.getValue());</span>
+<span class="fc" id="L501">                        int[] orders = new int[parameters];</span>
+<span class="fc bfc" id="L502" title="All 2 branches covered.">                        for (int i = 0; i &lt; parameters; ++i) {</span>
+<span class="fc" id="L503">                            orders[i] = 1;</span>
+<span class="fc" id="L504">                            derivatives[i + 1] = fPrime * t.getPartialDerivative(orders);</span>
+<span class="fc" id="L505">                            orders[i] = 0;</span>
+                        }
+<span class="fc" id="L507">                        return new DerivativeStructure(parameters, 1, derivatives);</span>
+                    }
+                    default :
+<span class="nc" id="L510">                        throw new NumberIsTooLargeException(t.getOrder(), 1, true);</span>
+                }
+            }
+
+        };
+    }
+
+    /** Convert a {@link MultivariateDifferentiableFunction} into a {@link DifferentiableMultivariateFunction}.
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableMultivariateFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static DifferentiableMultivariateFunction toDifferentiableMultivariateFunction(final MultivariateDifferentiableFunction f) {
+<span class="fc" id="L525">        return new DifferentiableMultivariateFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double[] x) {
+<span class="fc" id="L529">                return f.value(x);</span>
+            }
+
+            /** {@inheritDoc} */
+            public MultivariateFunction partialDerivative(final int k) {
+<span class="nc" id="L534">                return new MultivariateFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double value(final double[] x) {
+
+<span class="nc" id="L538">                        final int n = x.length;</span>
+
+                        // delegate computation to underlying function
+<span class="nc" id="L541">                        final DerivativeStructure[] dsX = new DerivativeStructure[n];</span>
+<span class="nc bnc" id="L542" title="All 2 branches missed.">                        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="nc bnc" id="L543" title="All 2 branches missed.">                            if (i == k) {</span>
+<span class="nc" id="L544">                                dsX[i] = new DerivativeStructure(1, 1, 0, x[i]);</span>
+                            } else {
+<span class="nc" id="L546">                                dsX[i] = new DerivativeStructure(1, 1, x[i]);</span>
+                            }
+                        }
+<span class="nc" id="L549">                        final DerivativeStructure y = f.value(dsX);</span>
+
+                        // extract partial derivative
+<span class="nc" id="L552">                        return y.getPartialDerivative(1);</span>
+
+                    }
+                };
+            }
+
+            public MultivariateVectorFunction gradient() {
+<span class="fc" id="L559">                return new MultivariateVectorFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double[] value(final double[] x) {
+
+<span class="fc" id="L563">                        final int n = x.length;</span>
+
+                        // delegate computation to underlying function
+<span class="fc" id="L566">                        final DerivativeStructure[] dsX = new DerivativeStructure[n];</span>
+<span class="fc bfc" id="L567" title="All 2 branches covered.">                        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L568">                            dsX[i] = new DerivativeStructure(n, 1, i, x[i]);</span>
+                        }
+<span class="fc" id="L570">                        final DerivativeStructure y = f.value(dsX);</span>
+
+                        // extract gradient
+<span class="fc" id="L573">                        final double[] gradient = new double[n];</span>
+<span class="fc" id="L574">                        final int[] orders = new int[n];</span>
+<span class="fc bfc" id="L575" title="All 2 branches covered.">                        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L576">                            orders[i]   = 1;</span>
+<span class="fc" id="L577">                            gradient[i] = y.getPartialDerivative(orders);</span>
+<span class="fc" id="L578">                            orders[i]   = 0;</span>
+                        }
+
+<span class="fc" id="L581">                        return gradient;</span>
+
+                    }
+                };
+            }
+
+        };
+    }
+
+    /** Convert a {@link DifferentiableMultivariateFunction} into a {@link MultivariateDifferentiableFunction}.
+     * &lt;p&gt;
+     * Note that the converted function is able to handle {@link DerivativeStructure} elements
+     * that all have the same number of free parameters and order, and with order at most 1.
+     * If the function is called with inconsistent numbers of free parameters or higher order, a
+     * {@link DimensionMismatchException} or a {@link NumberIsTooLargeException} will be thrown.
+     * &lt;/p&gt;
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableMultivariateFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static MultivariateDifferentiableFunction toMultivariateDifferentiableFunction(final DifferentiableMultivariateFunction f) {
+<span class="fc" id="L604">        return new MultivariateDifferentiableFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double value(final double[] x) {
+<span class="nc" id="L608">                return f.value(x);</span>
+            }
+
+            /** {@inheritDoc}
+             * @exception DimensionMismatchException if number of parameters or derivation
+             * order are higher than 1
+             */
+            public DerivativeStructure value(final DerivativeStructure[] t)
+                throws DimensionMismatchException, NumberIsTooLargeException {
+
+                // check parameters and orders limits
+<span class="fc" id="L619">                final int parameters = t[0].getFreeParameters();</span>
+<span class="fc" id="L620">                final int order      = t[0].getOrder();</span>
+<span class="fc" id="L621">                final int n          = t.length;</span>
+<span class="pc bpc" id="L622" title="1 of 2 branches missed.">                if (order &gt; 1) {</span>
+<span class="nc" id="L623">                    throw new NumberIsTooLargeException(order, 1, true);</span>
+                }
+
+                // check all elements in the array are consistent
+<span class="fc bfc" id="L627" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="pc bpc" id="L628" title="1 of 2 branches missed.">                    if (t[i].getFreeParameters() != parameters) {</span>
+<span class="nc" id="L629">                        throw new DimensionMismatchException(t[i].getFreeParameters(), parameters);</span>
+                    }
+
+<span class="pc bpc" id="L632" title="1 of 2 branches missed.">                    if (t[i].getOrder() != order) {</span>
+<span class="nc" id="L633">                        throw new DimensionMismatchException(t[i].getOrder(), order);</span>
+                    }
+                }
+
+                // delegate computation to underlying function
+<span class="fc" id="L638">                final double[] point = new double[n];</span>
+<span class="fc bfc" id="L639" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L640">                    point[i] = t[i].getValue();</span>
+                }
+<span class="fc" id="L642">                final double value      = f.value(point);</span>
+<span class="fc" id="L643">                final double[] gradient = f.gradient().value(point);</span>
+
+                // merge value and gradient into one DerivativeStructure
+<span class="fc" id="L646">                final double[] derivatives = new double[parameters + 1];</span>
+<span class="fc" id="L647">                derivatives[0] = value;</span>
+<span class="fc" id="L648">                final int[] orders = new int[parameters];</span>
+<span class="fc bfc" id="L649" title="All 2 branches covered.">                for (int i = 0; i &lt; parameters; ++i) {</span>
+<span class="fc" id="L650">                    orders[i] = 1;</span>
+<span class="fc bfc" id="L651" title="All 2 branches covered.">                    for (int j = 0; j &lt; n; ++j) {</span>
+<span class="fc" id="L652">                        derivatives[i + 1] += gradient[j] * t[j].getPartialDerivative(orders);</span>
+                    }
+<span class="fc" id="L654">                    orders[i] = 0;</span>
+                }
+
+<span class="fc" id="L657">                return new DerivativeStructure(parameters, order, derivatives);</span>
+
+            }
+
+        };
+    }
+
+    /** Convert a {@link MultivariateDifferentiableVectorFunction} into a {@link DifferentiableMultivariateVectorFunction}.
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableMultivariateVectorFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static DifferentiableMultivariateVectorFunction toDifferentiableMultivariateVectorFunction(final MultivariateDifferentiableVectorFunction f) {
+<span class="fc" id="L672">        return new DifferentiableMultivariateVectorFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double[] value(final double[] x) {
+<span class="fc" id="L676">                return f.value(x);</span>
+            }
+
+            public MultivariateMatrixFunction jacobian() {
+<span class="fc" id="L680">                return new MultivariateMatrixFunction() {</span>
+                    /** {@inheritDoc} */
+                    public double[][] value(final double[] x) {
+
+<span class="fc" id="L684">                        final int n = x.length;</span>
+
+                        // delegate computation to underlying function
+<span class="fc" id="L687">                        final DerivativeStructure[] dsX = new DerivativeStructure[n];</span>
+<span class="fc bfc" id="L688" title="All 2 branches covered.">                        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L689">                            dsX[i] = new DerivativeStructure(n, 1, i, x[i]);</span>
+                        }
+<span class="fc" id="L691">                        final DerivativeStructure[] y = f.value(dsX);</span>
+
+                        // extract Jacobian
+<span class="fc" id="L694">                        final double[][] jacobian = new double[y.length][n];</span>
+<span class="fc" id="L695">                        final int[] orders = new int[n];</span>
+<span class="fc bfc" id="L696" title="All 2 branches covered.">                        for (int i = 0; i &lt; y.length; ++i) {</span>
+<span class="fc bfc" id="L697" title="All 2 branches covered.">                            for (int j = 0; j &lt; n; ++j) {</span>
+<span class="fc" id="L698">                                orders[j]      = 1;</span>
+<span class="fc" id="L699">                                jacobian[i][j] = y[i].getPartialDerivative(orders);</span>
+<span class="fc" id="L700">                                orders[j]      = 0;</span>
+                            }
+                        }
+
+<span class="fc" id="L704">                        return jacobian;</span>
+
+                    }
+                };
+            }
+
+        };
+    }
+
+    /** Convert a {@link DifferentiableMultivariateVectorFunction} into a {@link MultivariateDifferentiableVectorFunction}.
+     * &lt;p&gt;
+     * Note that the converted function is able to handle {@link DerivativeStructure} elements
+     * that all have the same number of free parameters and order, and with order at most 1.
+     * If the function is called with inconsistent numbers of free parameters or higher order, a
+     * {@link DimensionMismatchException} or a {@link NumberIsTooLargeException} will be thrown.
+     * &lt;/p&gt;
+     * @param f function to convert
+     * @return converted function
+     * @deprecated this conversion method is temporary in version 3.1, as the {@link
+     * DifferentiableMultivariateFunction} interface itself is deprecated
+     */
+    @Deprecated
+    public static MultivariateDifferentiableVectorFunction toMultivariateDifferentiableVectorFunction(final DifferentiableMultivariateVectorFunction f) {
+<span class="fc" id="L727">        return new MultivariateDifferentiableVectorFunction() {</span>
+
+            /** {@inheritDoc} */
+            public double[] value(final double[] x) {
+<span class="fc" id="L731">                return f.value(x);</span>
+            }
+
+            /** {@inheritDoc}
+             * @exception DimensionMismatchException if number of parameters or derivation
+             * order are higher than 1
+             */
+            public DerivativeStructure[] value(final DerivativeStructure[] t)
+                throws DimensionMismatchException, NumberIsTooLargeException {
+
+                // check parameters and orders limits
+<span class="fc" id="L742">                final int parameters = t[0].getFreeParameters();</span>
+<span class="fc" id="L743">                final int order      = t[0].getOrder();</span>
+<span class="fc" id="L744">                final int n          = t.length;</span>
+<span class="pc bpc" id="L745" title="1 of 2 branches missed.">                if (order &gt; 1) {</span>
+<span class="nc" id="L746">                    throw new NumberIsTooLargeException(order, 1, true);</span>
+                }
+
+                // check all elements in the array are consistent
+<span class="fc bfc" id="L750" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="pc bpc" id="L751" title="1 of 2 branches missed.">                    if (t[i].getFreeParameters() != parameters) {</span>
+<span class="nc" id="L752">                        throw new DimensionMismatchException(t[i].getFreeParameters(), parameters);</span>
+                    }
+
+<span class="pc bpc" id="L755" title="1 of 2 branches missed.">                    if (t[i].getOrder() != order) {</span>
+<span class="nc" id="L756">                        throw new DimensionMismatchException(t[i].getOrder(), order);</span>
+                    }
+                }
+
+                // delegate computation to underlying function
+<span class="fc" id="L761">                final double[] point = new double[n];</span>
+<span class="fc bfc" id="L762" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L763">                    point[i] = t[i].getValue();</span>
+                }
+<span class="fc" id="L765">                final double[] value      = f.value(point);</span>
+<span class="fc" id="L766">                final double[][] jacobian = f.jacobian().value(point);</span>
+
+                // merge value and Jacobian into a DerivativeStructure array
+<span class="fc" id="L769">                final DerivativeStructure[] merged = new DerivativeStructure[value.length];</span>
+<span class="fc bfc" id="L770" title="All 2 branches covered.">                for (int k = 0; k &lt; merged.length; ++k) {</span>
+<span class="fc" id="L771">                    final double[] derivatives = new double[parameters + 1];</span>
+<span class="fc" id="L772">                    derivatives[0] = value[k];</span>
+<span class="fc" id="L773">                    final int[] orders = new int[parameters];</span>
+<span class="fc bfc" id="L774" title="All 2 branches covered.">                    for (int i = 0; i &lt; parameters; ++i) {</span>
+<span class="fc" id="L775">                        orders[i] = 1;</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">                        for (int j = 0; j &lt; n; ++j) {</span>
+<span class="fc" id="L777">                            derivatives[i + 1] += jacobian[k][j] * t[j].getPartialDerivative(orders);</span>
+                        }
+<span class="fc" id="L779">                        orders[i] = 0;</span>
+                    }
+<span class="fc" id="L781">                    merged[k] = new DerivativeStructure(parameters, order, derivatives);</span>
+                }
+
+<span class="fc" id="L784">                return merged;</span>
+
+            }
+
+        };
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

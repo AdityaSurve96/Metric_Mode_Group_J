@@ -1,0 +1,896 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>DerivativeStructure.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math3.analysis.differentiation</a> &gt; <span class="el_source">DerivativeStructure.java</span></div><h1>DerivativeStructure.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math3.analysis.differentiation;
+
+import java.io.Serializable;
+
+import org.apache.commons.math3.Field;
+import org.apache.commons.math3.FieldElement;
+import org.apache.commons.math3.exception.DimensionMismatchException;
+import org.apache.commons.math3.exception.NumberIsTooLargeException;
+import org.apache.commons.math3.util.FastMath;
+
+/** Class representing both the value and the differentials of a function.
+ * &lt;p&gt;This class is the workhorse of the differentiation package.&lt;/p&gt;
+ * &lt;p&gt;This class is an implementation of the extension to Rall's
+ * numbers described in Dan Kalman's paper &lt;a
+ * href=&quot;http://www.math.american.edu/People/kalman/pdffiles/mmgautodiff.pdf&quot;&gt;Doubly
+ * Recursive Multivariate Automatic Differentiation&lt;/a&gt;, Mathematics Magazine, vol. 75,
+ * no. 3, June 2002.&lt;/p&gt;. Rall's numbers are an extension to the real numbers used
+ * throughout mathematical expressions; they hold the derivative together with the
+ * value of a function. Dan Kalman's derivative structures hold all partial derivatives
+ * up to any specified order, with respect to any number of free parameters. Rall's
+ * numbers therefore can be seen as derivative structures for order one derivative and
+ * one free parameter, and real numbers can be seen as derivative structures with zero
+ * order derivative and no free parameters.&lt;/p&gt;
+ * &lt;p&gt;{@link DerivativeStructure} instances can be used directly thanks to
+ * the arithmetic operators to the mathematical functions provided as static
+ * methods by this class (+, -, *, /, %, sin, cos ...).&lt;/p&gt;
+ * &lt;p&gt;Implementing complex expressions by hand using these classes is
+ * a tedious and error-prone task but has the advantage of having no limitation
+ * on the derivation order despite no requiring users to compute the derivatives by
+ * themselves. Implementing complex expression can also be done by developing computation
+ * code using standard primitive double values and to use {@link
+ * UnivariateFunctionDifferentiator differentiators} to create the {@link
+ * DerivativeStructure}-based instances. This method is simpler but may be limited in
+ * the accuracy and derivation orders and may be computationally intensive (this is
+ * typically the case for {@link FiniteDifferencesDifferentiator finite differences
+ * differentiator}.&lt;/p&gt;
+ * &lt;p&gt;Instances of this class are guaranteed to be immutable.&lt;/p&gt;
+ * @see DSCompiler
+ * @version $Id$
+ * @since 3.1
+ */
+public class DerivativeStructure implements FieldElement&lt;DerivativeStructure&gt;, Serializable {
+
+    /** Serializable UID. */
+    private static final long serialVersionUID = 20120730L;
+
+    /** Compiler for the current dimensions. */
+    private transient DSCompiler compiler;
+
+    /** Combined array holding all values. */
+    private final double[] data;
+
+    /** Build an instance with all values and derivatives set to 0.
+     * @param compiler compiler to use for computation
+     */
+<span class="fc" id="L72">    private DerivativeStructure(final DSCompiler compiler) {</span>
+<span class="fc" id="L73">        this.compiler = compiler;</span>
+<span class="fc" id="L74">        this.data     = new double[compiler.getSize()];</span>
+<span class="fc" id="L75">    }</span>
+
+    /** Build an instance with all values and derivatives set to 0.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     */
+    public DerivativeStructure(final int parameters, final int order) {
+<span class="fc" id="L82">        this(DSCompiler.getCompiler(parameters, order));</span>
+<span class="fc" id="L83">    }</span>
+
+    /** Build an instance representing a constant value.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param value value of the constant
+     * @see #DerivativeStructure(int, int, int, double)
+     */
+    public DerivativeStructure(final int parameters, final int order, final double value) {
+<span class="fc" id="L92">        this(parameters, order);</span>
+<span class="fc" id="L93">        this.data[0] = value;</span>
+<span class="fc" id="L94">    }</span>
+
+    /** Build an instance representing a variable.
+     * &lt;p&gt;Instances built using this constructor are considered
+     * to be the free variables with respect to which differentials
+     * are computed. As such, their differential with respect to
+     * themselves is +1.&lt;/p&gt;
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param index index of the variable (from 0 to {@code parameters - 1})
+     * @param value value of the variable
+     * @exception NumberIsTooLargeException if {@code index &gt;= parameters}.
+     * @see #DerivativeStructure(int, int, double)
+     */
+    public DerivativeStructure(final int parameters, final int order,
+                               final int index, final double value)
+        throws NumberIsTooLargeException {
+<span class="fc" id="L111">        this(parameters, order, value);</span>
+
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (index &gt;= parameters) {</span>
+<span class="fc" id="L114">            throw new NumberIsTooLargeException(index, parameters, false);</span>
+        }
+
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the derivative of the variable with respect to itself is 1.
+<span class="fc" id="L119">            data[DSCompiler.getCompiler(index, order).getSize()] = 1.0;</span>
+        }
+
+<span class="fc" id="L122">    }</span>
+
+    /** Linear combination constructor.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2
+     * @param a1 first scale factor
+     * @param ds1 first base (unscaled) derivative structure
+     * @param a2 second scale factor
+     * @param ds2 second base (unscaled) derivative structure
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure(final double a1, final DerivativeStructure ds1,
+                               final double a2, final DerivativeStructure ds2)
+        throws DimensionMismatchException {
+<span class="fc" id="L135">        this(ds1.compiler);</span>
+<span class="fc" id="L136">        compiler.checkCompatibility(ds2.compiler);</span>
+<span class="fc" id="L137">        compiler.linearCombination(a1, ds1.data, 0, a2, ds2.data, 0, data, 0);</span>
+<span class="fc" id="L138">    }</span>
+
+    /** Linear combination constructor.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2 + a3 * ds3
+     * @param a1 first scale factor
+     * @param ds1 first base (unscaled) derivative structure
+     * @param a2 second scale factor
+     * @param ds2 second base (unscaled) derivative structure
+     * @param a3 third scale factor
+     * @param ds3 third base (unscaled) derivative structure
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure(final double a1, final DerivativeStructure ds1,
+                               final double a2, final DerivativeStructure ds2,
+                               final double a3, final DerivativeStructure ds3)
+        throws DimensionMismatchException {
+<span class="fc" id="L154">        this(ds1.compiler);</span>
+<span class="fc" id="L155">        compiler.checkCompatibility(ds2.compiler);</span>
+<span class="fc" id="L156">        compiler.checkCompatibility(ds3.compiler);</span>
+<span class="fc" id="L157">        compiler.linearCombination(a1, ds1.data, 0, a2, ds2.data, 0, a3, ds3.data, 0, data, 0);</span>
+<span class="fc" id="L158">    }</span>
+
+    /** Linear combination constructor.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2 + a3 * ds3 + a4 * ds4
+     * @param a1 first scale factor
+     * @param ds1 first base (unscaled) derivative structure
+     * @param a2 second scale factor
+     * @param ds2 second base (unscaled) derivative structure
+     * @param a3 third scale factor
+     * @param ds3 third base (unscaled) derivative structure
+     * @param a4 fourth scale factor
+     * @param ds4 fourth base (unscaled) derivative structure
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure(final double a1, final DerivativeStructure ds1,
+                               final double a2, final DerivativeStructure ds2,
+                               final double a3, final DerivativeStructure ds3,
+                               final double a4, final DerivativeStructure ds4)
+        throws DimensionMismatchException {
+<span class="fc" id="L177">        this(ds1.compiler);</span>
+<span class="fc" id="L178">        compiler.checkCompatibility(ds2.compiler);</span>
+<span class="fc" id="L179">        compiler.checkCompatibility(ds3.compiler);</span>
+<span class="fc" id="L180">        compiler.checkCompatibility(ds4.compiler);</span>
+<span class="fc" id="L181">        compiler.linearCombination(a1, ds1.data, 0, a2, ds2.data, 0,</span>
+                                   a3, ds3.data, 0, a4, ds4.data, 0,
+                                   data, 0);
+<span class="fc" id="L184">    }</span>
+
+    /** Build an instance from all its derivatives.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param derivatives derivatives sorted according to
+     * {@link DSCompiler#getPartialDerivativeIndex(int...)}
+     * @exception DimensionMismatchException if derivatives array does not match the
+     * {@link DSCompiler#getSize() size} expected by the compiler
+     * @see #getAllDerivatives()
+     */
+    public DerivativeStructure(final int parameters, final int order, final double ... derivatives)
+        throws DimensionMismatchException {
+<span class="fc" id="L197">        this(parameters, order);</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        if (derivatives.length != data.length) {</span>
+<span class="fc" id="L199">            throw new DimensionMismatchException(derivatives.length, data.length);</span>
+        }
+<span class="fc" id="L201">        System.arraycopy(derivatives, 0, data, 0, data.length);</span>
+<span class="fc" id="L202">    }</span>
+
+    /** Copy constructor.
+     * @param ds instance to copy
+     */
+<span class="fc" id="L207">    private DerivativeStructure(final DerivativeStructure ds) {</span>
+<span class="fc" id="L208">        this.compiler = ds.compiler;</span>
+<span class="fc" id="L209">        this.data     = ds.data.clone();</span>
+<span class="fc" id="L210">    }</span>
+
+    /** Get the number of free parameters.
+     * @return number of free parameters
+     */
+    public int getFreeParameters() {
+<span class="fc" id="L216">        return compiler.getFreeParameters();</span>
+    }
+
+    /** Get the derivation order.
+     * @return derivation order
+     */
+    public int getOrder() {
+<span class="fc" id="L223">        return compiler.getOrder();</span>
+    }
+
+    /** Get the value part of the derivative structure.
+     * @return value part of the derivative structure
+     * @see #getPartialDerivative(int...)
+     */
+    public double getValue() {
+<span class="fc" id="L231">        return data[0];</span>
+    }
+
+    /** Get a partial derivative.
+     * @param orders derivation orders with respect to each variable (if all orders are 0,
+     * the value is returned)
+     * @return partial derivative
+     * @see #getValue()
+     * @exception DimensionMismatchException if the numbers of variables does not
+     * match the instance
+     * @exception NumberIsTooLargeException if sum of derivation orders is larger
+     * than the instance limits
+     */
+    public double getPartialDerivative(final int ... orders)
+        throws DimensionMismatchException, NumberIsTooLargeException {
+<span class="fc" id="L246">        return data[compiler.getPartialDerivativeIndex(orders)];</span>
+    }
+
+    /** Get all partial derivatives.
+     * @return a fresh copy of partial derivatives, in an array sorted according to
+     * {@link DSCompiler#getPartialDerivativeIndex(int...)}
+     */
+    public double[] getAllDerivatives() {
+<span class="fc" id="L254">        return data.clone();</span>
+    }
+
+    /** '+' operator.
+     * @param a right hand side parameter of the operator
+     * @return this+a
+     */
+    public DerivativeStructure add(final double a) {
+<span class="fc" id="L262">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc" id="L263">        ds.data[0] += a;</span>
+<span class="fc" id="L264">        return ds;</span>
+    }
+
+    /** '+' operator.
+     * @param a right hand side parameter of the operator
+     * @return this+a
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure add(final DerivativeStructure a)
+        throws DimensionMismatchException {
+<span class="fc" id="L274">        compiler.checkCompatibility(a.compiler);</span>
+<span class="fc" id="L275">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc" id="L276">        compiler.add(data, 0, a.data, 0, ds.data, 0);</span>
+<span class="fc" id="L277">        return ds;</span>
+    }
+
+    /** '-' operator.
+     * @param a right hand side parameter of the operator
+     * @return this-a
+     */
+    public DerivativeStructure subtract(final double a) {
+<span class="fc" id="L285">        return add(-a);</span>
+    }
+
+    /** '-' operator.
+     * @param a right hand side parameter of the operator
+     * @return this-a
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure subtract(final DerivativeStructure a)
+        throws DimensionMismatchException {
+<span class="fc" id="L295">        compiler.checkCompatibility(a.compiler);</span>
+<span class="fc" id="L296">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc" id="L297">        compiler.subtract(data, 0, a.data, 0, ds.data, 0);</span>
+<span class="fc" id="L298">        return ds;</span>
+    }
+
+    /** {@inheritDoc} */
+    public DerivativeStructure multiply(final int n) {
+<span class="fc" id="L303">        return multiply((double) n);</span>
+    }
+
+    /** '&amp;times;' operator.
+     * @param a right hand side parameter of the operator
+     * @return this&amp;times;a
+     */
+    public DerivativeStructure multiply(final double a) {
+<span class="fc" id="L311">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc bfc" id="L312" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L313">            ds.data[i] *= a;</span>
+        }
+<span class="fc" id="L315">        return ds;</span>
+    }
+
+    /** '&amp;times;' operator.
+     * @param a right hand side parameter of the operator
+     * @return this&amp;times;a
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure multiply(final DerivativeStructure a)
+        throws DimensionMismatchException {
+<span class="fc" id="L325">        compiler.checkCompatibility(a.compiler);</span>
+<span class="fc" id="L326">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L327">        compiler.multiply(data, 0, a.data, 0, result.data, 0);</span>
+<span class="fc" id="L328">        return result;</span>
+    }
+
+    /** '&amp;divides;' operator.
+     * @param a right hand side parameter of the operator
+     * @return this&amp;divides;a
+     */
+    public DerivativeStructure divide(final double a) {
+<span class="fc" id="L336">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L338">            ds.data[i] /= a;</span>
+        }
+<span class="fc" id="L340">        return ds;</span>
+    }
+
+    /** '&amp;divides;' operator.
+     * @param a right hand side parameter of the operator
+     * @return this&amp;divides;a
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure divide(final DerivativeStructure a)
+        throws DimensionMismatchException {
+<span class="fc" id="L350">        compiler.checkCompatibility(a.compiler);</span>
+<span class="fc" id="L351">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L352">        compiler.divide(data, 0, a.data, 0, result.data, 0);</span>
+<span class="fc" id="L353">        return result;</span>
+    }
+
+    /** '%' operator.
+     * @param a right hand side parameter of the operator
+     * @return this%a
+     */
+    public DerivativeStructure remainder(final double a) {
+<span class="fc" id="L361">        final DerivativeStructure ds = new DerivativeStructure(this);</span>
+<span class="fc" id="L362">        ds.data[0] = ds.data[0] % a;</span>
+<span class="fc" id="L363">        return ds;</span>
+    }
+
+    /** '%' operator.
+     * @param a right hand side parameter of the operator
+     * @return this%a
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure remainder(final DerivativeStructure a)
+        throws DimensionMismatchException {
+<span class="fc" id="L373">        compiler.checkCompatibility(a.compiler);</span>
+<span class="fc" id="L374">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L375">        compiler.remainder(data, 0, a.data, 0, result.data, 0);</span>
+<span class="fc" id="L376">        return result;</span>
+    }
+
+    /** unary '-' operator.
+     * @return -this
+     */
+    public DerivativeStructure negate() {
+<span class="fc" id="L383">        final DerivativeStructure ds = new DerivativeStructure(compiler);</span>
+<span class="fc bfc" id="L384" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L385">            ds.data[i] = -data[i];</span>
+        }
+<span class="fc" id="L387">        return ds;</span>
+    }
+
+    /** absolute value.
+     * @return abs(this)
+     */
+    public DerivativeStructure abs() {
+<span class="fc bfc" id="L394" title="All 2 branches covered.">        if (Double.doubleToLongBits(data[0]) &lt; 0) {</span>
+            // we use the bits representation to also handle -0.0
+<span class="fc" id="L396">            return negate();</span>
+        } else {
+<span class="fc" id="L398">            return this;</span>
+        }
+    }
+
+    /** Get the smallest whole number larger than instance.
+     * @return ceil(this)
+     */
+    public DerivativeStructure ceil() {
+<span class="fc" id="L406">        return new DerivativeStructure(compiler.getFreeParameters(),</span>
+<span class="fc" id="L407">                                       compiler.getOrder(),</span>
+<span class="fc" id="L408">                                       FastMath.ceil(data[0]));</span>
+    }
+
+    /** Get the largest whole number smaller than instance.
+     * @return floor(this)
+     */
+    public DerivativeStructure floor() {
+<span class="fc" id="L415">        return new DerivativeStructure(compiler.getFreeParameters(),</span>
+<span class="fc" id="L416">                                       compiler.getOrder(),</span>
+<span class="fc" id="L417">                                       FastMath.floor(data[0]));</span>
+    }
+
+    /** Get the whole number that is the nearest to the instance, or the even one if x is exactly half way between two integers.
+     * @return a double number r such that r is an integer r - 0.5 &lt;= this &lt;= r + 0.5
+     */
+    public DerivativeStructure rint() {
+<span class="fc" id="L424">        return new DerivativeStructure(compiler.getFreeParameters(),</span>
+<span class="fc" id="L425">                                       compiler.getOrder(),</span>
+<span class="fc" id="L426">                                       FastMath.rint(data[0]));</span>
+    }
+
+    /** Get the closest long to instance value.
+     * @return closest long to {@link #getValue()}
+     */
+    public long round() {
+<span class="fc" id="L433">        return FastMath.round(data[0]);</span>
+    }
+
+    /** Compute the signum of the instance.
+     * The signum is -1 for negative numbers, +1 for positive numbers and 0 otherwise
+     * @return -1.0, -0.0, +0.0, +1.0 or NaN depending on sign of a
+     */
+    public DerivativeStructure signum() {
+<span class="fc" id="L441">        return new DerivativeStructure(compiler.getFreeParameters(),</span>
+<span class="fc" id="L442">                                       compiler.getOrder(),</span>
+<span class="fc" id="L443">                                       FastMath.signum(data[0]));</span>
+    }
+
+    /**
+     * Returns the instance with the sign of the argument.
+     * A NaN {@code sign} argument is treated as positive.
+     *
+     * @param sign the sign for the returned value
+     * @return the instance with the same sign as the {@code sign} argument
+     */
+    public DerivativeStructure copySign(final double sign){
+<span class="fc" id="L454">        long m = Double.doubleToLongBits(data[0]);</span>
+<span class="fc" id="L455">        long s = Double.doubleToLongBits(sign);</span>
+<span class="pc bpc" id="L456" title="4 of 8 branches missed.">        if ((m &gt;= 0 &amp;&amp; s &gt;= 0) || (m &lt; 0 &amp;&amp; s &lt; 0)) { // Sign is currently OK</span>
+<span class="fc" id="L457">            return this;</span>
+        }
+<span class="fc" id="L459">        return negate(); // flip sign</span>
+    }
+
+    /**
+     * Return the exponent of the instance value, removing the bias.
+     * &lt;p&gt;
+     * For double numbers of the form 2&lt;sup&gt;x&lt;/sup&gt;, the unbiased
+     * exponent is exactly x.
+     * &lt;/p&gt;
+     * @return exponent for instance in IEEE754 representation, without bias
+     */
+    public int getExponent() {
+<span class="fc" id="L471">        return FastMath.getExponent(data[0]);</span>
+    }
+
+    /**
+     * Multiply the instance by a power of 2.
+     * @param n power of 2
+     * @return this &amp;times; 2&lt;sup&gt;n&lt;/sup&gt;
+     */
+    public DerivativeStructure scalb(final int n) {
+<span class="fc" id="L480">        final DerivativeStructure ds = new DerivativeStructure(compiler);</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L482">            ds.data[i] = FastMath.scalb(data[i], n);</span>
+        }
+<span class="fc" id="L484">        return ds;</span>
+    }
+
+    /**
+     * Returns the hypotenuse of a triangle with sides {@code x} and {@code y}
+     * - sqrt(&lt;i&gt;x&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;&amp;nbsp;+&lt;i&gt;y&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;)&lt;br/&gt;
+     * avoiding intermediate overflow or underflow.
+     *
+     * &lt;ul&gt;
+     * &lt;li&gt; If either argument is infinite, then the result is positive infinity.&lt;/li&gt;
+     * &lt;li&gt; else, if either argument is NaN then the result is NaN.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param x a value
+     * @param y a value
+     * @return sqrt(&lt;i&gt;x&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;&amp;nbsp;+&lt;i&gt;y&lt;/i&gt;&lt;sup&gt;2&lt;/sup&gt;)
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public static DerivativeStructure hypot(final DerivativeStructure x, final DerivativeStructure y)
+        throws DimensionMismatchException {
+
+<span class="fc" id="L505">        x.compiler.checkCompatibility(y.compiler);</span>
+
+<span class="pc bpc" id="L507" title="2 of 4 branches missed.">        if (Double.isInfinite(x.data[0]) || Double.isInfinite(y.data[0])) {</span>
+<span class="nc" id="L508">            return new DerivativeStructure(x.compiler.getFreeParameters(),</span>
+<span class="nc" id="L509">                                           x.compiler.getFreeParameters(),</span>
+                                           Double.POSITIVE_INFINITY);
+<span class="pc bpc" id="L511" title="2 of 4 branches missed.">        } else if (Double.isNaN(x.data[0]) || Double.isNaN(y.data[0])) {</span>
+<span class="nc" id="L512">            return new DerivativeStructure(x.compiler.getFreeParameters(),</span>
+<span class="nc" id="L513">                                           x.compiler.getFreeParameters(),</span>
+                                           Double.NaN);
+        } else {
+
+<span class="fc" id="L517">            final int expX = x.getExponent();</span>
+<span class="fc" id="L518">            final int expY = y.getExponent();</span>
+<span class="pc bpc" id="L519" title="1 of 2 branches missed.">            if (expX &gt; expY + 27) {</span>
+                // y is neglectible with respect to x
+<span class="nc" id="L521">                return x.abs();</span>
+<span class="pc bpc" id="L522" title="1 of 2 branches missed.">            } else if (expY &gt; expX + 27) {</span>
+                // x is neglectible with respect to y
+<span class="nc" id="L524">                return y.abs();</span>
+            } else {
+
+                // find an intermediate scale to avoid both overflow and underflow
+<span class="fc" id="L528">                final int middleExp = (expX + expY) / 2;</span>
+
+                // scale parameters without losing precision
+<span class="fc" id="L531">                final DerivativeStructure scaledX = x.scalb(-middleExp);</span>
+<span class="fc" id="L532">                final DerivativeStructure scaledY = y.scalb(-middleExp);</span>
+
+                // compute scaled hypotenuse
+<span class="fc" id="L535">                final DerivativeStructure scaledH =</span>
+<span class="fc" id="L536">                        scaledX.multiply(scaledX).add(scaledY.multiply(scaledY)).sqrt();</span>
+
+                // remove scaling
+<span class="fc" id="L539">                return scaledH.scalb(middleExp);</span>
+
+            }
+
+        }
+    }
+
+    /** Compute composition of the instance by a univariate function.
+     * @param f array of value and derivatives of the function at
+     * the current point (i.e. [f({@link #getValue()}),
+     * f'({@link #getValue()}), f''({@link #getValue()})...]).
+     * @return f(this)
+     * @exception DimensionMismatchException if the number of derivatives
+     * in the array is not equal to {@link #getOrder() order} + 1
+     */
+    public DerivativeStructure compose(final double ... f) {
+<span class="fc bfc" id="L555" title="All 2 branches covered.">        if (f.length != getOrder() + 1) {</span>
+<span class="fc" id="L556">            throw new DimensionMismatchException(f.length, getOrder() + 1);</span>
+        }
+<span class="fc" id="L558">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L559">        compiler.compose(data, 0, f, result.data, 0);</span>
+<span class="fc" id="L560">        return result;</span>
+    }
+
+    /** {@inheritDoc} */
+    public DerivativeStructure reciprocal() {
+<span class="fc" id="L565">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L566">        compiler.pow(data, 0, -1, result.data, 0);</span>
+<span class="fc" id="L567">        return result;</span>
+    }
+
+    /** Square root.
+     * @return square root of the instance
+     */
+    public DerivativeStructure sqrt() {
+<span class="fc" id="L574">        return rootN(2);</span>
+    }
+
+    /** Cubic root.
+     * @return cubic root of the instance
+     */
+    public DerivativeStructure cbrt() {
+<span class="fc" id="L581">        return rootN(3);</span>
+    }
+
+    /** N&lt;sup&gt;th&lt;/sup&gt; root.
+     * @param n order of the root
+     * @return n&lt;sup&gt;th&lt;/sup&gt; root of the instance
+     */
+    public DerivativeStructure rootN(final int n) {
+<span class="fc" id="L589">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L590">        compiler.rootN(data, 0, n, result.data, 0);</span>
+<span class="fc" id="L591">        return result;</span>
+    }
+
+    /** {@inheritDoc} */
+    public Field&lt;DerivativeStructure&gt; getField() {
+<span class="fc" id="L596">        return new Field&lt;DerivativeStructure&gt;() {</span>
+
+            /** {@inheritDoc} */
+            public DerivativeStructure getZero() {
+<span class="fc" id="L600">                return new DerivativeStructure(compiler.getFreeParameters(), compiler.getOrder(), 0.0);</span>
+            }
+
+            /** {@inheritDoc} */
+            public DerivativeStructure getOne() {
+<span class="fc" id="L605">                return new DerivativeStructure(compiler.getFreeParameters(), compiler.getOrder(), 1.0);</span>
+            }
+
+            /** {@inheritDoc} */
+            public Class&lt;? extends FieldElement&lt;DerivativeStructure&gt;&gt; getRuntimeClass() {
+<span class="fc" id="L610">                return DerivativeStructure.class;</span>
+            }
+
+        };
+    }
+
+    /** Power operation.
+     * @param p power to apply
+     * @return this&lt;sup&gt;p&lt;/sup&gt;
+     */
+    public DerivativeStructure pow(final double p) {
+<span class="fc" id="L621">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L622">        compiler.pow(data, 0, p, result.data, 0);</span>
+<span class="fc" id="L623">        return result;</span>
+    }
+
+    /** Integer power operation.
+     * @param n power to apply
+     * @return this&lt;sup&gt;n&lt;/sup&gt;
+     */
+    public DerivativeStructure pow(final int n) {
+<span class="fc" id="L631">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L632">        compiler.pow(data, 0, n, result.data, 0);</span>
+<span class="fc" id="L633">        return result;</span>
+    }
+
+    /** Power operation.
+     * @param e exponent
+     * @return this&lt;sup&gt;e&lt;/sup&gt;
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public DerivativeStructure pow(final DerivativeStructure e)
+        throws DimensionMismatchException {
+<span class="fc" id="L643">        compiler.checkCompatibility(e.compiler);</span>
+<span class="fc" id="L644">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L645">        compiler.pow(data, 0, e.data, 0, result.data, 0);</span>
+<span class="fc" id="L646">        return result;</span>
+    }
+
+    /** Exponential.
+     * @return exponential of the instance
+     */
+    public DerivativeStructure exp() {
+<span class="fc" id="L653">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L654">        compiler.exp(data, 0, result.data, 0);</span>
+<span class="fc" id="L655">        return result;</span>
+    }
+
+    /** Exponential minus 1.
+     * @return exponential minus one of the instance
+     */
+    public DerivativeStructure expm1() {
+<span class="fc" id="L662">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L663">        compiler.expm1(data, 0, result.data, 0);</span>
+<span class="fc" id="L664">        return result;</span>
+    }
+
+    /** Natural logarithm.
+     * @return logarithm of the instance
+     */
+    public DerivativeStructure log() {
+<span class="fc" id="L671">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L672">        compiler.log(data, 0, result.data, 0);</span>
+<span class="fc" id="L673">        return result;</span>
+    }
+
+    /** Shifted natural logarithm.
+     * @return logarithm of one plus the instance
+     */
+    public DerivativeStructure log1p() {
+<span class="fc" id="L680">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L681">        compiler.log1p(data, 0, result.data, 0);</span>
+<span class="fc" id="L682">        return result;</span>
+    }
+
+    /** Base 10 logarithm.
+     * @return base 10 logarithm of the instance
+     */
+    public DerivativeStructure log10() {
+<span class="fc" id="L689">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L690">        compiler.log10(data, 0, result.data, 0);</span>
+<span class="fc" id="L691">        return result;</span>
+    }
+
+    /** Cosine operation.
+     * @return cos(this)
+     */
+    public DerivativeStructure cos() {
+<span class="fc" id="L698">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L699">        compiler.cos(data, 0, result.data, 0);</span>
+<span class="fc" id="L700">        return result;</span>
+    }
+
+    /** Sine operation.
+     * @return sin(this)
+     */
+    public DerivativeStructure sin() {
+<span class="fc" id="L707">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L708">        compiler.sin(data, 0, result.data, 0);</span>
+<span class="fc" id="L709">        return result;</span>
+    }
+
+    /** Tangent operation.
+     * @return tan(this)
+     */
+    public DerivativeStructure tan() {
+<span class="fc" id="L716">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L717">        compiler.tan(data, 0, result.data, 0);</span>
+<span class="fc" id="L718">        return result;</span>
+    }
+
+    /** Arc cosine operation.
+     * @return acos(this)
+     */
+    public DerivativeStructure acos() {
+<span class="fc" id="L725">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L726">        compiler.acos(data, 0, result.data, 0);</span>
+<span class="fc" id="L727">        return result;</span>
+    }
+
+    /** Arc sine operation.
+     * @return asin(this)
+     */
+    public DerivativeStructure asin() {
+<span class="fc" id="L734">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L735">        compiler.asin(data, 0, result.data, 0);</span>
+<span class="fc" id="L736">        return result;</span>
+    }
+
+    /** Arc tangent operation.
+     * @return atan(this)
+     */
+    public DerivativeStructure atan() {
+<span class="fc" id="L743">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L744">        compiler.atan(data, 0, result.data, 0);</span>
+<span class="fc" id="L745">        return result;</span>
+    }
+
+    /** Two arguments arc tangent operation.
+     * @param y first argument of the arc tangent
+     * @param x second argument of the arc tangent
+     * @return atan2(y, x)
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public static DerivativeStructure atan2(final DerivativeStructure y, final DerivativeStructure x)
+        throws DimensionMismatchException {
+<span class="fc" id="L756">        y.compiler.checkCompatibility(x.compiler);</span>
+<span class="fc" id="L757">        final DerivativeStructure result = new DerivativeStructure(y.compiler);</span>
+<span class="fc" id="L758">        y.compiler.atan2(y.data, 0, x.data, 0, result.data, 0);</span>
+<span class="fc" id="L759">        return result;</span>
+    }
+
+    /** Hyperbolic cosine operation.
+     * @return cosh(this)
+     */
+    public DerivativeStructure cosh() {
+<span class="fc" id="L766">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L767">        compiler.cosh(data, 0, result.data, 0);</span>
+<span class="fc" id="L768">        return result;</span>
+    }
+
+    /** Hyperbolic sine operation.
+     * @return sinh(this)
+     */
+    public DerivativeStructure sinh() {
+<span class="fc" id="L775">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L776">        compiler.sinh(data, 0, result.data, 0);</span>
+<span class="fc" id="L777">        return result;</span>
+    }
+
+    /** Hyperbolic tangent operation.
+     * @return tanh(this)
+     */
+    public DerivativeStructure tanh() {
+<span class="fc" id="L784">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L785">        compiler.tanh(data, 0, result.data, 0);</span>
+<span class="fc" id="L786">        return result;</span>
+    }
+
+    /** Inverse hyperbolic cosine operation.
+     * @return acosh(this)
+     */
+    public DerivativeStructure acosh() {
+<span class="fc" id="L793">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L794">        compiler.acosh(data, 0, result.data, 0);</span>
+<span class="fc" id="L795">        return result;</span>
+    }
+
+    /** Inverse hyperbolic sine operation.
+     * @return asin(this)
+     */
+    public DerivativeStructure asinh() {
+<span class="fc" id="L802">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L803">        compiler.asinh(data, 0, result.data, 0);</span>
+<span class="fc" id="L804">        return result;</span>
+    }
+
+    /** Inverse hyperbolic  tangent operation.
+     * @return atanh(this)
+     */
+    public DerivativeStructure atanh() {
+<span class="fc" id="L811">        final DerivativeStructure result = new DerivativeStructure(compiler);</span>
+<span class="fc" id="L812">        compiler.atanh(data, 0, result.data, 0);</span>
+<span class="fc" id="L813">        return result;</span>
+    }
+
+    /** Convert radians to degrees, with error of less than 0.5 ULP
+     *  @return instance converted into degrees
+     */
+    public DerivativeStructure toDegrees() {
+<span class="fc" id="L820">        final DerivativeStructure ds = new DerivativeStructure(compiler);</span>
+<span class="fc bfc" id="L821" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L822">            ds.data[i] = FastMath.toDegrees(data[i]);</span>
+        }
+<span class="fc" id="L824">        return ds;</span>
+    }
+
+    /** Convert degrees to radians, with error of less than 0.5 ULP
+     *  @return instance converted into radians
+     */
+    public DerivativeStructure toRadians() {
+<span class="fc" id="L831">        final DerivativeStructure ds = new DerivativeStructure(compiler);</span>
+<span class="fc bfc" id="L832" title="All 2 branches covered.">        for (int i = 0; i &lt; ds.data.length; ++i) {</span>
+<span class="fc" id="L833">            ds.data[i] = FastMath.toRadians(data[i]);</span>
+        }
+<span class="fc" id="L835">        return ds;</span>
+    }
+
+    /** Evaluate Taylor expansion a derivative structure.
+     * @param delta parameters offsets (&amp;Delta;x, &amp;Delta;y, ...)
+     * @return value of the Taylor expansion at x + &amp;Delta;x, y + &amp;Delta;y, ...
+     */
+    public double taylor(final double ... delta) {
+<span class="fc" id="L843">        return compiler.taylor(data, 0, delta);</span>
+    }
+
+    /**
+     * Replace the instance with a data transfer object for serialization.
+     * @return data transfer object that will be serialized
+     */
+    private Object writeReplace() {
+<span class="fc" id="L851">        return new DataTransferObject(compiler.getFreeParameters(), compiler.getOrder(), data);</span>
+    }
+
+    /** Internal class used only for serialization. */
+    private static class DataTransferObject implements Serializable {
+
+        /** Serializable UID. */
+        private static final long serialVersionUID = 20120730L;
+
+        /** Number of variables.
+         * @serial
+         */
+        private final int variables;
+
+        /** Derivation order.
+         * @serial
+         */
+        private final int order;
+
+        /** Partial derivatives.
+         * @serial
+         */
+        private final double[] data;
+
+        /** Simple constructor.
+         * @param variables number of variables
+         * @param order derivation order
+         * @param data partial derivatives
+         */
+<span class="fc" id="L880">        public DataTransferObject(final int variables, final int order, final double[] data) {</span>
+<span class="fc" id="L881">            this.variables = variables;</span>
+<span class="fc" id="L882">            this.order     = order;</span>
+<span class="fc" id="L883">            this.data      = data;</span>
+<span class="fc" id="L884">        }</span>
+
+        /** Replace the deserialized data transfer object with a {@link DerivativeStructure}.
+         * @return replacement {@link DerivativeStructure}
+         */
+        private Object readResolve() {
+<span class="fc" id="L890">            return new DerivativeStructure(variables, order, data);</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
