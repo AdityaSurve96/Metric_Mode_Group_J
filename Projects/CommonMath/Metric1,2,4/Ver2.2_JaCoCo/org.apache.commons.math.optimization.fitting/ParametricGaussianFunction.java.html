@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ParametricGaussianFunction.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.fitting</a> &gt; <span class="el_source">ParametricGaussianFunction.java</span></div><h1>ParametricGaussianFunction.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.fitting;
+
+import java.io.Serializable;
+
+import org.apache.commons.math.exception.DimensionMismatchException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.exception.ZeroException;
+import org.apache.commons.math.exception.NullArgumentException;
+import org.apache.commons.math.optimization.fitting.ParametricRealFunction;
+
+/**
+ * A Gaussian function.  Specifically:
+ * &lt;p&gt;
+ * &lt;tt&gt;f(x) = a + b*exp(-((x - c)^2 / (2*d^2)))&lt;/tt&gt;
+ * &lt;p&gt;
+ * The parameters have the following meaning:
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;tt&gt;a&lt;/tt&gt; is a constant offset that shifts &lt;tt&gt;f(x)&lt;/tt&gt; up or down
+ * &lt;li&gt;&lt;tt&gt;b&lt;/tt&gt; is the height of the peak
+ * &lt;li&gt;&lt;tt&gt;c&lt;/tt&gt; is the position of the center of the peak
+ * &lt;li&gt;&lt;tt&gt;d&lt;/tt&gt; is related to the FWHM by &lt;tt&gt;FWHM = 2*sqrt(2*ln(2))*d&lt;/tt&gt;
+ * &lt;/ul&gt;
+ * Notation key:
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;tt&gt;x^n&lt;/tt&gt;: &lt;tt&gt;x&lt;/tt&gt; raised to the power of &lt;tt&gt;n&lt;/tt&gt;
+ * &lt;li&gt;&lt;tt&gt;exp(x)&lt;/tt&gt;: &lt;i&gt;e&lt;/i&gt;&lt;tt&gt;^x&lt;/tt&gt;
+ * &lt;li&gt;&lt;tt&gt;sqrt(x)&lt;/tt&gt;: the square root of &lt;tt&gt;x&lt;/tt&gt;
+ * &lt;li&gt;&lt;tt&gt;ln(x)&lt;/tt&gt;: the natural logarithm of &lt;tt&gt;x&lt;/tt&gt;
+ * &lt;/ul&gt;
+ * References:
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;a href=&quot;http://en.wikipedia.org/wiki/Gaussian_function&quot;&gt;Wikipedia:
+ *   Gaussian function&lt;/a&gt;
+ * &lt;/ul&gt;
+ *
+ * @since 2.2
+ * @version $Revision$ $Date$
+ */
+public class ParametricGaussianFunction implements ParametricRealFunction, Serializable {
+
+    /** Serializable version Id. */
+    private static final long serialVersionUID = -3875578602503903233L;
+
+    /**
+     * Constructs an instance.
+     */
+<span class="fc" id="L64">    public ParametricGaussianFunction() {</span>
+<span class="fc" id="L65">    }</span>
+
+    /**
+     * Computes value of function &lt;tt&gt;f(x)&lt;/tt&gt; for the specified &lt;tt&gt;x&lt;/tt&gt; and
+     * parameters &lt;tt&gt;a&lt;/tt&gt;, &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and &lt;tt&gt;d&lt;/tt&gt;.
+     *
+     * @param x &lt;tt&gt;x&lt;/tt&gt; value
+     * @param parameters values of &lt;tt&gt;a&lt;/tt&gt;, &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and
+     *        &lt;tt&gt;d&lt;/tt&gt;
+     *
+     * @return value of &lt;tt&gt;f(x)&lt;/tt&gt; evaluated at &lt;tt&gt;x&lt;/tt&gt; with the specified
+     *         parameters
+     *
+     * @throws IllegalArgumentException if &lt;code&gt;parameters&lt;/code&gt; is invalid as
+     *         determined by {@link #validateParameters(double[])}
+     * @throws ZeroException if &lt;code&gt;parameters&lt;/code&gt; values are
+     *         invalid as determined by {@link #validateParameters(double[])}
+     */
+    public double value(double x, double[] parameters) throws ZeroException {
+<span class="fc" id="L84">        validateParameters(parameters);</span>
+<span class="fc" id="L85">        final double a = parameters[0];</span>
+<span class="fc" id="L86">        final double b = parameters[1];</span>
+<span class="fc" id="L87">        final double c = parameters[2];</span>
+<span class="fc" id="L88">        final double d = parameters[3];</span>
+<span class="fc" id="L89">        final double xMc = x - c;</span>
+<span class="fc" id="L90">        return a + b * Math.exp(-xMc * xMc / (2.0 * (d * d)));</span>
+    }
+
+    /**
+     * Computes the gradient vector for a four variable version of the function
+     * where the parameters, &lt;tt&gt;a&lt;/tt&gt;, &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and &lt;tt&gt;d&lt;/tt&gt;,
+     * are considered the variables, not &lt;tt&gt;x&lt;/tt&gt;.  That is, instead of
+     * computing the gradient vector for the function &lt;tt&gt;f(x)&lt;/tt&gt; (which would
+     * just be the derivative of &lt;tt&gt;f(x)&lt;/tt&gt; with respect to &lt;tt&gt;x&lt;/tt&gt; since
+     * it's a one-dimensional function), computes the gradient vector for the
+     * function &lt;tt&gt;f(a, b, c, d) = a + b*exp(-((x - c)^2 / (2*d^2)))&lt;/tt&gt;
+     * treating the specified &lt;tt&gt;x&lt;/tt&gt; as a constant.
+     * &lt;p&gt;
+     * The components of the computed gradient vector are the partial
+     * derivatives of &lt;tt&gt;f(a, b, c, d)&lt;/tt&gt; with respect to each variable.
+     * That is, the partial derivative of &lt;tt&gt;f(a, b, c, d)&lt;/tt&gt; with respect to
+     * &lt;tt&gt;a&lt;/tt&gt;, the partial derivative of &lt;tt&gt;f(a, b, c, d)&lt;/tt&gt; with respect
+     * to &lt;tt&gt;b&lt;/tt&gt;, the partial derivative of &lt;tt&gt;f(a, b, c, d)&lt;/tt&gt; with
+     * respect to &lt;tt&gt;c&lt;/tt&gt;, and the partial derivative of &lt;tt&gt;f(a, b, c,
+     * d)&lt;/tt&gt; with respect to &lt;tt&gt;d&lt;/tt&gt;.
+     *
+     * @param x &lt;tt&gt;x&lt;/tt&gt; value to be used as constant in &lt;tt&gt;f(a, b, c,
+     *        d)&lt;/tt&gt;
+     * @param parameters values of &lt;tt&gt;a&lt;/tt&gt;, &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and
+     *        &lt;tt&gt;d&lt;/tt&gt; for computation of gradient vector of &lt;tt&gt;f(a, b, c,
+     *        d)&lt;/tt&gt;
+     *
+     * @return gradient vector of &lt;tt&gt;f(a, b, c, d)&lt;/tt&gt;
+     *
+     * @throws IllegalArgumentException if &lt;code&gt;parameters&lt;/code&gt; is invalid as
+     *         determined by {@link #validateParameters(double[])}
+     * @throws ZeroException if &lt;code&gt;parameters&lt;/code&gt; values are
+     *         invalid as determined by {@link #validateParameters(double[])}
+     */
+    public double[] gradient(double x, double[] parameters) throws ZeroException {
+
+<span class="fc" id="L126">        validateParameters(parameters);</span>
+<span class="fc" id="L127">        final double b = parameters[1];</span>
+<span class="fc" id="L128">        final double c = parameters[2];</span>
+<span class="fc" id="L129">        final double d = parameters[3];</span>
+
+<span class="fc" id="L131">        final double xMc  = x - c;</span>
+<span class="fc" id="L132">        final double d2   = d * d;</span>
+<span class="fc" id="L133">        final double exp  = Math.exp(-xMc * xMc / (2 * d2));</span>
+<span class="fc" id="L134">        final double f    = b * exp * xMc / d2;</span>
+
+<span class="fc" id="L136">        return new double[] { 1.0, exp, f, f * xMc / d };</span>
+
+    }
+
+    /**
+     * Validates parameters to ensure they are appropriate for the evaluation of
+     * the &lt;code&gt;value&lt;/code&gt; and &lt;code&gt;gradient&lt;/code&gt; methods.
+     *
+     * @param parameters values of &lt;tt&gt;a&lt;/tt&gt;, &lt;tt&gt;b&lt;/tt&gt;, &lt;tt&gt;c&lt;/tt&gt;, and
+     *        &lt;tt&gt;d&lt;/tt&gt;
+     *
+     * @throws IllegalArgumentException if &lt;code&gt;parameters&lt;/code&gt; is
+     *         &lt;code&gt;null&lt;/code&gt; or if &lt;code&gt;parameters&lt;/code&gt; does not have
+     *         length == 4
+     * @throws ZeroException if &lt;code&gt;parameters[3]&lt;/code&gt;
+     *         (&lt;tt&gt;d&lt;/tt&gt;) is 0
+     */
+    private void validateParameters(double[] parameters) throws ZeroException {
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        if (parameters == null) {</span>
+<span class="fc" id="L155">            throw new NullArgumentException(LocalizedFormats.INPUT_ARRAY);</span>
+        }
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        if (parameters.length != 4) {</span>
+<span class="fc" id="L158">            throw new DimensionMismatchException(4, parameters.length);</span>
+        }
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        if (parameters[3] == 0.0) {</span>
+<span class="fc" id="L161">            throw new ZeroException();</span>
+        }
+<span class="fc" id="L163">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>RiddersSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">RiddersSolver.java</span></div><h1>RiddersSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.util.FastMath;
+import org.apache.commons.math.util.MathUtils;
+
+/**
+ * Implements the &lt;a href=&quot;http://mathworld.wolfram.com/RiddersMethod.html&quot;&gt;
+ * Ridders' Method&lt;/a&gt; for root finding of real univariate functions. For
+ * reference, see C. Ridders, &lt;i&gt;A new algorithm for computing a single root
+ * of a real continuous function &lt;/i&gt;, IEEE Transactions on Circuits and
+ * Systems, 26 (1979), 979 - 980.
+ * &lt;p&gt;
+ * The function should be continuous but not necessarily smooth.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class RiddersSolver extends UnivariateRealSolverImpl {
+
+    /**
+     * Construct a solver for the given function.
+     *
+     * @param f function to solve
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public RiddersSolver(UnivariateRealFunction f) {
+<span class="fc" id="L51">        super(f, 100, 1E-6);</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Construct a solver.
+     * @deprecated in 2.2
+     */
+    @Deprecated
+    public RiddersSolver() {
+<span class="fc" id="L60">        super(100, 1E-6);</span>
+<span class="fc" id="L61">    }</span>
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L67">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L74">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L96">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L97">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        // check for zeros before verifying bracketing
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (f.value(min) == 0.0) { return min; }</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (f.value(max) == 0.0) { return max; }</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (f.value(initial) == 0.0) { return initial; }</span>
+
+<span class="nc" id="L125">        verifyBracketing(min, max, f);</span>
+<span class="nc" id="L126">        verifySequence(min, initial, max);</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (isBracketing(min, initial, f)) {</span>
+<span class="nc" id="L128">            return solve(f, min, initial);</span>
+        } else {
+<span class="nc" id="L130">            return solve(f, initial, max);</span>
+        }
+    }
+
+    /**
+     * Find a root in the given interval.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L152">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L153">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a root in the given interval.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        // [x1, x2] is the bracketing interval in each iteration
+        // x3 is the midpoint of [x1, x2]
+        // x is the new root approximation and an endpoint of the new interval
+<span class="fc" id="L178">        double x1 = min;</span>
+<span class="fc" id="L179">        double y1 = f.value(x1);</span>
+<span class="fc" id="L180">        double x2 = max;</span>
+<span class="fc" id="L181">        double y2 = f.value(x2);</span>
+
+        // check for zeros before verifying bracketing
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">        if (y1 == 0.0) {</span>
+<span class="nc" id="L185">            return min;</span>
+        }
+<span class="pc bpc" id="L187" title="1 of 2 branches missed.">        if (y2 == 0.0) {</span>
+<span class="nc" id="L188">            return max;</span>
+        }
+<span class="fc" id="L190">        verifyBracketing(min, max, f);</span>
+
+<span class="fc" id="L192">        int i = 1;</span>
+<span class="fc" id="L193">        double oldx = Double.POSITIVE_INFINITY;</span>
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">        while (i &lt;= maximalIterationCount) {</span>
+            // calculate the new root approximation
+<span class="fc" id="L196">            final double x3 = 0.5 * (x1 + x2);</span>
+<span class="fc" id="L197">            final double y3 = f.value(x3);</span>
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">            if (FastMath.abs(y3) &lt;= functionValueAccuracy) {</span>
+<span class="nc" id="L199">                setResult(x3, i);</span>
+<span class="nc" id="L200">                return result;</span>
+            }
+<span class="fc" id="L202">            final double delta = 1 - (y1 * y2) / (y3 * y3);  // delta &gt; 1 due to bracketing</span>
+<span class="fc" id="L203">            final double correction = (MathUtils.sign(y2) * MathUtils.sign(y3)) *</span>
+<span class="fc" id="L204">                                      (x3 - x1) / FastMath.sqrt(delta);</span>
+<span class="fc" id="L205">            final double x = x3 - correction;                // correction != 0</span>
+<span class="fc" id="L206">            final double y = f.value(x);</span>
+
+            // check for convergence
+<span class="fc" id="L209">            final double tolerance = FastMath.max(relativeAccuracy * FastMath.abs(x), absoluteAccuracy);</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">            if (FastMath.abs(x - oldx) &lt;= tolerance) {</span>
+<span class="fc" id="L211">                setResult(x, i);</span>
+<span class="fc" id="L212">                return result;</span>
+            }
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">            if (FastMath.abs(y) &lt;= functionValueAccuracy) {</span>
+<span class="nc" id="L215">                setResult(x, i);</span>
+<span class="nc" id="L216">                return result;</span>
+            }
+
+            // prepare the new interval for next iteration
+            // Ridders' method guarantees x1 &lt; x &lt; x2
+<span class="fc bfc" id="L221" title="All 2 branches covered.">            if (correction &gt; 0.0) {             // x1 &lt; x &lt; x3</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">                if (MathUtils.sign(y1) + MathUtils.sign(y) == 0.0) {</span>
+<span class="fc" id="L223">                    x2 = x;</span>
+<span class="fc" id="L224">                    y2 = y;</span>
+                } else {
+<span class="fc" id="L226">                    x1 = x;</span>
+<span class="fc" id="L227">                    x2 = x3;</span>
+<span class="fc" id="L228">                    y1 = y;</span>
+<span class="fc" id="L229">                    y2 = y3;</span>
+                }
+            } else {                            // x3 &lt; x &lt; x2
+<span class="fc bfc" id="L232" title="All 2 branches covered.">                if (MathUtils.sign(y2) + MathUtils.sign(y) == 0.0) {</span>
+<span class="fc" id="L233">                    x1 = x;</span>
+<span class="fc" id="L234">                    y1 = y;</span>
+                } else {
+<span class="fc" id="L236">                    x1 = x3;</span>
+<span class="fc" id="L237">                    x2 = x;</span>
+<span class="fc" id="L238">                    y1 = y3;</span>
+<span class="fc" id="L239">                    y2 = y;</span>
+                }
+            }
+<span class="fc" id="L242">            oldx = x;</span>
+<span class="fc" id="L243">            i++;</span>
+<span class="fc" id="L244">        }</span>
+<span class="nc" id="L245">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

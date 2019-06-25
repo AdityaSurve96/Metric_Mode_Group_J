@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PascalDistributionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.distribution</a> &gt; <span class="el_source">PascalDistributionImpl.java</span></div><h1>PascalDistributionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.distribution;
+
+import java.io.Serializable;
+
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.special.Beta;
+import org.apache.commons.math.util.MathUtils;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * The default implementation of {@link PascalDistribution}.
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class PascalDistributionImpl extends AbstractIntegerDistribution
+    implements PascalDistribution, Serializable {
+
+    /** Serializable version identifier */
+    private static final long serialVersionUID = 6751309484392813623L;
+
+    /** The number of successes */
+    private int numberOfSuccesses;
+
+    /** The probability of success */
+    private double probabilityOfSuccess;
+
+    /**
+     * Create a Pascal distribution with the given number of trials and
+     * probability of success.
+     * @param r the number of successes
+     * @param p the probability of success
+     */
+    public PascalDistributionImpl(int r, double p) {
+<span class="fc" id="L52">        super();</span>
+<span class="fc" id="L53">        setNumberOfSuccessesInternal(r);</span>
+<span class="fc" id="L54">        setProbabilityOfSuccessInternal(p);</span>
+<span class="fc" id="L55">    }</span>
+
+    /**
+     * Access the number of successes for this distribution.
+     * @return the number of successes
+     */
+    public int getNumberOfSuccesses() {
+<span class="fc" id="L62">        return numberOfSuccesses;</span>
+    }
+
+    /**
+     * Access the probability of success for this distribution.
+     * @return the probability of success
+     */
+    public double getProbabilityOfSuccess() {
+<span class="fc" id="L70">        return probabilityOfSuccess;</span>
+    }
+
+    /**
+     * Change the number of successes for this distribution.
+     * @param successes the new number of successes
+     * @throws IllegalArgumentException if &lt;code&gt;successes&lt;/code&gt; is not
+     *         positive.
+     * @deprecated as of 2.1 (class will become immutable in 3.0)
+     */
+    @Deprecated
+    public void setNumberOfSuccesses(int successes) {
+<span class="fc" id="L82">        setNumberOfSuccessesInternal(successes);</span>
+<span class="fc" id="L83">    }</span>
+
+    /**
+     * Change the number of successes for this distribution.
+     * @param successes the new number of successes
+     * @throws IllegalArgumentException if &lt;code&gt;successes&lt;/code&gt; is not
+     *         positive.
+     */
+    private void setNumberOfSuccessesInternal(int successes) {
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        if (successes &lt; 0) {</span>
+<span class="nc" id="L93">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.NEGATIVE_NUMBER_OF_SUCCESSES,
+<span class="nc" id="L95">                  successes);</span>
+        }
+<span class="fc" id="L97">        numberOfSuccesses = successes;</span>
+<span class="fc" id="L98">    }</span>
+
+    /**
+     * Change the probability of success for this distribution.
+     * @param p the new probability of success
+     * @throws IllegalArgumentException if &lt;code&gt;p&lt;/code&gt; is not a valid
+     *         probability.
+     * @deprecated as of 2.1 (class will become immutable in 3.0)
+     */
+    @Deprecated
+    public void setProbabilityOfSuccess(double p) {
+<span class="fc" id="L109">        setProbabilityOfSuccessInternal(p);</span>
+<span class="fc" id="L110">    }</span>
+
+    /**
+     * Change the probability of success for this distribution.
+     * @param p the new probability of success
+     * @throws IllegalArgumentException if &lt;code&gt;p&lt;/code&gt; is not a valid
+     *         probability.
+     */
+    private void setProbabilityOfSuccessInternal(double p) {
+<span class="pc bpc" id="L119" title="2 of 4 branches missed.">        if (p &lt; 0.0 || p &gt; 1.0) {</span>
+<span class="nc" id="L120">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L121">                  LocalizedFormats.OUT_OF_RANGE_SIMPLE, p, 0.0, 1.0);</span>
+        }
+<span class="fc" id="L123">        probabilityOfSuccess = p;</span>
+<span class="fc" id="L124">    }</span>
+
+    /**
+     * Access the domain value lower bound, based on &lt;code&gt;p&lt;/code&gt;, used to
+     * bracket a PDF root.
+     * @param p the desired probability for the critical value
+     * @return domain value lower bound, i.e. P(X &amp;lt; &lt;i&gt;lower bound&lt;/i&gt;) &amp;lt;
+     *         &lt;code&gt;p&lt;/code&gt;
+     */
+    @Override
+    protected int getDomainLowerBound(double p) {
+<span class="fc" id="L135">        return -1;</span>
+    }
+
+    /**
+     * Access the domain value upper bound, based on &lt;code&gt;p&lt;/code&gt;, used to
+     * bracket a PDF root.
+     * @param p the desired probability for the critical value
+     * @return domain value upper bound, i.e. P(X &amp;lt; &lt;i&gt;upper bound&lt;/i&gt;) &amp;gt;
+     *         &lt;code&gt;p&lt;/code&gt;
+     */
+    @Override
+    protected int getDomainUpperBound(double p) {
+        // use MAX - 1 because MAX causes loop
+<span class="fc" id="L148">        return Integer.MAX_VALUE - 1;</span>
+    }
+
+    /**
+     * For this distribution, X, this method returns P(X &amp;le; x).
+     * @param x the value at which the PDF is evaluated
+     * @return PDF for this distribution
+     * @throws MathException if the cumulative probability can not be computed
+     *         due to convergence or other numerical errors
+     */
+    @Override
+    public double cumulativeProbability(int x) throws MathException {
+        double ret;
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        if (x &lt; 0) {</span>
+<span class="fc" id="L162">            ret = 0.0;</span>
+        } else {
+<span class="fc" id="L164">            ret = Beta.regularizedBeta(probabilityOfSuccess,</span>
+                numberOfSuccesses, x + 1);
+        }
+<span class="fc" id="L167">        return ret;</span>
+    }
+
+    /**
+     * For this distribution, X, this method returns P(X = x).
+     * @param x the value at which the PMF is evaluated
+     * @return PMF for this distribution
+     */
+    public double probability(int x) {
+        double ret;
+<span class="fc bfc" id="L177" title="All 2 branches covered.">        if (x &lt; 0) {</span>
+<span class="fc" id="L178">            ret = 0.0;</span>
+        } else {
+<span class="fc" id="L180">            ret = MathUtils.binomialCoefficientDouble(x +</span>
+                  numberOfSuccesses - 1, numberOfSuccesses - 1) *
+<span class="fc" id="L182">                  FastMath.pow(probabilityOfSuccess, numberOfSuccesses) *</span>
+<span class="fc" id="L183">                  FastMath.pow(1.0 - probabilityOfSuccess, x);</span>
+        }
+<span class="fc" id="L185">        return ret;</span>
+    }
+
+    /**
+     * For this distribution, X, this method returns the largest x, such that
+     * P(X &amp;le; x) &amp;le; &lt;code&gt;p&lt;/code&gt;.
+     * &lt;p&gt;
+     * Returns &lt;code&gt;-1&lt;/code&gt; for p=0 and &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt;
+     * for p=1.&lt;/p&gt;
+     * @param p the desired probability
+     * @return the largest x such that P(X &amp;le; x) &lt;= p
+     * @throws MathException if the inverse cumulative probability can not be
+     *         computed due to convergence or other numerical errors.
+     * @throws IllegalArgumentException if p &lt; 0 or p &gt; 1
+     */
+    @Override
+    public int inverseCumulativeProbability(final double p)
+        throws MathException {
+        int ret;
+
+        // handle extreme values explicitly
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (p == 0) {</span>
+<span class="fc" id="L207">            ret = -1;</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        } else if (p == 1) {</span>
+<span class="fc" id="L209">            ret = Integer.MAX_VALUE;</span>
+        } else {
+<span class="fc" id="L211">            ret = super.inverseCumulativeProbability(p);</span>
+        }
+
+<span class="fc" id="L214">        return ret;</span>
+    }
+
+    /**
+     * Returns the lower bound of the support for the distribution.
+     *
+     * The lower bound of the support is always 0 no matter the parameters.
+     *
+     * @return lower bound of the support (always 0)
+     * @since 2.2
+     */
+    public int getSupportLowerBound() {
+<span class="nc" id="L226">        return 0;</span>
+    }
+
+    /**
+     * Returns the upper bound of the support for the distribution.
+     *
+     * The upper bound of the support is always positive infinity
+     * no matter the parameters. Positive infinity is represented
+     * by &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt; together with
+     * {@link #isSupportUpperBoundInclusive()} being &lt;code&gt;false&lt;/code&gt;
+     *
+     * @return upper bound of the support (always &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt; for positive infinity)
+     * @since 2.2
+     */
+    public int getSupportUpperBound() {
+<span class="nc" id="L241">        return Integer.MAX_VALUE;</span>
+    }
+
+    /**
+     * Returns the mean.
+     *
+     * For number of successes &lt;code&gt;r&lt;/code&gt; and
+     * probability of success &lt;code&gt;p&lt;/code&gt;, the mean is
+     * &lt;code&gt;( r * p ) / ( 1 - p )&lt;/code&gt;
+     *
+     * @return the mean
+     * @since 2.2
+     */
+    public double getNumericalMean() {
+<span class="fc" id="L255">        final double p = getProbabilityOfSuccess();</span>
+<span class="fc" id="L256">        final double r = getNumberOfSuccesses();</span>
+<span class="fc" id="L257">        return ( r * p ) / ( 1 - p );</span>
+    }
+
+    /**
+     * Returns the variance.
+     *
+     * For number of successes &lt;code&gt;r&lt;/code&gt; and
+     * probability of success &lt;code&gt;p&lt;/code&gt;, the mean is
+     * &lt;code&gt;( r * p ) / ( 1 - p )^2&lt;/code&gt;
+     *
+     * @return the variance
+     * @since 2.2
+     */
+    public double getNumericalVariance() {
+<span class="fc" id="L271">        final double p = getProbabilityOfSuccess();</span>
+<span class="fc" id="L272">        final double r = getNumberOfSuccesses();</span>
+<span class="fc" id="L273">        final double pInv = 1 - p;</span>
+<span class="fc" id="L274">        return ( r * p ) / (pInv * pInv);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

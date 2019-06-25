@@ -1,0 +1,2266 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MathUtils.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.util</a> &gt; <span class="el_source">MathUtils.java</span></div><h1>MathUtils.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.util;
+
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.util.Arrays;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.Localizable;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.exception.NonMonotonousSequenceException;
+
+/**
+ * Some useful additions to the built-in functions in {@link Math}.
+ * @version $Revision$ $Date$
+ */
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">public final class MathUtils {</span>
+
+    /** Smallest positive number such that 1 - EPSILON is not numerically equal to 1. */
+    public static final double EPSILON = 0x1.0p-53;
+
+    /** Safe minimum, such that 1 / SAFE_MIN does not overflow.
+     * &lt;p&gt;In IEEE 754 arithmetic, this is also the smallest normalized
+     * number 2&lt;sup&gt;-1022&lt;/sup&gt;.&lt;/p&gt;
+     */
+    public static final double SAFE_MIN = 0x1.0p-1022;
+
+    /**
+     * 2 &amp;pi;.
+     * @since 2.1
+     */
+    public static final double TWO_PI = 2 * FastMath.PI;
+
+    /** -1.0 cast as a byte. */
+    private static final byte  NB = (byte)-1;
+
+    /** -1.0 cast as a short. */
+    private static final short NS = (short)-1;
+
+    /** 1.0 cast as a byte. */
+    private static final byte  PB = (byte)1;
+
+    /** 1.0 cast as a short. */
+    private static final short PS = (short)1;
+
+    /** 0.0 cast as a byte. */
+    private static final byte  ZB = (byte)0;
+
+    /** 0.0 cast as a short. */
+    private static final short ZS = (short)0;
+
+    /** Gap between NaN and regular numbers. */
+    private static final int NAN_GAP = 4 * 1024 * 1024;
+
+    /** Offset to order signed double numbers lexicographically. */
+    private static final long SGN_MASK = 0x8000000000000000L;
+
+    /** Offset to order signed double numbers lexicographically. */
+    private static final int SGN_MASK_FLOAT = 0x80000000;
+
+    /** All long-representable factorials */
+<span class="fc" id="L78">    private static final long[] FACTORIALS = new long[] {</span>
+                       1l,                  1l,                   2l,
+                       6l,                 24l,                 120l,
+                     720l,               5040l,               40320l,
+                  362880l,            3628800l,            39916800l,
+               479001600l,         6227020800l,         87178291200l,
+           1307674368000l,     20922789888000l,     355687428096000l,
+        6402373705728000l, 121645100408832000l, 2432902008176640000l };
+
+    /**
+     * Private Constructor
+     */
+    private MathUtils() {
+<span class="nc" id="L91">        super();</span>
+<span class="nc" id="L92">    }</span>
+
+    /**
+     * Add two integers, checking for overflow.
+     *
+     * @param x an addend
+     * @param y an addend
+     * @return the sum &lt;code&gt;x+y&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         int
+     * @since 1.1
+     */
+    public static int addAndCheck(int x, int y) {
+<span class="fc" id="L105">        long s = (long)x + (long)y;</span>
+<span class="fc bfc" id="L106" title="All 4 branches covered.">        if (s &lt; Integer.MIN_VALUE || s &gt; Integer.MAX_VALUE) {</span>
+<span class="fc" id="L107">            throw MathRuntimeException.createArithmeticException(LocalizedFormats.OVERFLOW_IN_ADDITION, x, y);</span>
+        }
+<span class="fc" id="L109">        return (int)s;</span>
+    }
+
+    /**
+     * Add two long integers, checking for overflow.
+     *
+     * @param a an addend
+     * @param b an addend
+     * @return the sum &lt;code&gt;a+b&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         long
+     * @since 1.2
+     */
+    public static long addAndCheck(long a, long b) {
+<span class="fc" id="L123">        return addAndCheck(a, b, LocalizedFormats.OVERFLOW_IN_ADDITION);</span>
+    }
+
+    /**
+     * Add two long integers, checking for overflow.
+     *
+     * @param a an addend
+     * @param b an addend
+     * @param pattern the pattern to use for any thrown exception.
+     * @return the sum &lt;code&gt;a+b&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         long
+     * @since 1.2
+     */
+    private static long addAndCheck(long a, long b, Localizable pattern) {
+        long ret;
+<span class="fc bfc" id="L139" title="All 2 branches covered.">        if (a &gt; b) {</span>
+            // use symmetry to reduce boundary cases
+<span class="fc" id="L141">            ret = addAndCheck(b, a, pattern);</span>
+        } else {
+            // assert a &lt;= b
+
+<span class="fc bfc" id="L145" title="All 2 branches covered.">            if (a &lt; 0) {</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">                if (b &lt; 0) {</span>
+                    // check for negative overflow
+<span class="fc bfc" id="L148" title="All 2 branches covered.">                    if (Long.MIN_VALUE - b &lt;= a) {</span>
+<span class="fc" id="L149">                        ret = a + b;</span>
+                    } else {
+<span class="fc" id="L151">                        throw MathRuntimeException.createArithmeticException(pattern, a, b);</span>
+                    }
+                } else {
+                    // opposite sign addition is always safe
+<span class="fc" id="L155">                    ret = a + b;</span>
+                }
+            } else {
+                // assert a &gt;= 0
+                // assert b &gt;= 0
+
+                // check for positive overflow
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                if (a &lt;= Long.MAX_VALUE - b) {</span>
+<span class="fc" id="L163">                    ret = a + b;</span>
+                } else {
+<span class="fc" id="L165">                    throw MathRuntimeException.createArithmeticException(pattern, a, b);</span>
+                }
+            }
+        }
+<span class="fc" id="L169">        return ret;</span>
+    }
+
+    /**
+     * Returns an exact representation of the &lt;a
+     * href=&quot;http://mathworld.wolfram.com/BinomialCoefficient.html&quot;&gt; Binomial
+     * Coefficient&lt;/a&gt;, &quot;&lt;code&gt;n choose k&lt;/code&gt;&quot;, the number of
+     * &lt;code&gt;k&lt;/code&gt;-element subsets that can be selected from an
+     * &lt;code&gt;n&lt;/code&gt;-element set.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;0 &lt;= k &lt;= n &lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;li&gt; The result is small enough to fit into a &lt;code&gt;long&lt;/code&gt;. The
+     * largest value of &lt;code&gt;n&lt;/code&gt; for which all coefficients are
+     * &lt;code&gt; &lt; Long.MAX_VALUE&lt;/code&gt; is 66. If the computed value exceeds
+     * &lt;code&gt;Long.MAX_VALUE&lt;/code&gt; an &lt;code&gt;ArithMeticException&lt;/code&gt; is
+     * thrown.&lt;/li&gt;
+     * &lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param n the size of the set
+     * @param k the size of the subsets to be counted
+     * @return &lt;code&gt;n choose k&lt;/code&gt;
+     * @throws IllegalArgumentException if preconditions are not met.
+     * @throws ArithmeticException if the result is too large to be represented
+     *         by a long integer.
+     */
+    public static long binomialCoefficient(final int n, final int k) {
+<span class="fc" id="L198">        checkBinomial(n, k);</span>
+<span class="fc bfc" id="L199" title="All 4 branches covered.">        if ((n == k) || (k == 0)) {</span>
+<span class="fc" id="L200">            return 1;</span>
+        }
+<span class="fc bfc" id="L202" title="All 4 branches covered.">        if ((k == 1) || (k == n - 1)) {</span>
+<span class="fc" id="L203">            return n;</span>
+        }
+        // Use symmetry for large k
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (k &gt; n / 2)</span>
+<span class="fc" id="L207">            return binomialCoefficient(n, n - k);</span>
+
+        // We use the formula
+        // (n choose k) = n! / (n-k)! / k!
+        // (n choose k) == ((n-k+1)*...*n) / (1*...*k)
+        // which could be written
+        // (n choose k) == (n-1 choose k-1) * n / k
+<span class="fc" id="L214">        long result = 1;</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">        if (n &lt;= 61) {</span>
+            // For n &lt;= 61, the naive implementation cannot overflow.
+<span class="fc" id="L217">            int i = n - k + 1;</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">            for (int j = 1; j &lt;= k; j++) {</span>
+<span class="fc" id="L219">                result = result * i / j;</span>
+<span class="fc" id="L220">                i++;</span>
+            }
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        } else if (n &lt;= 66) {</span>
+            // For n &gt; 61 but n &lt;= 66, the result cannot overflow,
+            // but we must take care not to overflow intermediate values.
+<span class="fc" id="L225">            int i = n - k + 1;</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">            for (int j = 1; j &lt;= k; j++) {</span>
+                // We know that (result * i) is divisible by j,
+                // but (result * i) may overflow, so we split j:
+                // Filter out the gcd, d, so j/d and i/d are integer.
+                // result is divisible by (j/d) because (j/d)
+                // is relative prime to (i/d) and is a divisor of
+                // result * (i/d).
+<span class="fc" id="L233">                final long d = gcd(i, j);</span>
+<span class="fc" id="L234">                result = (result / (j / d)) * (i / d);</span>
+<span class="fc" id="L235">                i++;</span>
+            }
+<span class="fc" id="L237">        } else {</span>
+            // For n &gt; 66, a result overflow might occur, so we check
+            // the multiplication, taking care to not overflow
+            // unnecessary.
+<span class="fc" id="L241">            int i = n - k + 1;</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">            for (int j = 1; j &lt;= k; j++) {</span>
+<span class="fc" id="L243">                final long d = gcd(i, j);</span>
+<span class="fc" id="L244">                result = mulAndCheck(result / (j / d), i / d);</span>
+<span class="fc" id="L245">                i++;</span>
+            }
+        }
+<span class="fc" id="L248">        return result;</span>
+    }
+
+    /**
+     * Returns a &lt;code&gt;double&lt;/code&gt; representation of the &lt;a
+     * href=&quot;http://mathworld.wolfram.com/BinomialCoefficient.html&quot;&gt; Binomial
+     * Coefficient&lt;/a&gt;, &quot;&lt;code&gt;n choose k&lt;/code&gt;&quot;, the number of
+     * &lt;code&gt;k&lt;/code&gt;-element subsets that can be selected from an
+     * &lt;code&gt;n&lt;/code&gt;-element set.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;0 &lt;= k &lt;= n &lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;li&gt; The result is small enough to fit into a &lt;code&gt;double&lt;/code&gt;. The
+     * largest value of &lt;code&gt;n&lt;/code&gt; for which all coefficients are &lt;
+     * Double.MAX_VALUE is 1029. If the computed value exceeds Double.MAX_VALUE,
+     * Double.POSITIVE_INFINITY is returned&lt;/li&gt;
+     * &lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param n the size of the set
+     * @param k the size of the subsets to be counted
+     * @return &lt;code&gt;n choose k&lt;/code&gt;
+     * @throws IllegalArgumentException if preconditions are not met.
+     */
+    public static double binomialCoefficientDouble(final int n, final int k) {
+<span class="fc" id="L274">        checkBinomial(n, k);</span>
+<span class="fc bfc" id="L275" title="All 4 branches covered.">        if ((n == k) || (k == 0)) {</span>
+<span class="fc" id="L276">            return 1d;</span>
+        }
+<span class="fc bfc" id="L278" title="All 4 branches covered.">        if ((k == 1) || (k == n - 1)) {</span>
+<span class="fc" id="L279">            return n;</span>
+        }
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        if (k &gt; n/2) {</span>
+<span class="fc" id="L282">            return binomialCoefficientDouble(n, n - k);</span>
+        }
+<span class="fc bfc" id="L284" title="All 2 branches covered.">        if (n &lt; 67) {</span>
+<span class="fc" id="L285">            return binomialCoefficient(n,k);</span>
+        }
+
+<span class="fc" id="L288">        double result = 1d;</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">        for (int i = 1; i &lt;= k; i++) {</span>
+<span class="fc" id="L290">             result *= (double)(n - k + i) / (double)i;</span>
+        }
+
+<span class="fc" id="L293">        return FastMath.floor(result + 0.5);</span>
+    }
+
+    /**
+     * Returns the natural &lt;code&gt;log&lt;/code&gt; of the &lt;a
+     * href=&quot;http://mathworld.wolfram.com/BinomialCoefficient.html&quot;&gt; Binomial
+     * Coefficient&lt;/a&gt;, &quot;&lt;code&gt;n choose k&lt;/code&gt;&quot;, the number of
+     * &lt;code&gt;k&lt;/code&gt;-element subsets that can be selected from an
+     * &lt;code&gt;n&lt;/code&gt;-element set.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;0 &lt;= k &lt;= n &lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param n the size of the set
+     * @param k the size of the subsets to be counted
+     * @return &lt;code&gt;n choose k&lt;/code&gt;
+     * @throws IllegalArgumentException if preconditions are not met.
+     */
+    public static double binomialCoefficientLog(final int n, final int k) {
+<span class="fc" id="L315">        checkBinomial(n, k);</span>
+<span class="fc bfc" id="L316" title="All 4 branches covered.">        if ((n == k) || (k == 0)) {</span>
+<span class="fc" id="L317">            return 0;</span>
+        }
+<span class="fc bfc" id="L319" title="All 4 branches covered.">        if ((k == 1) || (k == n - 1)) {</span>
+<span class="fc" id="L320">            return FastMath.log(n);</span>
+        }
+
+        /*
+         * For values small enough to do exact integer computation,
+         * return the log of the exact value
+         */
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        if (n &lt; 67) {</span>
+<span class="fc" id="L328">            return FastMath.log(binomialCoefficient(n,k));</span>
+        }
+
+        /*
+         * Return the log of binomialCoefficientDouble for values that will not
+         * overflow binomialCoefficientDouble
+         */
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        if (n &lt; 1030) {</span>
+<span class="fc" id="L336">            return FastMath.log(binomialCoefficientDouble(n, k));</span>
+        }
+
+<span class="fc bfc" id="L339" title="All 2 branches covered.">        if (k &gt; n / 2) {</span>
+<span class="fc" id="L340">            return binomialCoefficientLog(n, n - k);</span>
+        }
+
+        /*
+         * Sum logs for values that could overflow
+         */
+<span class="fc" id="L346">        double logSum = 0;</span>
+
+        // n!/(n-k)!
+<span class="fc bfc" id="L349" title="All 2 branches covered.">        for (int i = n - k + 1; i &lt;= n; i++) {</span>
+<span class="fc" id="L350">            logSum += FastMath.log(i);</span>
+        }
+
+        // divide by k!
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        for (int i = 2; i &lt;= k; i++) {</span>
+<span class="fc" id="L355">            logSum -= FastMath.log(i);</span>
+        }
+
+<span class="fc" id="L358">        return logSum;</span>
+    }
+
+    /**
+     * Check binomial preconditions.
+     * @param n the size of the set
+     * @param k the size of the subsets to be counted
+     * @exception IllegalArgumentException if preconditions are not met.
+     */
+    private static void checkBinomial(final int n, final int k)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L369" title="All 2 branches covered.">        if (n &lt; k) {</span>
+<span class="fc" id="L370">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.BINOMIAL_INVALID_PARAMETERS_ORDER,
+<span class="fc" id="L372">                n, k);</span>
+        }
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        if (n &lt; 0) {</span>
+<span class="fc" id="L375">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.BINOMIAL_NEGATIVE_PARAMETER,
+<span class="fc" id="L377">                  n);</span>
+        }
+<span class="fc" id="L379">    }</span>
+
+    /**
+     * Compares two numbers given some amount of allowed error.
+     *
+     * @param x the first number
+     * @param y the second number
+     * @param eps the amount of error to allow when checking for equality
+     * @return &lt;ul&gt;&lt;li&gt;0 if  {@link #equals(double, double, double) equals(x, y, eps)}&lt;/li&gt;
+     *       &lt;li&gt;&amp;lt; 0 if !{@link #equals(double, double, double) equals(x, y, eps)} &amp;amp;&amp;amp; x &amp;lt; y&lt;/li&gt;
+     *       &lt;li&gt;&gt; 0 if !{@link #equals(double, double, double) equals(x, y, eps)} &amp;amp;&amp;amp; x &gt; y&lt;/li&gt;&lt;/ul&gt;
+     */
+    public static int compareTo(double x, double y, double eps) {
+<span class="fc bfc" id="L392" title="All 2 branches covered.">        if (equals(x, y, eps)) {</span>
+<span class="fc" id="L393">            return 0;</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">        } else if (x &lt; y) {</span>
+<span class="fc" id="L395">          return -1;</span>
+        }
+<span class="fc" id="L397">        return 1;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/HyperbolicCosine.html&quot;&gt;
+     * hyperbolic cosine&lt;/a&gt; of x.
+     *
+     * @param x double value for which to find the hyperbolic cosine
+     * @return hyperbolic cosine of x
+     */
+    public static double cosh(double x) {
+<span class="fc" id="L408">        return (FastMath.exp(x) + FastMath.exp(-x)) / 2.0;</span>
+    }
+
+    /**
+     * Returns true iff they are strictly equal.
+     *
+     * @param x first value
+     * @param y second value
+     * @return {@code true} if the values are equal.
+     * @deprecated as of 2.2 his method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases wher the old semantics is
+     * useful (see e.g. {@link #equalsIncludingNaN(float,float)
+     * equalsIncludingNaN}.
+     */
+    @Deprecated
+    public static boolean equals(float x, float y) {
+<span class="pc bpc" id="L426" title="3 of 6 branches missed.">        return (Float.isNaN(x) &amp;&amp; Float.isNaN(y)) || x == y;</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or neither is NaN and they are
+     * equal as defined by {@link #equals(float,float,int) equals(x, y, 1)}.
+     *
+     * @param x first value
+     * @param y second value
+     * @return {@code true} if the values are equal or both are NaN.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(float x, float y) {
+<span class="pc bpc" id="L439" title="1 of 6 branches missed.">        return (Float.isNaN(x) &amp;&amp; Float.isNaN(y)) || equals(x, y, 1);</span>
+    }
+
+    /**
+     * Returns true if both arguments are equal or within the range of allowed
+     * error (inclusive).
+     *
+     * @param x first value
+     * @param y second value
+     * @param eps the amount of absolute error to allow.
+     * @return {@code true} if the values are equal or within range of each other.
+     * @since 2.2
+     */
+    public static boolean equals(float x, float y, float eps) {
+<span class="nc bnc" id="L453" title="All 4 branches missed.">        return equals(x, y, 1) || FastMath.abs(y - x) &lt;= eps;</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or are equal or within the range
+     * of allowed error (inclusive).
+     *
+     * @param x first value
+     * @param y second value
+     * @param eps the amount of absolute error to allow.
+     * @return {@code true} if the values are equal or within range of each other,
+     * or both are NaN.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(float x, float y, float eps) {
+<span class="nc bnc" id="L468" title="All 4 branches missed.">        return equalsIncludingNaN(x, y) || (FastMath.abs(y - x) &lt;= eps);</span>
+    }
+
+    /**
+     * Returns true if both arguments are equal or within the range of allowed
+     * error (inclusive).
+     * Two float numbers are considered equal if there are {@code (maxUlps - 1)}
+     * (or fewer) floating point numbers between them, i.e. two adjacent floating
+     * point numbers are considered equal.
+     * Adapted from &lt;a
+     * href=&quot;http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm&quot;&gt;
+     * Bruce Dawson&lt;/a&gt;
+     *
+     * @param x first value
+     * @param y second value
+     * @param maxUlps {@code (maxUlps - 1)} is the number of floating point
+     * values between {@code x} and {@code y}.
+     * @return {@code true} if there are fewer than {@code maxUlps} floating
+     * point values between {@code x} and {@code y}.
+     * @since 2.2
+     */
+    public static boolean equals(float x, float y, int maxUlps) {
+        // Check that &quot;maxUlps&quot; is non-negative and small enough so that
+        // NaN won't compare as equal to anything (except another NaN).
+<span class="pc bpc" id="L492" title="3 of 6 branches missed.">        assert maxUlps &gt; 0 &amp;&amp; maxUlps &lt; NAN_GAP;</span>
+
+<span class="fc" id="L494">        int xInt = Float.floatToIntBits(x);</span>
+<span class="fc" id="L495">        int yInt = Float.floatToIntBits(y);</span>
+
+        // Make lexicographically ordered as a two's-complement integer.
+<span class="fc bfc" id="L498" title="All 2 branches covered.">        if (xInt &lt; 0) {</span>
+<span class="fc" id="L499">            xInt = SGN_MASK_FLOAT - xInt;</span>
+        }
+<span class="fc bfc" id="L501" title="All 2 branches covered.">        if (yInt &lt; 0) {</span>
+<span class="fc" id="L502">            yInt = SGN_MASK_FLOAT - yInt;</span>
+        }
+
+<span class="fc bfc" id="L505" title="All 2 branches covered.">        final boolean isEqual = FastMath.abs(xInt - yInt) &lt;= maxUlps;</span>
+
+<span class="pc bpc" id="L507" title="1 of 6 branches missed.">        return isEqual &amp;&amp; !Float.isNaN(x) &amp;&amp; !Float.isNaN(y);</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or if they are equal as defined
+     * by {@link #equals(float,float,int) equals(x, y, maxUlps)}.
+     *
+     * @param x first value
+     * @param y second value
+     * @param maxUlps {@code (maxUlps - 1)} is the number of floating point
+     * values between {@code x} and {@code y}.
+     * @return {@code true} if both arguments are NaN or if there are less than
+     * {@code maxUlps} floating point values between {@code x} and {@code y}.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(float x, float y, int maxUlps) {
+<span class="nc bnc" id="L523" title="All 6 branches missed.">        return (Float.isNaN(x) &amp;&amp; Float.isNaN(y)) || equals(x, y, maxUlps);</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link #equals(float,float)}.
+     *
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension
+     * and equal elements.
+     * @deprecated as of 2.2 this method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases where the old semantics is
+     * useful (see e.g. {@link #equalsIncludingNaN(float[],float[])
+     * equalsIncludingNaN}.
+     */
+    @Deprecated
+    public static boolean equals(float[] x, float[] y) {
+<span class="nc bnc" id="L544" title="All 4 branches missed.">        if ((x == null) || (y == null)) {</span>
+<span class="nc bnc" id="L545" title="All 6 branches missed.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="nc bnc" id="L547" title="All 2 branches missed.">        if (x.length != y.length) {</span>
+<span class="nc" id="L548">            return false;</span>
+        }
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="nc bnc" id="L551" title="All 2 branches missed.">            if (!equals(x[i], y[i])) {</span>
+<span class="nc" id="L552">                return false;</span>
+            }
+        }
+<span class="nc" id="L555">        return true;</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link #equalsIncludingNaN(float,float)}.
+     *
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension and
+     * equal elements
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(float[] x, float[] y) {
+<span class="fc bfc" id="L570" title="All 4 branches covered.">        if ((x == null) || (y == null)) {</span>
+<span class="fc bfc" id="L571" title="All 6 branches covered.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="fc bfc" id="L573" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L574">            return false;</span>
+        }
+<span class="fc bfc" id="L576" title="All 2 branches covered.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="fc bfc" id="L577" title="All 2 branches covered.">            if (!equalsIncludingNaN(x[i], y[i])) {</span>
+<span class="fc" id="L578">                return false;</span>
+            }
+        }
+<span class="fc" id="L581">        return true;</span>
+    }
+
+    /**
+     * Returns true iff both arguments are NaN or neither is NaN and they are
+     * equal
+     *
+     * &lt;p&gt;This method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases where the old semantics
+     * (w.r.t. NaN) is useful (see e.g.
+     * {@link #equalsIncludingNaN(double,double, double) equalsIncludingNaN}.
+     * &lt;/p&gt;
+     *
+     * @param x first value
+     * @param y second value
+     * @return {@code true} if the values are equal.
+     */
+    public static boolean equals(double x, double y) {
+<span class="fc bfc" id="L601" title="All 6 branches covered.">        return (Double.isNaN(x) &amp;&amp; Double.isNaN(y)) || x == y;</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or neither is NaN and they are
+     * equal as defined by {@link #equals(double,double,int) equals(x, y, 1)}.
+     *
+     * @param x first value
+     * @param y second value
+     * @return {@code true} if the values are equal or both are NaN.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(double x, double y) {
+<span class="fc bfc" id="L614" title="All 6 branches covered.">        return (Double.isNaN(x) &amp;&amp; Double.isNaN(y)) || equals(x, y, 1);</span>
+    }
+
+    /**
+     * Returns true if both arguments are equal or within the range of allowed
+     * error (inclusive).
+     * &lt;p&gt;
+     * Two NaNs are considered equals, as are two infinities with same sign.
+     * &lt;/p&gt;
+     * &lt;p&gt;This method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases where the old semantics
+     * (w.r.t. NaN) is useful (see e.g.
+     * {@link #equalsIncludingNaN(double,double, double) equalsIncludingNaN}.
+     * &lt;/p&gt;
+     * @param x first value
+     * @param y second value
+     * @param eps the amount of absolute error to allow.
+     * @return {@code true} if the values are equal or within range of each other.
+     */
+    public static boolean equals(double x, double y, double eps) {
+<span class="fc bfc" id="L636" title="All 4 branches covered.">        return equals(x, y) || FastMath.abs(y - x) &lt;= eps;</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or are equal or within the range
+     * of allowed error (inclusive).
+     *
+     * @param x first value
+     * @param y second value
+     * @param eps the amount of absolute error to allow.
+     * @return {@code true} if the values are equal or within range of each other,
+     * or both are NaN.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(double x, double y, double eps) {
+<span class="fc bfc" id="L651" title="All 4 branches covered.">        return equalsIncludingNaN(x, y) || (FastMath.abs(y - x) &lt;= eps);</span>
+    }
+
+    /**
+     * Returns true if both arguments are equal or within the range of allowed
+     * error (inclusive).
+     * Two float numbers are considered equal if there are {@code (maxUlps - 1)}
+     * (or fewer) floating point numbers between them, i.e. two adjacent floating
+     * point numbers are considered equal.
+     * Adapted from &lt;a
+     * href=&quot;http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm&quot;&gt;
+     * Bruce Dawson&lt;/a&gt;
+     *
+     * &lt;p&gt;This method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases where the old semantics
+     * (w.r.t. NaN) is useful (see e.g.
+     * {@link #equalsIncludingNaN(double,double, int) equalsIncludingNaN}.
+     * &lt;/p&gt;
+     *
+     * @param x first value
+     * @param y second value
+     * @param maxUlps {@code (maxUlps - 1)} is the number of floating point
+     * values between {@code x} and {@code y}.
+     * @return {@code true} if there are fewer than {@code maxUlps} floating
+     * point values between {@code x} and {@code y}.
+     */
+    public static boolean equals(double x, double y, int maxUlps) {
+        // Check that &quot;maxUlps&quot; is non-negative and small enough so that
+        // NaN won't compare as equal to anything (except another NaN).
+<span class="pc bpc" id="L682" title="3 of 6 branches missed.">        assert maxUlps &gt; 0 &amp;&amp; maxUlps &lt; NAN_GAP;</span>
+
+<span class="fc" id="L684">        long xInt = Double.doubleToLongBits(x);</span>
+<span class="fc" id="L685">        long yInt = Double.doubleToLongBits(y);</span>
+
+        // Make lexicographically ordered as a two's-complement integer.
+<span class="fc bfc" id="L688" title="All 2 branches covered.">        if (xInt &lt; 0) {</span>
+<span class="fc" id="L689">            xInt = SGN_MASK - xInt;</span>
+        }
+<span class="fc bfc" id="L691" title="All 2 branches covered.">        if (yInt &lt; 0) {</span>
+<span class="fc" id="L692">            yInt = SGN_MASK - yInt;</span>
+        }
+
+<span class="fc bfc" id="L695" title="All 2 branches covered.">        return FastMath.abs(xInt - yInt) &lt;= maxUlps;</span>
+    }
+
+    /**
+     * Returns true if both arguments are NaN or if they are equal as defined
+     * by {@link #equals(double,double,int) equals(x, y, maxUlps}.
+     *
+     * @param x first value
+     * @param y second value
+     * @param maxUlps {@code (maxUlps - 1)} is the number of floating point
+     * values between {@code x} and {@code y}.
+     * @return {@code true} if both arguments are NaN or if there are less than
+     * {@code maxUlps} floating point values between {@code x} and {@code y}.
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(double x, double y, int maxUlps) {
+<span class="pc bpc" id="L711" title="1 of 6 branches missed.">        return (Double.isNaN(x) &amp;&amp; Double.isNaN(y)) || equals(x, y, maxUlps);</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link #equals(double,double)}.
+     *
+     * &lt;p&gt;This method considers that {@code NaN == NaN}. In release
+     * 3.0, the semantics will change in order to comply with IEEE754 where it
+     * is specified that {@code NaN != NaN}.
+     * New methods have been added for those cases wher the old semantics is
+     * useful (see e.g. {@link #equalsIncludingNaN(double[],double[])
+     * equalsIncludingNaN}.
+     * &lt;/p&gt;
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension
+     * and equal elements.
+     */
+    public static boolean equals(double[] x, double[] y) {
+<span class="fc bfc" id="L732" title="All 4 branches covered.">        if ((x == null) || (y == null)) {</span>
+<span class="fc bfc" id="L733" title="All 6 branches covered.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="fc bfc" id="L735" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L736">            return false;</span>
+        }
+<span class="fc bfc" id="L738" title="All 2 branches covered.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="fc bfc" id="L739" title="All 2 branches covered.">            if (!equals(x[i], y[i])) {</span>
+<span class="fc" id="L740">                return false;</span>
+            }
+        }
+<span class="fc" id="L743">        return true;</span>
+    }
+
+    /**
+     * Returns true iff both arguments are null or have same dimensions and all
+     * their elements are equal as defined by
+     * {@link #equalsIncludingNaN(double,double)}.
+     *
+     * @param x first array
+     * @param y second array
+     * @return true if the values are both null or have same dimension and
+     * equal elements
+     * @since 2.2
+     */
+    public static boolean equalsIncludingNaN(double[] x, double[] y) {
+<span class="fc bfc" id="L758" title="All 4 branches covered.">        if ((x == null) || (y == null)) {</span>
+<span class="fc bfc" id="L759" title="All 6 branches covered.">            return !((x == null) ^ (y == null));</span>
+        }
+<span class="fc bfc" id="L761" title="All 2 branches covered.">        if (x.length != y.length) {</span>
+<span class="fc" id="L762">            return false;</span>
+        }
+<span class="fc bfc" id="L764" title="All 2 branches covered.">        for (int i = 0; i &lt; x.length; ++i) {</span>
+<span class="fc bfc" id="L765" title="All 2 branches covered.">            if (!equalsIncludingNaN(x[i], y[i])) {</span>
+<span class="fc" id="L766">                return false;</span>
+            }
+        }
+<span class="fc" id="L769">        return true;</span>
+    }
+
+    /**
+     * Returns n!. Shorthand for &lt;code&gt;n&lt;/code&gt; &lt;a
+     * href=&quot;http://mathworld.wolfram.com/Factorial.html&quot;&gt; Factorial&lt;/a&gt;, the
+     * product of the numbers &lt;code&gt;1,...,n&lt;/code&gt;.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;n &gt;= 0&lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;li&gt; The result is small enough to fit into a &lt;code&gt;long&lt;/code&gt;. The
+     * largest value of &lt;code&gt;n&lt;/code&gt; for which &lt;code&gt;n!&lt;/code&gt; &lt;
+     * Long.MAX_VALUE&lt;/code&gt; is 20. If the computed value exceeds &lt;code&gt;Long.MAX_VALUE&lt;/code&gt;
+     * an &lt;code&gt;ArithMeticException &lt;/code&gt; is thrown.&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
+     *
+     * @param n argument
+     * @return &lt;code&gt;n!&lt;/code&gt;
+     * @throws ArithmeticException if the result is too large to be represented
+     *         by a long integer.
+     * @throws IllegalArgumentException if n &lt; 0
+     */
+    public static long factorial(final int n) {
+<span class="fc bfc" id="L795" title="All 2 branches covered.">        if (n &lt; 0) {</span>
+<span class="fc" id="L796">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.FACTORIAL_NEGATIVE_PARAMETER,
+<span class="fc" id="L798">                  n);</span>
+        }
+<span class="fc bfc" id="L800" title="All 2 branches covered.">        if (n &gt; 20) {</span>
+<span class="fc" id="L801">            throw new ArithmeticException(</span>
+                    &quot;factorial value is too large to fit in a long&quot;);
+        }
+<span class="fc" id="L804">        return FACTORIALS[n];</span>
+    }
+
+    /**
+     * Returns n!. Shorthand for &lt;code&gt;n&lt;/code&gt; &lt;a
+     * href=&quot;http://mathworld.wolfram.com/Factorial.html&quot;&gt; Factorial&lt;/a&gt;, the
+     * product of the numbers &lt;code&gt;1,...,n&lt;/code&gt; as a &lt;code&gt;double&lt;/code&gt;.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;n &gt;= 0&lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;li&gt; The result is small enough to fit into a &lt;code&gt;double&lt;/code&gt;. The
+     * largest value of &lt;code&gt;n&lt;/code&gt; for which &lt;code&gt;n!&lt;/code&gt; &lt;
+     * Double.MAX_VALUE&lt;/code&gt; is 170. If the computed value exceeds
+     * Double.MAX_VALUE, Double.POSITIVE_INFINITY is returned&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;/p&gt;
+     *
+     * @param n argument
+     * @return &lt;code&gt;n!&lt;/code&gt;
+     * @throws IllegalArgumentException if n &lt; 0
+     */
+    public static double factorialDouble(final int n) {
+<span class="fc bfc" id="L828" title="All 2 branches covered.">        if (n &lt; 0) {</span>
+<span class="fc" id="L829">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.FACTORIAL_NEGATIVE_PARAMETER,
+<span class="fc" id="L831">                  n);</span>
+        }
+<span class="fc bfc" id="L833" title="All 2 branches covered.">        if (n &lt; 21) {</span>
+<span class="fc" id="L834">            return factorial(n);</span>
+        }
+<span class="fc" id="L836">        return FastMath.floor(FastMath.exp(factorialLog(n)) + 0.5);</span>
+    }
+
+    /**
+     * Returns the natural logarithm of n!.
+     * &lt;p&gt;
+     * &lt;Strong&gt;Preconditions&lt;/strong&gt;:
+     * &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt;n &gt;= 0&lt;/code&gt; (otherwise
+     * &lt;code&gt;IllegalArgumentException&lt;/code&gt; is thrown)&lt;/li&gt;
+     * &lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param n argument
+     * @return &lt;code&gt;n!&lt;/code&gt;
+     * @throws IllegalArgumentException if preconditions are not met.
+     */
+    public static double factorialLog(final int n) {
+<span class="fc bfc" id="L853" title="All 2 branches covered.">        if (n &lt; 0) {</span>
+<span class="fc" id="L854">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.FACTORIAL_NEGATIVE_PARAMETER,
+<span class="fc" id="L856">                  n);</span>
+        }
+<span class="fc bfc" id="L858" title="All 2 branches covered.">        if (n &lt; 21) {</span>
+<span class="fc" id="L859">            return FastMath.log(factorial(n));</span>
+        }
+<span class="fc" id="L861">        double logSum = 0;</span>
+<span class="fc bfc" id="L862" title="All 2 branches covered.">        for (int i = 2; i &lt;= n; i++) {</span>
+<span class="fc" id="L863">            logSum += FastMath.log(i);</span>
+        }
+<span class="fc" id="L865">        return logSum;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Gets the greatest common divisor of the absolute value of two numbers,
+     * using the &quot;binary gcd&quot; method which avoids division and modulo
+     * operations. See Knuth 4.5.2 algorithm B. This algorithm is due to Josef
+     * Stein (1961).
+     * &lt;/p&gt;
+     * Special cases:
+     * &lt;ul&gt;
+     * &lt;li&gt;The invocations
+     * &lt;code&gt;gcd(Integer.MIN_VALUE, Integer.MIN_VALUE)&lt;/code&gt;,
+     * &lt;code&gt;gcd(Integer.MIN_VALUE, 0)&lt;/code&gt; and
+     * &lt;code&gt;gcd(0, Integer.MIN_VALUE)&lt;/code&gt; throw an
+     * &lt;code&gt;ArithmeticException&lt;/code&gt;, because the result would be 2^31, which
+     * is too large for an int value.&lt;/li&gt;
+     * &lt;li&gt;The result of &lt;code&gt;gcd(x, x)&lt;/code&gt;, &lt;code&gt;gcd(0, x)&lt;/code&gt; and
+     * &lt;code&gt;gcd(x, 0)&lt;/code&gt; is the absolute value of &lt;code&gt;x&lt;/code&gt;, except
+     * for the special cases above.
+     * &lt;li&gt;The invocation &lt;code&gt;gcd(0, 0)&lt;/code&gt; is the only one which returns
+     * &lt;code&gt;0&lt;/code&gt;.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param p any number
+     * @param q any number
+     * @return the greatest common divisor, never negative
+     * @throws ArithmeticException if the result cannot be represented as a
+     * nonnegative int value
+     * @since 1.1
+     */
+    public static int gcd(final int p, final int q) {
+<span class="fc" id="L898">        int u = p;</span>
+<span class="fc" id="L899">        int v = q;</span>
+<span class="fc bfc" id="L900" title="All 4 branches covered.">        if ((u == 0) || (v == 0)) {</span>
+<span class="fc bfc" id="L901" title="All 4 branches covered.">            if ((u == Integer.MIN_VALUE) || (v == Integer.MIN_VALUE)) {</span>
+<span class="fc" id="L902">                throw MathRuntimeException.createArithmeticException(</span>
+                        LocalizedFormats.GCD_OVERFLOW_32_BITS,
+<span class="fc" id="L904">                        p, q);</span>
+            }
+<span class="fc" id="L906">            return FastMath.abs(u) + FastMath.abs(v);</span>
+        }
+        // keep u and v negative, as negative integers range down to
+        // -2^31, while positive numbers can only be as large as 2^31-1
+        // (i.e. we can't necessarily negate a negative number without
+        // overflow)
+        /* assert u!=0 &amp;&amp; v!=0; */
+<span class="fc bfc" id="L913" title="All 2 branches covered.">        if (u &gt; 0) {</span>
+<span class="fc" id="L914">            u = -u;</span>
+        } // make u negative
+<span class="fc bfc" id="L916" title="All 2 branches covered.">        if (v &gt; 0) {</span>
+<span class="fc" id="L917">            v = -v;</span>
+        } // make v negative
+        // B1. [Find power of 2]
+<span class="fc" id="L920">        int k = 0;</span>
+<span class="pc bpc" id="L921" title="1 of 6 branches missed.">        while ((u &amp; 1) == 0 &amp;&amp; (v &amp; 1) == 0 &amp;&amp; k &lt; 31) { // while u and v are</span>
+                                                            // both even...
+<span class="fc" id="L923">            u /= 2;</span>
+<span class="fc" id="L924">            v /= 2;</span>
+<span class="fc" id="L925">            k++; // cast out twos.</span>
+        }
+<span class="fc bfc" id="L927" title="All 2 branches covered.">        if (k == 31) {</span>
+<span class="fc" id="L928">            throw MathRuntimeException.createArithmeticException(</span>
+                    LocalizedFormats.GCD_OVERFLOW_32_BITS,
+<span class="fc" id="L930">                    p, q);</span>
+        }
+        // B2. Initialize: u and v have been divided by 2^k and at least
+        // one is odd.
+<span class="fc bfc" id="L934" title="All 2 branches covered.">        int t = ((u &amp; 1) == 1) ? v : -(u / 2)/* B3 */;</span>
+        // t negative: u was odd, v may be even (t replaces v)
+        // t positive: u was even, v is odd (t replaces u)
+        do {
+            /* assert u&lt;0 &amp;&amp; v&lt;0; */
+            // B4/B3: cast out twos from t.
+<span class="fc bfc" id="L940" title="All 2 branches covered.">            while ((t &amp; 1) == 0) { // while t is even..</span>
+<span class="fc" id="L941">                t /= 2; // cast out twos</span>
+            }
+            // B5 [reset max(u,v)]
+<span class="fc bfc" id="L944" title="All 2 branches covered.">            if (t &gt; 0) {</span>
+<span class="fc" id="L945">                u = -t;</span>
+            } else {
+<span class="fc" id="L947">                v = t;</span>
+            }
+            // B6/B3. at this point both u and v should be odd.
+<span class="fc" id="L950">            t = (v - u) / 2;</span>
+            // |u| larger: t positive (replace u)
+            // |v| larger: t negative (replace v)
+<span class="fc bfc" id="L953" title="All 2 branches covered.">        } while (t != 0);</span>
+<span class="fc" id="L954">        return -u * (1 &lt;&lt; k); // gcd is u*2^k</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Gets the greatest common divisor of the absolute value of two numbers,
+     * using the &quot;binary gcd&quot; method which avoids division and modulo
+     * operations. See Knuth 4.5.2 algorithm B. This algorithm is due to Josef
+     * Stein (1961).
+     * &lt;/p&gt;
+     * Special cases:
+     * &lt;ul&gt;
+     * &lt;li&gt;The invocations
+     * &lt;code&gt;gcd(Long.MIN_VALUE, Long.MIN_VALUE)&lt;/code&gt;,
+     * &lt;code&gt;gcd(Long.MIN_VALUE, 0L)&lt;/code&gt; and
+     * &lt;code&gt;gcd(0L, Long.MIN_VALUE)&lt;/code&gt; throw an
+     * &lt;code&gt;ArithmeticException&lt;/code&gt;, because the result would be 2^63, which
+     * is too large for a long value.&lt;/li&gt;
+     * &lt;li&gt;The result of &lt;code&gt;gcd(x, x)&lt;/code&gt;, &lt;code&gt;gcd(0L, x)&lt;/code&gt; and
+     * &lt;code&gt;gcd(x, 0L)&lt;/code&gt; is the absolute value of &lt;code&gt;x&lt;/code&gt;, except
+     * for the special cases above.
+     * &lt;li&gt;The invocation &lt;code&gt;gcd(0L, 0L)&lt;/code&gt; is the only one which returns
+     * &lt;code&gt;0L&lt;/code&gt;.&lt;/li&gt;
+     * &lt;/ul&gt;
+     *
+     * @param p any number
+     * @param q any number
+     * @return the greatest common divisor, never negative
+     * @throws ArithmeticException if the result cannot be represented as a nonnegative long
+     * value
+     * @since 2.1
+     */
+    public static long gcd(final long p, final long q) {
+<span class="fc" id="L987">        long u = p;</span>
+<span class="fc" id="L988">        long v = q;</span>
+<span class="fc bfc" id="L989" title="All 4 branches covered.">        if ((u == 0) || (v == 0)) {</span>
+<span class="fc bfc" id="L990" title="All 4 branches covered.">            if ((u == Long.MIN_VALUE) || (v == Long.MIN_VALUE)){</span>
+<span class="fc" id="L991">                throw MathRuntimeException.createArithmeticException(</span>
+                        LocalizedFormats.GCD_OVERFLOW_64_BITS,
+<span class="fc" id="L993">                        p, q);</span>
+            }
+<span class="fc" id="L995">            return FastMath.abs(u) + FastMath.abs(v);</span>
+        }
+        // keep u and v negative, as negative integers range down to
+        // -2^63, while positive numbers can only be as large as 2^63-1
+        // (i.e. we can't necessarily negate a negative number without
+        // overflow)
+        /* assert u!=0 &amp;&amp; v!=0; */
+<span class="fc bfc" id="L1002" title="All 2 branches covered.">        if (u &gt; 0) {</span>
+<span class="fc" id="L1003">            u = -u;</span>
+        } // make u negative
+<span class="fc bfc" id="L1005" title="All 2 branches covered.">        if (v &gt; 0) {</span>
+<span class="fc" id="L1006">            v = -v;</span>
+        } // make v negative
+        // B1. [Find power of 2]
+<span class="fc" id="L1009">        int k = 0;</span>
+<span class="pc bpc" id="L1010" title="1 of 6 branches missed.">        while ((u &amp; 1) == 0 &amp;&amp; (v &amp; 1) == 0 &amp;&amp; k &lt; 63) { // while u and v are</span>
+                                                            // both even...
+<span class="fc" id="L1012">            u /= 2;</span>
+<span class="fc" id="L1013">            v /= 2;</span>
+<span class="fc" id="L1014">            k++; // cast out twos.</span>
+        }
+<span class="fc bfc" id="L1016" title="All 2 branches covered.">        if (k == 63) {</span>
+<span class="fc" id="L1017">            throw MathRuntimeException.createArithmeticException(</span>
+                    LocalizedFormats.GCD_OVERFLOW_64_BITS,
+<span class="fc" id="L1019">                    p, q);</span>
+        }
+        // B2. Initialize: u and v have been divided by 2^k and at least
+        // one is odd.
+<span class="fc bfc" id="L1023" title="All 2 branches covered.">        long t = ((u &amp; 1) == 1) ? v : -(u / 2)/* B3 */;</span>
+        // t negative: u was odd, v may be even (t replaces v)
+        // t positive: u was even, v is odd (t replaces u)
+        do {
+            /* assert u&lt;0 &amp;&amp; v&lt;0; */
+            // B4/B3: cast out twos from t.
+<span class="fc bfc" id="L1029" title="All 2 branches covered.">            while ((t &amp; 1) == 0) { // while t is even..</span>
+<span class="fc" id="L1030">                t /= 2; // cast out twos</span>
+            }
+            // B5 [reset max(u,v)]
+<span class="fc bfc" id="L1033" title="All 2 branches covered.">            if (t &gt; 0) {</span>
+<span class="fc" id="L1034">                u = -t;</span>
+            } else {
+<span class="fc" id="L1036">                v = t;</span>
+            }
+            // B6/B3. at this point both u and v should be odd.
+<span class="fc" id="L1039">            t = (v - u) / 2;</span>
+            // |u| larger: t positive (replace u)
+            // |v| larger: t negative (replace v)
+<span class="fc bfc" id="L1042" title="All 2 branches covered.">        } while (t != 0);</span>
+<span class="fc" id="L1043">        return -u * (1L &lt;&lt; k); // gcd is u*2^k</span>
+    }
+
+    /**
+     * Returns an integer hash code representing the given double value.
+     *
+     * @param value the value to be hashed
+     * @return the hash code
+     */
+    public static int hash(double value) {
+<span class="fc" id="L1053">        return new Double(value).hashCode();</span>
+    }
+
+    /**
+     * Returns an integer hash code representing the given double array.
+     *
+     * @param value the value to be hashed (may be null)
+     * @return the hash code
+     * @since 1.2
+     */
+    public static int hash(double[] value) {
+<span class="fc" id="L1064">        return Arrays.hashCode(value);</span>
+    }
+
+    /**
+     * For a byte value x, this method returns (byte)(+1) if x &gt;= 0 and
+     * (byte)(-1) if x &lt; 0.
+     *
+     * @param x the value, a byte
+     * @return (byte)(+1) or (byte)(-1), depending on the sign of x
+     */
+    public static byte indicator(final byte x) {
+<span class="fc bfc" id="L1075" title="All 2 branches covered.">        return (x &gt;= ZB) ? PB : NB;</span>
+    }
+
+    /**
+     * For a double precision value x, this method returns +1.0 if x &gt;= 0 and
+     * -1.0 if x &lt; 0. Returns &lt;code&gt;NaN&lt;/code&gt; if &lt;code&gt;x&lt;/code&gt; is
+     * &lt;code&gt;NaN&lt;/code&gt;.
+     *
+     * @param x the value, a double
+     * @return +1.0 or -1.0, depending on the sign of x
+     */
+    public static double indicator(final double x) {
+<span class="fc bfc" id="L1087" title="All 2 branches covered.">        if (Double.isNaN(x)) {</span>
+<span class="fc" id="L1088">            return Double.NaN;</span>
+        }
+<span class="fc bfc" id="L1090" title="All 2 branches covered.">        return (x &gt;= 0.0) ? 1.0 : -1.0;</span>
+    }
+
+    /**
+     * For a float value x, this method returns +1.0F if x &gt;= 0 and -1.0F if x &lt;
+     * 0. Returns &lt;code&gt;NaN&lt;/code&gt; if &lt;code&gt;x&lt;/code&gt; is &lt;code&gt;NaN&lt;/code&gt;.
+     *
+     * @param x the value, a float
+     * @return +1.0F or -1.0F, depending on the sign of x
+     */
+    public static float indicator(final float x) {
+<span class="fc bfc" id="L1101" title="All 2 branches covered.">        if (Float.isNaN(x)) {</span>
+<span class="fc" id="L1102">            return Float.NaN;</span>
+        }
+<span class="fc bfc" id="L1104" title="All 2 branches covered.">        return (x &gt;= 0.0F) ? 1.0F : -1.0F;</span>
+    }
+
+    /**
+     * For an int value x, this method returns +1 if x &gt;= 0 and -1 if x &lt; 0.
+     *
+     * @param x the value, an int
+     * @return +1 or -1, depending on the sign of x
+     */
+    public static int indicator(final int x) {
+<span class="fc bfc" id="L1114" title="All 2 branches covered.">        return (x &gt;= 0) ? 1 : -1;</span>
+    }
+
+    /**
+     * For a long value x, this method returns +1L if x &gt;= 0 and -1L if x &lt; 0.
+     *
+     * @param x the value, a long
+     * @return +1L or -1L, depending on the sign of x
+     */
+    public static long indicator(final long x) {
+<span class="fc bfc" id="L1124" title="All 2 branches covered.">        return (x &gt;= 0L) ? 1L : -1L;</span>
+    }
+
+    /**
+     * For a short value x, this method returns (short)(+1) if x &gt;= 0 and
+     * (short)(-1) if x &lt; 0.
+     *
+     * @param x the value, a short
+     * @return (short)(+1) or (short)(-1), depending on the sign of x
+     */
+    public static short indicator(final short x) {
+<span class="fc bfc" id="L1135" title="All 2 branches covered.">        return (x &gt;= ZS) ? PS : NS;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns the least common multiple of the absolute value of two numbers,
+     * using the formula &lt;code&gt;lcm(a,b) = (a / gcd(a,b)) * b&lt;/code&gt;.
+     * &lt;/p&gt;
+     * Special cases:
+     * &lt;ul&gt;
+     * &lt;li&gt;The invocations &lt;code&gt;lcm(Integer.MIN_VALUE, n)&lt;/code&gt; and
+     * &lt;code&gt;lcm(n, Integer.MIN_VALUE)&lt;/code&gt;, where &lt;code&gt;abs(n)&lt;/code&gt; is a
+     * power of 2, throw an &lt;code&gt;ArithmeticException&lt;/code&gt;, because the result
+     * would be 2^31, which is too large for an int value.&lt;/li&gt;
+     * &lt;li&gt;The result of &lt;code&gt;lcm(0, x)&lt;/code&gt; and &lt;code&gt;lcm(x, 0)&lt;/code&gt; is
+     * &lt;code&gt;0&lt;/code&gt; for any &lt;code&gt;x&lt;/code&gt;.
+     * &lt;/ul&gt;
+     *
+     * @param a any number
+     * @param b any number
+     * @return the least common multiple, never negative
+     * @throws ArithmeticException
+     *             if the result cannot be represented as a nonnegative int
+     *             value
+     * @since 1.1
+     */
+    public static int lcm(int a, int b) {
+<span class="fc bfc" id="L1162" title="All 4 branches covered.">        if (a==0 || b==0){</span>
+<span class="fc" id="L1163">            return 0;</span>
+        }
+<span class="fc" id="L1165">        int lcm = FastMath.abs(mulAndCheck(a / gcd(a, b), b));</span>
+<span class="fc bfc" id="L1166" title="All 2 branches covered.">        if (lcm == Integer.MIN_VALUE) {</span>
+<span class="fc" id="L1167">            throw MathRuntimeException.createArithmeticException(</span>
+                LocalizedFormats.LCM_OVERFLOW_32_BITS,
+<span class="fc" id="L1169">                a, b);</span>
+        }
+<span class="fc" id="L1171">        return lcm;</span>
+    }
+
+    /**
+     * &lt;p&gt;
+     * Returns the least common multiple of the absolute value of two numbers,
+     * using the formula &lt;code&gt;lcm(a,b) = (a / gcd(a,b)) * b&lt;/code&gt;.
+     * &lt;/p&gt;
+     * Special cases:
+     * &lt;ul&gt;
+     * &lt;li&gt;The invocations &lt;code&gt;lcm(Long.MIN_VALUE, n)&lt;/code&gt; and
+     * &lt;code&gt;lcm(n, Long.MIN_VALUE)&lt;/code&gt;, where &lt;code&gt;abs(n)&lt;/code&gt; is a
+     * power of 2, throw an &lt;code&gt;ArithmeticException&lt;/code&gt;, because the result
+     * would be 2^63, which is too large for an int value.&lt;/li&gt;
+     * &lt;li&gt;The result of &lt;code&gt;lcm(0L, x)&lt;/code&gt; and &lt;code&gt;lcm(x, 0L)&lt;/code&gt; is
+     * &lt;code&gt;0L&lt;/code&gt; for any &lt;code&gt;x&lt;/code&gt;.
+     * &lt;/ul&gt;
+     *
+     * @param a any number
+     * @param b any number
+     * @return the least common multiple, never negative
+     * @throws ArithmeticException if the result cannot be represented as a nonnegative long
+     * value
+     * @since 2.1
+     */
+    public static long lcm(long a, long b) {
+<span class="fc bfc" id="L1197" title="All 4 branches covered.">        if (a==0 || b==0){</span>
+<span class="fc" id="L1198">            return 0;</span>
+        }
+<span class="fc" id="L1200">        long lcm = FastMath.abs(mulAndCheck(a / gcd(a, b), b));</span>
+<span class="fc bfc" id="L1201" title="All 2 branches covered.">        if (lcm == Long.MIN_VALUE){</span>
+<span class="fc" id="L1202">            throw MathRuntimeException.createArithmeticException(</span>
+                LocalizedFormats.LCM_OVERFLOW_64_BITS,
+<span class="fc" id="L1204">                a, b);</span>
+        }
+<span class="fc" id="L1206">        return lcm;</span>
+    }
+
+    /**
+     * &lt;p&gt;Returns the
+     * &lt;a href=&quot;http://mathworld.wolfram.com/Logarithm.html&quot;&gt;logarithm&lt;/a&gt;
+     * for base &lt;code&gt;b&lt;/code&gt; of &lt;code&gt;x&lt;/code&gt;.
+     * &lt;/p&gt;
+     * &lt;p&gt;Returns &lt;code&gt;NaN&lt;code&gt; if either argument is negative.  If
+     * &lt;code&gt;base&lt;/code&gt; is 0 and &lt;code&gt;x&lt;/code&gt; is positive, 0 is returned.
+     * If &lt;code&gt;base&lt;/code&gt; is positive and &lt;code&gt;x&lt;/code&gt; is 0,
+     * &lt;code&gt;Double.NEGATIVE_INFINITY&lt;/code&gt; is returned.  If both arguments
+     * are 0, the result is &lt;code&gt;NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @param base the base of the logarithm, must be greater than 0
+     * @param x argument, must be greater than 0
+     * @return the value of the logarithm - the number y such that base^y = x.
+     * @since 1.2
+     */
+    public static double log(double base, double x) {
+<span class="fc" id="L1226">        return FastMath.log(x)/FastMath.log(base);</span>
+    }
+
+    /**
+     * Multiply two integers, checking for overflow.
+     *
+     * @param x a factor
+     * @param y a factor
+     * @return the product &lt;code&gt;x*y&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         int
+     * @since 1.1
+     */
+    public static int mulAndCheck(int x, int y) {
+<span class="fc" id="L1240">        long m = ((long)x) * ((long)y);</span>
+<span class="fc bfc" id="L1241" title="All 4 branches covered.">        if (m &lt; Integer.MIN_VALUE || m &gt; Integer.MAX_VALUE) {</span>
+<span class="fc" id="L1242">            throw new ArithmeticException(&quot;overflow: mul&quot;);</span>
+        }
+<span class="fc" id="L1244">        return (int)m;</span>
+    }
+
+    /**
+     * Multiply two long integers, checking for overflow.
+     *
+     * @param a first value
+     * @param b second value
+     * @return the product &lt;code&gt;a * b&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         long
+     * @since 1.2
+     */
+    public static long mulAndCheck(long a, long b) {
+        long ret;
+<span class="fc" id="L1259">        String msg = &quot;overflow: multiply&quot;;</span>
+<span class="fc bfc" id="L1260" title="All 2 branches covered.">        if (a &gt; b) {</span>
+            // use symmetry to reduce boundary cases
+<span class="fc" id="L1262">            ret = mulAndCheck(b, a);</span>
+        } else {
+<span class="fc bfc" id="L1264" title="All 2 branches covered.">            if (a &lt; 0) {</span>
+<span class="fc bfc" id="L1265" title="All 2 branches covered.">                if (b &lt; 0) {</span>
+                    // check for positive overflow with negative a, negative b
+<span class="fc bfc" id="L1267" title="All 2 branches covered.">                    if (a &gt;= Long.MAX_VALUE / b) {</span>
+<span class="fc" id="L1268">                        ret = a * b;</span>
+                    } else {
+<span class="fc" id="L1270">                        throw new ArithmeticException(msg);</span>
+                    }
+<span class="fc bfc" id="L1272" title="All 2 branches covered.">                } else if (b &gt; 0) {</span>
+                    // check for negative overflow with negative a, positive b
+<span class="fc bfc" id="L1274" title="All 2 branches covered.">                    if (Long.MIN_VALUE / b &lt;= a) {</span>
+<span class="fc" id="L1275">                        ret = a * b;</span>
+                    } else {
+<span class="fc" id="L1277">                        throw new ArithmeticException(msg);</span>
+
+                    }
+                } else {
+                    // assert b == 0
+<span class="fc" id="L1282">                    ret = 0;</span>
+                }
+<span class="fc bfc" id="L1284" title="All 2 branches covered.">            } else if (a &gt; 0) {</span>
+                // assert a &gt; 0
+                // assert b &gt; 0
+
+                // check for positive overflow with positive a, positive b
+<span class="fc bfc" id="L1289" title="All 2 branches covered.">                if (a &lt;= Long.MAX_VALUE / b) {</span>
+<span class="fc" id="L1290">                    ret = a * b;</span>
+                } else {
+<span class="fc" id="L1292">                    throw new ArithmeticException(msg);</span>
+                }
+            } else {
+                // assert a == 0
+<span class="fc" id="L1296">                ret = 0;</span>
+            }
+        }
+<span class="fc" id="L1299">        return ret;</span>
+    }
+
+    /**
+     * Get the next machine representable number after a number, moving
+     * in the direction of another number.
+     * &lt;p&gt;
+     * If &lt;code&gt;direction&lt;/code&gt; is greater than or equal to&lt;code&gt;d&lt;/code&gt;,
+     * the smallest machine representable number strictly greater than
+     * &lt;code&gt;d&lt;/code&gt; is returned; otherwise the largest representable number
+     * strictly less than &lt;code&gt;d&lt;/code&gt; is returned.&lt;/p&gt;
+     * &lt;p&gt;
+     * If &lt;code&gt;d&lt;/code&gt; is NaN or Infinite, it is returned unchanged.&lt;/p&gt;
+     *
+     * @param d base number
+     * @param direction (the only important thing is whether
+     * direction is greater or smaller than d)
+     * @return the next machine representable number in the specified direction
+     * @since 1.2
+     * @deprecated as of 2.2, replaced by {@link FastMath#nextAfter(double, double)}
+     * which handles Infinities differently, and returns direction if d and direction compare equal.
+     */
+    @Deprecated
+    public static double nextAfter(double d, double direction) {
+
+        // handling of some important special cases
+<span class="fc bfc" id="L1325" title="All 4 branches covered.">        if (Double.isNaN(d) || Double.isInfinite(d)) {</span>
+<span class="fc" id="L1326">                return d;</span>
+<span class="fc bfc" id="L1327" title="All 2 branches covered.">        } else if (d == 0) {</span>
+<span class="fc bfc" id="L1328" title="All 2 branches covered.">                return (direction &lt; 0) ? -Double.MIN_VALUE : Double.MIN_VALUE;</span>
+        }
+        // special cases MAX_VALUE to infinity and  MIN_VALUE to 0
+        // are handled just as normal numbers
+
+        // split the double in raw components
+<span class="fc" id="L1334">        long bits     = Double.doubleToLongBits(d);</span>
+<span class="fc" id="L1335">        long sign     = bits &amp; 0x8000000000000000L;</span>
+<span class="fc" id="L1336">        long exponent = bits &amp; 0x7ff0000000000000L;</span>
+<span class="fc" id="L1337">        long mantissa = bits &amp; 0x000fffffffffffffL;</span>
+
+<span class="fc bfc" id="L1339" title="All 2 branches covered.">        if (d * (direction - d) &gt;= 0) {</span>
+                // we should increase the mantissa
+<span class="fc bfc" id="L1341" title="All 2 branches covered.">                if (mantissa == 0x000fffffffffffffL) {</span>
+<span class="fc" id="L1342">                        return Double.longBitsToDouble(sign |</span>
+                                        (exponent + 0x0010000000000000L));
+                } else {
+<span class="fc" id="L1345">                        return Double.longBitsToDouble(sign |</span>
+                                        exponent | (mantissa + 1));
+                }
+        } else {
+                // we should decrease the mantissa
+<span class="fc bfc" id="L1350" title="All 2 branches covered.">                if (mantissa == 0L) {</span>
+<span class="fc" id="L1351">                        return Double.longBitsToDouble(sign |</span>
+                                        (exponent - 0x0010000000000000L) |
+                                        0x000fffffffffffffL);
+                } else {
+<span class="fc" id="L1355">                        return Double.longBitsToDouble(sign |</span>
+                                        exponent | (mantissa - 1));
+                }
+        }
+    }
+
+    /**
+     * Scale a number by 2&lt;sup&gt;scaleFactor&lt;/sup&gt;.
+     * &lt;p&gt;If &lt;code&gt;d&lt;/code&gt; is 0 or NaN or Infinite, it is returned unchanged.&lt;/p&gt;
+     *
+     * @param d base number
+     * @param scaleFactor power of two by which d should be multiplied
+     * @return d &amp;times; 2&lt;sup&gt;scaleFactor&lt;/sup&gt;
+     * @since 2.0
+     * @deprecated as of 2.2, replaced by {@link FastMath#scalb(double, int)}
+     */
+    @Deprecated
+    public static double scalb(final double d, final int scaleFactor) {
+<span class="fc" id="L1373">        return FastMath.scalb(d, scaleFactor);</span>
+    }
+
+    /**
+     * Normalize an angle in a 2&amp;pi wide interval around a center value.
+     * &lt;p&gt;This method has three main uses:&lt;/p&gt;
+     * &lt;ul&gt;
+     *   &lt;li&gt;normalize an angle between 0 and 2&amp;pi;:&lt;br/&gt;
+     *       &lt;code&gt;a = MathUtils.normalizeAngle(a, FastMath.PI);&lt;/code&gt;&lt;/li&gt;
+     *   &lt;li&gt;normalize an angle between -&amp;pi; and +&amp;pi;&lt;br/&gt;
+     *       &lt;code&gt;a = MathUtils.normalizeAngle(a, 0.0);&lt;/code&gt;&lt;/li&gt;
+     *   &lt;li&gt;compute the angle between two defining angular positions:&lt;br&gt;
+     *       &lt;code&gt;angle = MathUtils.normalizeAngle(end, start) - start;&lt;/code&gt;&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;p&gt;Note that due to numerical accuracy and since &amp;pi; cannot be represented
+     * exactly, the result interval is &lt;em&gt;closed&lt;/em&gt;, it cannot be half-closed
+     * as would be more satisfactory in a purely mathematical view.&lt;/p&gt;
+     * @param a angle to normalize
+     * @param center center of the desired 2&amp;pi; interval for the result
+     * @return a-2k&amp;pi; with integer k and center-&amp;pi; &amp;lt;= a-2k&amp;pi; &amp;lt;= center+&amp;pi;
+     * @since 1.2
+     */
+     public static double normalizeAngle(double a, double center) {
+<span class="fc" id="L1396">         return a - TWO_PI * FastMath.floor((a + FastMath.PI - center) / TWO_PI);</span>
+     }
+
+     /**
+      * &lt;p&gt;Normalizes an array to make it sum to a specified value.
+      * Returns the result of the transformation &lt;pre&gt;
+      *    x |-&gt; x * normalizedSum / sum
+      * &lt;/pre&gt;
+      * applied to each non-NaN element x of the input array, where sum is the
+      * sum of the non-NaN entries in the input array.&lt;/p&gt;
+      *
+      * &lt;p&gt;Throws IllegalArgumentException if &lt;code&gt;normalizedSum&lt;/code&gt; is infinite
+      * or NaN and ArithmeticException if the input array contains any infinite elements
+      * or sums to 0&lt;/p&gt;
+      *
+      * &lt;p&gt;Ignores (i.e., copies unchanged to the output array) NaNs in the input array.&lt;/p&gt;
+      *
+      * @param values input array to be normalized
+      * @param normalizedSum target sum for the normalized array
+      * @return normalized array
+      * @throws ArithmeticException if the input array contains infinite elements or sums to zero
+      * @throws IllegalArgumentException if the target sum is infinite or NaN
+      * @since 2.1
+      */
+     public static double[] normalizeArray(double[] values, double normalizedSum)
+       throws ArithmeticException, IllegalArgumentException {
+<span class="fc bfc" id="L1422" title="All 2 branches covered.">         if (Double.isInfinite(normalizedSum)) {</span>
+<span class="fc" id="L1423">             throw MathRuntimeException.createIllegalArgumentException(</span>
+                     LocalizedFormats.NORMALIZE_INFINITE);
+         }
+<span class="fc bfc" id="L1426" title="All 2 branches covered.">         if (Double.isNaN(normalizedSum)) {</span>
+<span class="fc" id="L1427">             throw MathRuntimeException.createIllegalArgumentException(</span>
+                     LocalizedFormats.NORMALIZE_NAN);
+         }
+<span class="fc" id="L1430">         double sum = 0d;</span>
+<span class="fc" id="L1431">         final int len = values.length;</span>
+<span class="fc" id="L1432">         double[] out = new double[len];</span>
+<span class="fc bfc" id="L1433" title="All 2 branches covered.">         for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc bfc" id="L1434" title="All 2 branches covered.">             if (Double.isInfinite(values[i])) {</span>
+<span class="fc" id="L1435">                 throw MathRuntimeException.createArithmeticException(</span>
+<span class="fc" id="L1436">                         LocalizedFormats.INFINITE_ARRAY_ELEMENT, values[i], i);</span>
+             }
+<span class="fc bfc" id="L1438" title="All 2 branches covered.">             if (!Double.isNaN(values[i])) {</span>
+<span class="fc" id="L1439">                 sum += values[i];</span>
+             }
+         }
+<span class="fc bfc" id="L1442" title="All 2 branches covered.">         if (sum == 0) {</span>
+<span class="fc" id="L1443">             throw MathRuntimeException.createArithmeticException(LocalizedFormats.ARRAY_SUMS_TO_ZERO);</span>
+         }
+<span class="fc bfc" id="L1445" title="All 2 branches covered.">         for (int i = 0; i &lt; len; i++) {</span>
+<span class="fc bfc" id="L1446" title="All 2 branches covered.">             if (Double.isNaN(values[i])) {</span>
+<span class="fc" id="L1447">                 out[i] = Double.NaN;</span>
+             } else {
+<span class="fc" id="L1449">                 out[i] = values[i] * normalizedSum / sum;</span>
+             }
+         }
+<span class="fc" id="L1452">         return out;</span>
+     }
+
+    /**
+     * Round the given value to the specified number of decimal places. The
+     * value is rounded using the {@link BigDecimal#ROUND_HALF_UP} method.
+     *
+     * @param x the value to round.
+     * @param scale the number of digits to the right of the decimal point.
+     * @return the rounded value.
+     * @since 1.1
+     */
+    public static double round(double x, int scale) {
+<span class="fc" id="L1465">        return round(x, scale, BigDecimal.ROUND_HALF_UP);</span>
+    }
+
+    /**
+     * Round the given value to the specified number of decimal places. The
+     * value is rounded using the given method which is any method defined in
+     * {@link BigDecimal}.
+     *
+     * @param x the value to round.
+     * @param scale the number of digits to the right of the decimal point.
+     * @param roundingMethod the rounding method as defined in
+     *        {@link BigDecimal}.
+     * @return the rounded value.
+     * @since 1.1
+     */
+    public static double round(double x, int scale, int roundingMethod) {
+        try {
+<span class="fc" id="L1482">            return (new BigDecimal</span>
+<span class="fc" id="L1483">                   (Double.toString(x))</span>
+<span class="fc" id="L1484">                   .setScale(scale, roundingMethod))</span>
+<span class="fc" id="L1485">                   .doubleValue();</span>
+<span class="fc" id="L1486">        } catch (NumberFormatException ex) {</span>
+<span class="fc bfc" id="L1487" title="All 2 branches covered.">            if (Double.isInfinite(x)) {</span>
+<span class="fc" id="L1488">                return x;</span>
+            } else {
+<span class="fc" id="L1490">                return Double.NaN;</span>
+            }
+        }
+    }
+
+    /**
+     * Round the given value to the specified number of decimal places. The
+     * value is rounding using the {@link BigDecimal#ROUND_HALF_UP} method.
+     *
+     * @param x the value to round.
+     * @param scale the number of digits to the right of the decimal point.
+     * @return the rounded value.
+     * @since 1.1
+     */
+    public static float round(float x, int scale) {
+<span class="fc" id="L1505">        return round(x, scale, BigDecimal.ROUND_HALF_UP);</span>
+    }
+
+    /**
+     * Round the given value to the specified number of decimal places. The
+     * value is rounded using the given method which is any method defined in
+     * {@link BigDecimal}.
+     *
+     * @param x the value to round.
+     * @param scale the number of digits to the right of the decimal point.
+     * @param roundingMethod the rounding method as defined in
+     *        {@link BigDecimal}.
+     * @return the rounded value.
+     * @since 1.1
+     */
+    public static float round(float x, int scale, int roundingMethod) {
+<span class="fc" id="L1521">        float sign = indicator(x);</span>
+<span class="fc" id="L1522">        float factor = (float)FastMath.pow(10.0f, scale) * sign;</span>
+<span class="fc" id="L1523">        return (float)roundUnscaled(x * factor, sign, roundingMethod) / factor;</span>
+    }
+
+    /**
+     * Round the given non-negative, value to the &quot;nearest&quot; integer. Nearest is
+     * determined by the rounding method specified. Rounding methods are defined
+     * in {@link BigDecimal}.
+     *
+     * @param unscaled the value to round.
+     * @param sign the sign of the original, scaled value.
+     * @param roundingMethod the rounding method as defined in
+     *        {@link BigDecimal}.
+     * @return the rounded value.
+     * @since 1.1
+     */
+    private static double roundUnscaled(double unscaled, double sign,
+        int roundingMethod) {
+<span class="fc bfc" id="L1540" title="All 9 branches covered.">        switch (roundingMethod) {</span>
+        case BigDecimal.ROUND_CEILING :
+<span class="fc bfc" id="L1542" title="All 2 branches covered.">            if (sign == -1) {</span>
+<span class="fc" id="L1543">                unscaled = FastMath.floor(nextAfter(unscaled, Double.NEGATIVE_INFINITY));</span>
+            } else {
+<span class="fc" id="L1545">                unscaled = FastMath.ceil(nextAfter(unscaled, Double.POSITIVE_INFINITY));</span>
+            }
+<span class="fc" id="L1547">            break;</span>
+        case BigDecimal.ROUND_DOWN :
+<span class="fc" id="L1549">            unscaled = FastMath.floor(nextAfter(unscaled, Double.NEGATIVE_INFINITY));</span>
+<span class="fc" id="L1550">            break;</span>
+        case BigDecimal.ROUND_FLOOR :
+<span class="fc bfc" id="L1552" title="All 2 branches covered.">            if (sign == -1) {</span>
+<span class="fc" id="L1553">                unscaled = FastMath.ceil(nextAfter(unscaled, Double.POSITIVE_INFINITY));</span>
+            } else {
+<span class="fc" id="L1555">                unscaled = FastMath.floor(nextAfter(unscaled, Double.NEGATIVE_INFINITY));</span>
+            }
+<span class="fc" id="L1557">            break;</span>
+        case BigDecimal.ROUND_HALF_DOWN : {
+<span class="fc" id="L1559">            unscaled = nextAfter(unscaled, Double.NEGATIVE_INFINITY);</span>
+<span class="fc" id="L1560">            double fraction = unscaled - FastMath.floor(unscaled);</span>
+<span class="fc bfc" id="L1561" title="All 2 branches covered.">            if (fraction &gt; 0.5) {</span>
+<span class="fc" id="L1562">                unscaled = FastMath.ceil(unscaled);</span>
+            } else {
+<span class="fc" id="L1564">                unscaled = FastMath.floor(unscaled);</span>
+            }
+<span class="fc" id="L1566">            break;</span>
+        }
+        case BigDecimal.ROUND_HALF_EVEN : {
+<span class="fc" id="L1569">            double fraction = unscaled - FastMath.floor(unscaled);</span>
+<span class="fc bfc" id="L1570" title="All 2 branches covered.">            if (fraction &gt; 0.5) {</span>
+<span class="fc" id="L1571">                unscaled = FastMath.ceil(unscaled);</span>
+<span class="fc bfc" id="L1572" title="All 2 branches covered.">            } else if (fraction &lt; 0.5) {</span>
+<span class="fc" id="L1573">                unscaled = FastMath.floor(unscaled);</span>
+            } else {
+                // The following equality test is intentional and needed for rounding purposes
+<span class="fc bfc" id="L1576" title="All 2 branches covered.">                if (FastMath.floor(unscaled) / 2.0 == FastMath.floor(Math</span>
+<span class="fc" id="L1577">                    .floor(unscaled) / 2.0)) { // even</span>
+<span class="fc" id="L1578">                    unscaled = FastMath.floor(unscaled);</span>
+                } else { // odd
+<span class="fc" id="L1580">                    unscaled = FastMath.ceil(unscaled);</span>
+                }
+            }
+<span class="fc" id="L1583">            break;</span>
+        }
+        case BigDecimal.ROUND_HALF_UP : {
+<span class="fc" id="L1586">            unscaled = nextAfter(unscaled, Double.POSITIVE_INFINITY);</span>
+<span class="fc" id="L1587">            double fraction = unscaled - FastMath.floor(unscaled);</span>
+<span class="fc bfc" id="L1588" title="All 2 branches covered.">            if (fraction &gt;= 0.5) {</span>
+<span class="fc" id="L1589">                unscaled = FastMath.ceil(unscaled);</span>
+            } else {
+<span class="fc" id="L1591">                unscaled = FastMath.floor(unscaled);</span>
+            }
+<span class="fc" id="L1593">            break;</span>
+        }
+        case BigDecimal.ROUND_UNNECESSARY :
+<span class="fc bfc" id="L1596" title="All 2 branches covered.">            if (unscaled != FastMath.floor(unscaled)) {</span>
+<span class="fc" id="L1597">                throw new ArithmeticException(&quot;Inexact result from rounding&quot;);</span>
+            }
+            break;
+        case BigDecimal.ROUND_UP :
+<span class="fc" id="L1601">            unscaled = FastMath.ceil(nextAfter(unscaled,  Double.POSITIVE_INFINITY));</span>
+<span class="fc" id="L1602">            break;</span>
+        default :
+<span class="fc" id="L1604">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.INVALID_ROUNDING_METHOD,
+<span class="fc" id="L1606">                  roundingMethod,</span>
+<span class="fc" id="L1607">                  &quot;ROUND_CEILING&quot;,     BigDecimal.ROUND_CEILING,</span>
+<span class="fc" id="L1608">                  &quot;ROUND_DOWN&quot;,        BigDecimal.ROUND_DOWN,</span>
+<span class="fc" id="L1609">                  &quot;ROUND_FLOOR&quot;,       BigDecimal.ROUND_FLOOR,</span>
+<span class="fc" id="L1610">                  &quot;ROUND_HALF_DOWN&quot;,   BigDecimal.ROUND_HALF_DOWN,</span>
+<span class="fc" id="L1611">                  &quot;ROUND_HALF_EVEN&quot;,   BigDecimal.ROUND_HALF_EVEN,</span>
+<span class="fc" id="L1612">                  &quot;ROUND_HALF_UP&quot;,     BigDecimal.ROUND_HALF_UP,</span>
+<span class="fc" id="L1613">                  &quot;ROUND_UNNECESSARY&quot;, BigDecimal.ROUND_UNNECESSARY,</span>
+<span class="fc" id="L1614">                  &quot;ROUND_UP&quot;,          BigDecimal.ROUND_UP);</span>
+        }
+<span class="fc" id="L1616">        return unscaled;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for byte value &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For a byte value x, this method returns (byte)(+1) if x &gt; 0, (byte)(0) if
+     * x = 0, and (byte)(-1) if x &lt; 0.&lt;/p&gt;
+     *
+     * @param x the value, a byte
+     * @return (byte)(+1), (byte)(0), or (byte)(-1), depending on the sign of x
+     */
+    public static byte sign(final byte x) {
+<span class="fc bfc" id="L1630" title="All 4 branches covered.">        return (x == ZB) ? ZB : (x &gt; ZB) ? PB : NB;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for double precision &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For a double value &lt;code&gt;x&lt;/code&gt;, this method returns
+     * &lt;code&gt;+1.0&lt;/code&gt; if &lt;code&gt;x &gt; 0&lt;/code&gt;, &lt;code&gt;0.0&lt;/code&gt; if
+     * &lt;code&gt;x = 0.0&lt;/code&gt;, and &lt;code&gt;-1.0&lt;/code&gt; if &lt;code&gt;x &lt; 0&lt;/code&gt;.
+     * Returns &lt;code&gt;NaN&lt;/code&gt; if &lt;code&gt;x&lt;/code&gt; is &lt;code&gt;NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @param x the value, a double
+     * @return +1.0, 0.0, or -1.0, depending on the sign of x
+     */
+    public static double sign(final double x) {
+<span class="fc bfc" id="L1646" title="All 2 branches covered.">        if (Double.isNaN(x)) {</span>
+<span class="fc" id="L1647">            return Double.NaN;</span>
+        }
+<span class="fc bfc" id="L1649" title="All 4 branches covered.">        return (x == 0.0) ? 0.0 : (x &gt; 0.0) ? 1.0 : -1.0;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for float value &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For a float value x, this method returns +1.0F if x &gt; 0, 0.0F if x =
+     * 0.0F, and -1.0F if x &lt; 0. Returns &lt;code&gt;NaN&lt;/code&gt; if &lt;code&gt;x&lt;/code&gt;
+     * is &lt;code&gt;NaN&lt;/code&gt;.&lt;/p&gt;
+     *
+     * @param x the value, a float
+     * @return +1.0F, 0.0F, or -1.0F, depending on the sign of x
+     */
+    public static float sign(final float x) {
+<span class="fc bfc" id="L1664" title="All 2 branches covered.">        if (Float.isNaN(x)) {</span>
+<span class="fc" id="L1665">            return Float.NaN;</span>
+        }
+<span class="fc bfc" id="L1667" title="All 4 branches covered.">        return (x == 0.0F) ? 0.0F : (x &gt; 0.0F) ? 1.0F : -1.0F;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for int value &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For an int value x, this method returns +1 if x &gt; 0, 0 if x = 0, and -1
+     * if x &lt; 0.&lt;/p&gt;
+     *
+     * @param x the value, an int
+     * @return +1, 0, or -1, depending on the sign of x
+     */
+    public static int sign(final int x) {
+<span class="fc bfc" id="L1681" title="All 4 branches covered.">        return (x == 0) ? 0 : (x &gt; 0) ? 1 : -1;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for long value &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For a long value x, this method returns +1L if x &gt; 0, 0L if x = 0, and
+     * -1L if x &lt; 0.&lt;/p&gt;
+     *
+     * @param x the value, a long
+     * @return +1L, 0L, or -1L, depending on the sign of x
+     */
+    public static long sign(final long x) {
+<span class="fc bfc" id="L1695" title="All 4 branches covered.">        return (x == 0L) ? 0L : (x &gt; 0L) ? 1L : -1L;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/Sign.html&quot;&gt; sign&lt;/a&gt;
+     * for short value &lt;code&gt;x&lt;/code&gt;.
+     * &lt;p&gt;
+     * For a short value x, this method returns (short)(+1) if x &gt; 0, (short)(0)
+     * if x = 0, and (short)(-1) if x &lt; 0.&lt;/p&gt;
+     *
+     * @param x the value, a short
+     * @return (short)(+1), (short)(0), or (short)(-1), depending on the sign of
+     *         x
+     */
+    public static short sign(final short x) {
+<span class="fc bfc" id="L1710" title="All 4 branches covered.">        return (x == ZS) ? ZS : (x &gt; ZS) ? PS : NS;</span>
+    }
+
+    /**
+     * Returns the &lt;a href=&quot;http://mathworld.wolfram.com/HyperbolicSine.html&quot;&gt;
+     * hyperbolic sine&lt;/a&gt; of x.
+     *
+     * @param x double value for which to find the hyperbolic sine
+     * @return hyperbolic sine of x
+     */
+    public static double sinh(double x) {
+<span class="fc" id="L1721">        return (FastMath.exp(x) - FastMath.exp(-x)) / 2.0;</span>
+    }
+
+    /**
+     * Subtract two integers, checking for overflow.
+     *
+     * @param x the minuend
+     * @param y the subtrahend
+     * @return the difference &lt;code&gt;x-y&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         int
+     * @since 1.1
+     */
+    public static int subAndCheck(int x, int y) {
+<span class="fc" id="L1735">        long s = (long)x - (long)y;</span>
+<span class="fc bfc" id="L1736" title="All 4 branches covered.">        if (s &lt; Integer.MIN_VALUE || s &gt; Integer.MAX_VALUE) {</span>
+<span class="fc" id="L1737">            throw MathRuntimeException.createArithmeticException(LocalizedFormats.OVERFLOW_IN_SUBTRACTION, x, y);</span>
+        }
+<span class="fc" id="L1739">        return (int)s;</span>
+    }
+
+    /**
+     * Subtract two long integers, checking for overflow.
+     *
+     * @param a first value
+     * @param b second value
+     * @return the difference &lt;code&gt;a-b&lt;/code&gt;
+     * @throws ArithmeticException if the result can not be represented as an
+     *         long
+     * @since 1.2
+     */
+    public static long subAndCheck(long a, long b) {
+        long ret;
+<span class="fc" id="L1754">        String msg = &quot;overflow: subtract&quot;;</span>
+<span class="fc bfc" id="L1755" title="All 2 branches covered.">        if (b == Long.MIN_VALUE) {</span>
+<span class="fc bfc" id="L1756" title="All 2 branches covered.">            if (a &lt; 0) {</span>
+<span class="fc" id="L1757">                ret = a - b;</span>
+            } else {
+<span class="fc" id="L1759">                throw new ArithmeticException(msg);</span>
+            }
+        } else {
+            // use additive inverse
+<span class="fc" id="L1763">            ret = addAndCheck(a, -b, LocalizedFormats.OVERFLOW_IN_ADDITION);</span>
+        }
+<span class="fc" id="L1765">        return ret;</span>
+    }
+
+    /**
+     * Raise an int to an int power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static int pow(final int k, int e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1778" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1779">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1781">                k, e);</span>
+        }
+
+<span class="fc" id="L1784">        int result = 1;</span>
+<span class="fc" id="L1785">        int k2p    = k;</span>
+<span class="fc bfc" id="L1786" title="All 2 branches covered.">        while (e != 0) {</span>
+<span class="pc bpc" id="L1787" title="1 of 2 branches missed.">            if ((e &amp; 0x1) != 0) {</span>
+<span class="fc" id="L1788">                result *= k2p;</span>
+            }
+<span class="fc" id="L1790">            k2p *= k2p;</span>
+<span class="fc" id="L1791">            e = e &gt;&gt; 1;</span>
+        }
+
+<span class="fc" id="L1794">        return result;</span>
+
+    }
+
+    /**
+     * Raise an int to a long power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static int pow(final int k, long e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1808" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1809">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1811">                k, e);</span>
+        }
+
+<span class="fc" id="L1814">        int result = 1;</span>
+<span class="fc" id="L1815">        int k2p    = k;</span>
+<span class="fc bfc" id="L1816" title="All 2 branches covered.">        while (e != 0) {</span>
+<span class="pc bpc" id="L1817" title="1 of 2 branches missed.">            if ((e &amp; 0x1) != 0) {</span>
+<span class="fc" id="L1818">                result *= k2p;</span>
+            }
+<span class="fc" id="L1820">            k2p *= k2p;</span>
+<span class="fc" id="L1821">            e = e &gt;&gt; 1;</span>
+        }
+
+<span class="fc" id="L1824">        return result;</span>
+
+    }
+
+    /**
+     * Raise a long to an int power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static long pow(final long k, int e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1838" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1839">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1841">                k, e);</span>
+        }
+
+<span class="fc" id="L1844">        long result = 1l;</span>
+<span class="fc" id="L1845">        long k2p    = k;</span>
+<span class="fc bfc" id="L1846" title="All 2 branches covered.">        while (e != 0) {</span>
+<span class="pc bpc" id="L1847" title="1 of 2 branches missed.">            if ((e &amp; 0x1) != 0) {</span>
+<span class="fc" id="L1848">                result *= k2p;</span>
+            }
+<span class="fc" id="L1850">            k2p *= k2p;</span>
+<span class="fc" id="L1851">            e = e &gt;&gt; 1;</span>
+        }
+
+<span class="fc" id="L1854">        return result;</span>
+
+    }
+
+    /**
+     * Raise a long to a long power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static long pow(final long k, long e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1868" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1869">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1871">                k, e);</span>
+        }
+
+<span class="fc" id="L1874">        long result = 1l;</span>
+<span class="fc" id="L1875">        long k2p    = k;</span>
+<span class="fc bfc" id="L1876" title="All 2 branches covered.">        while (e != 0) {</span>
+<span class="pc bpc" id="L1877" title="1 of 2 branches missed.">            if ((e &amp; 0x1) != 0) {</span>
+<span class="fc" id="L1878">                result *= k2p;</span>
+            }
+<span class="fc" id="L1880">            k2p *= k2p;</span>
+<span class="fc" id="L1881">            e = e &gt;&gt; 1;</span>
+        }
+
+<span class="fc" id="L1884">        return result;</span>
+
+    }
+
+    /**
+     * Raise a BigInteger to an int power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static BigInteger pow(final BigInteger k, int e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1898" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1899">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1901">                k, e);</span>
+        }
+
+<span class="fc" id="L1904">        return k.pow(e);</span>
+
+    }
+
+    /**
+     * Raise a BigInteger to a long power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static BigInteger pow(final BigInteger k, long e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1918" title="All 2 branches covered.">        if (e &lt; 0) {</span>
+<span class="fc" id="L1919">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+<span class="fc" id="L1921">                k, e);</span>
+        }
+
+<span class="fc" id="L1924">        BigInteger result = BigInteger.ONE;</span>
+<span class="fc" id="L1925">        BigInteger k2p    = k;</span>
+<span class="fc bfc" id="L1926" title="All 2 branches covered.">        while (e != 0) {</span>
+<span class="fc bfc" id="L1927" title="All 2 branches covered.">            if ((e &amp; 0x1) != 0) {</span>
+<span class="fc" id="L1928">                result = result.multiply(k2p);</span>
+            }
+<span class="fc" id="L1930">            k2p = k2p.multiply(k2p);</span>
+<span class="fc" id="L1931">            e = e &gt;&gt; 1;</span>
+        }
+
+<span class="fc" id="L1934">        return result;</span>
+
+    }
+
+    /**
+     * Raise a BigInteger to a BigInteger power.
+     * @param k number to raise
+     * @param e exponent (must be positive or null)
+     * @return k&lt;sup&gt;e&lt;/sup&gt;
+     * @exception IllegalArgumentException if e is negative
+     */
+    public static BigInteger pow(final BigInteger k, BigInteger e)
+        throws IllegalArgumentException {
+
+<span class="fc bfc" id="L1948" title="All 2 branches covered.">        if (e.compareTo(BigInteger.ZERO) &lt; 0) {</span>
+<span class="fc" id="L1949">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                LocalizedFormats.POWER_NEGATIVE_PARAMETERS,
+                k, e);
+        }
+
+<span class="fc" id="L1954">        BigInteger result = BigInteger.ONE;</span>
+<span class="fc" id="L1955">        BigInteger k2p    = k;</span>
+<span class="fc bfc" id="L1956" title="All 2 branches covered.">        while (!BigInteger.ZERO.equals(e)) {</span>
+<span class="fc bfc" id="L1957" title="All 2 branches covered.">            if (e.testBit(0)) {</span>
+<span class="fc" id="L1958">                result = result.multiply(k2p);</span>
+            }
+<span class="fc" id="L1960">            k2p = k2p.multiply(k2p);</span>
+<span class="fc" id="L1961">            e = e.shiftRight(1);</span>
+        }
+
+<span class="fc" id="L1964">        return result;</span>
+
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;1&lt;/sub&gt; (sum of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;1&lt;/sub&gt; distance between the two points
+     */
+    public static double distance1(double[] p1, double[] p2) {
+<span class="fc" id="L1976">        double sum = 0;</span>
+<span class="fc bfc" id="L1977" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L1978">            sum += FastMath.abs(p1[i] - p2[i]);</span>
+        }
+<span class="fc" id="L1980">        return sum;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;1&lt;/sub&gt; (sum of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;1&lt;/sub&gt; distance between the two points
+     */
+    public static int distance1(int[] p1, int[] p2) {
+<span class="fc" id="L1991">      int sum = 0;</span>
+<span class="fc bfc" id="L1992" title="All 2 branches covered.">      for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L1993">          sum += FastMath.abs(p1[i] - p2[i]);</span>
+      }
+<span class="fc" id="L1995">      return sum;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;2&lt;/sub&gt; (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;2&lt;/sub&gt; distance between the two points
+     */
+    public static double distance(double[] p1, double[] p2) {
+<span class="fc" id="L2006">        double sum = 0;</span>
+<span class="fc bfc" id="L2007" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L2008">            final double dp = p1[i] - p2[i];</span>
+<span class="fc" id="L2009">            sum += dp * dp;</span>
+        }
+<span class="fc" id="L2011">        return FastMath.sqrt(sum);</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;2&lt;/sub&gt; (Euclidean) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;2&lt;/sub&gt; distance between the two points
+     */
+    public static double distance(int[] p1, int[] p2) {
+<span class="fc" id="L2022">      double sum = 0;</span>
+<span class="fc bfc" id="L2023" title="All 2 branches covered.">      for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L2024">          final double dp = p1[i] - p2[i];</span>
+<span class="fc" id="L2025">          sum += dp * dp;</span>
+      }
+<span class="fc" id="L2027">      return FastMath.sqrt(sum);</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; (max of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; distance between the two points
+     */
+    public static double distanceInf(double[] p1, double[] p2) {
+<span class="fc" id="L2038">        double max = 0;</span>
+<span class="fc bfc" id="L2039" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L2040">            max = FastMath.max(max, FastMath.abs(p1[i] - p2[i]));</span>
+        }
+<span class="fc" id="L2042">        return max;</span>
+    }
+
+    /**
+     * Calculates the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; (max of abs) distance between two points.
+     *
+     * @param p1 the first point
+     * @param p2 the second point
+     * @return the L&lt;sub&gt;&amp;infin;&lt;/sub&gt; distance between the two points
+     */
+    public static int distanceInf(int[] p1, int[] p2) {
+<span class="fc" id="L2053">        int max = 0;</span>
+<span class="fc bfc" id="L2054" title="All 2 branches covered.">        for (int i = 0; i &lt; p1.length; i++) {</span>
+<span class="fc" id="L2055">            max = FastMath.max(max, FastMath.abs(p1[i] - p2[i]));</span>
+        }
+<span class="fc" id="L2057">        return max;</span>
+    }
+
+    /**
+     * Specification of ordering direction.
+     */
+<span class="pc" id="L2063">    public static enum OrderDirection {</span>
+        /** Constant for increasing direction. */
+<span class="fc" id="L2065">        INCREASING,</span>
+        /** Constant for decreasing direction. */
+<span class="fc" id="L2067">        DECREASING</span>
+    }
+
+    /**
+     * Checks that the given array is sorted.
+     *
+     * @param val Values.
+     * @param dir Ordering direction.
+     * @param strict Whether the order should be strict.
+     * @throws NonMonotonousSequenceException if the array is not sorted.
+     * @since 2.2
+     */
+    public static void checkOrder(double[] val, OrderDirection dir, boolean strict) {
+<span class="fc" id="L2080">        double previous = val[0];</span>
+<span class="fc" id="L2081">        boolean ok = true;</span>
+
+<span class="fc" id="L2083">        int max = val.length;</span>
+<span class="fc bfc" id="L2084" title="All 2 branches covered.">        for (int i = 1; i &lt; max; i++) {</span>
+<span class="pc bpc" id="L2085" title="1 of 3 branches missed.">            switch (dir) {</span>
+            case INCREASING:
+<span class="fc bfc" id="L2087" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L2088" title="All 2 branches covered.">                    if (val[i] &lt;= previous) {</span>
+<span class="fc" id="L2089">                        ok = false;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L2092" title="All 2 branches covered.">                    if (val[i] &lt; previous) {</span>
+<span class="fc" id="L2093">                        ok = false;</span>
+                    }
+                }
+                break;
+            case DECREASING:
+<span class="fc bfc" id="L2098" title="All 2 branches covered.">                if (strict) {</span>
+<span class="fc bfc" id="L2099" title="All 2 branches covered.">                    if (val[i] &gt;= previous) {</span>
+<span class="fc" id="L2100">                        ok = false;</span>
+                    }
+                } else {
+<span class="fc bfc" id="L2103" title="All 2 branches covered.">                    if (val[i] &gt; previous) {</span>
+<span class="fc" id="L2104">                        ok = false;</span>
+                    }
+                }
+                break;
+            default:
+                // Should never happen.
+<span class="nc" id="L2110">                throw new IllegalArgumentException();</span>
+            }
+
+<span class="fc bfc" id="L2113" title="All 2 branches covered.">            if (!ok) {</span>
+<span class="fc" id="L2114">                throw new NonMonotonousSequenceException(val[i], previous, i, dir, strict);</span>
+            }
+<span class="fc" id="L2116">            previous = val[i];</span>
+        }
+<span class="fc" id="L2118">    }</span>
+
+    /**
+     * Checks that the given array is sorted in strictly increasing order.
+     *
+     * @param val Values.
+     * @throws NonMonotonousSequenceException if the array is not sorted.
+     * @since 2.2
+     */
+    public static void checkOrder(double[] val) {
+<span class="fc" id="L2128">        checkOrder(val, OrderDirection.INCREASING, true);</span>
+<span class="fc" id="L2129">    }</span>
+
+    /**
+     * Checks that the given array is sorted.
+     *
+     * @param val Values
+     * @param dir Order direction (-1 for decreasing, 1 for increasing)
+     * @param strict Whether the order should be strict
+     * @throws NonMonotonousSequenceException if the array is not sorted.
+     * @deprecated as of 2.2 (please use the new {@link #checkOrder(double[],OrderDirection,boolean)
+     * checkOrder} method). To be removed in 3.0.
+     */
+    @Deprecated
+    public static void checkOrder(double[] val, int dir, boolean strict) {
+<span class="fc bfc" id="L2143" title="All 2 branches covered.">        if (dir &gt; 0) {</span>
+<span class="fc" id="L2144">            checkOrder(val, OrderDirection.INCREASING, strict);</span>
+        } else {
+<span class="fc" id="L2146">            checkOrder(val, OrderDirection.DECREASING, strict);</span>
+        }
+<span class="fc" id="L2148">    }</span>
+
+    /**
+     * Returns the Cartesian norm (2-norm), handling both overflow and underflow.
+     * Translation of the minpack enorm subroutine.
+     *
+     * The redistribution policy for MINPACK is available &lt;a
+     * href=&quot;http://www.netlib.org/minpack/disclaimer&quot;&gt;here&lt;/a&gt;, for convenience, it
+     * is reproduced below.&lt;/p&gt;
+     *
+     * &lt;table border=&quot;0&quot; width=&quot;80%&quot; cellpadding=&quot;10&quot; align=&quot;center&quot; bgcolor=&quot;#E0E0E0&quot;&gt;
+     * &lt;tr&gt;&lt;td&gt;
+     *    Minpack Copyright Notice (1999) University of Chicago.
+     *    All rights reserved
+     * &lt;/td&gt;&lt;/tr&gt;
+     * &lt;tr&gt;&lt;td&gt;
+     * Redistribution and use in source and binary forms, with or without
+     * modification, are permitted provided that the following conditions
+     * are met:
+     * &lt;ol&gt;
+     *  &lt;li&gt;Redistributions of source code must retain the above copyright
+     *      notice, this list of conditions and the following disclaimer.&lt;/li&gt;
+     * &lt;li&gt;Redistributions in binary form must reproduce the above
+     *     copyright notice, this list of conditions and the following
+     *     disclaimer in the documentation and/or other materials provided
+     *     with the distribution.&lt;/li&gt;
+     * &lt;li&gt;The end-user documentation included with the redistribution, if any,
+     *     must include the following acknowledgment:
+     *     &lt;code&gt;This product includes software developed by the University of
+     *           Chicago, as Operator of Argonne National Laboratory.&lt;/code&gt;
+     *     Alternately, this acknowledgment may appear in the software itself,
+     *     if and wherever such third-party acknowledgments normally appear.&lt;/li&gt;
+     * &lt;li&gt;&lt;strong&gt;WARRANTY DISCLAIMER. THE SOFTWARE IS SUPPLIED &quot;AS IS&quot;
+     *     WITHOUT WARRANTY OF ANY KIND. THE COPYRIGHT HOLDER, THE
+     *     UNITED STATES, THE UNITED STATES DEPARTMENT OF ENERGY, AND
+     *     THEIR EMPLOYEES: (1) DISCLAIM ANY WARRANTIES, EXPRESS OR
+     *     IMPLIED, INCLUDING BUT NOT LIMITED TO ANY IMPLIED WARRANTIES
+     *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE
+     *     OR NON-INFRINGEMENT, (2) DO NOT ASSUME ANY LEGAL LIABILITY
+     *     OR RESPONSIBILITY FOR THE ACCURACY, COMPLETENESS, OR
+     *     USEFULNESS OF THE SOFTWARE, (3) DO NOT REPRESENT THAT USE OF
+     *     THE SOFTWARE WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS, (4)
+     *     DO NOT WARRANT THAT THE SOFTWARE WILL FUNCTION
+     *     UNINTERRUPTED, THAT IT IS ERROR-FREE OR THAT ANY ERRORS WILL
+     *     BE CORRECTED.&lt;/strong&gt;&lt;/li&gt;
+     * &lt;li&gt;&lt;strong&gt;LIMITATION OF LIABILITY. IN NO EVENT WILL THE COPYRIGHT
+     *     HOLDER, THE UNITED STATES, THE UNITED STATES DEPARTMENT OF
+     *     ENERGY, OR THEIR EMPLOYEES: BE LIABLE FOR ANY INDIRECT,
+     *     INCIDENTAL, CONSEQUENTIAL, SPECIAL OR PUNITIVE DAMAGES OF
+     *     ANY KIND OR NATURE, INCLUDING BUT NOT LIMITED TO LOSS OF
+     *     PROFITS OR LOSS OF DATA, FOR ANY REASON WHATSOEVER, WHETHER
+     *     SUCH LIABILITY IS ASSERTED ON THE BASIS OF CONTRACT, TORT
+     *     (INCLUDING NEGLIGENCE OR STRICT LIABILITY), OR OTHERWISE,
+     *     EVEN IF ANY OF SAID PARTIES HAS BEEN WARNED OF THE
+     *     POSSIBILITY OF SUCH LOSS OR DAMAGES.&lt;/strong&gt;&lt;/li&gt;
+     * &lt;ol&gt;&lt;/td&gt;&lt;/tr&gt;
+     * &lt;/table&gt;
+     *
+     * @param v vector of doubles
+     * @return the 2-norm of the vector
+     * @since 2.2
+     */
+    public static double safeNorm(double[] v) {
+<span class="nc" id="L2211">    double rdwarf = 3.834e-20;</span>
+<span class="nc" id="L2212">    double rgiant = 1.304e+19;</span>
+<span class="nc" id="L2213">    double s1=0.0;</span>
+<span class="nc" id="L2214">    double s2=0.0;</span>
+<span class="nc" id="L2215">    double s3=0.0;</span>
+<span class="nc" id="L2216">    double x1max = 0.0;</span>
+<span class="nc" id="L2217">    double x3max = 0.0;</span>
+<span class="nc" id="L2218">    double floatn = (double)v.length;</span>
+<span class="nc" id="L2219">    double agiant = rgiant/floatn;</span>
+<span class="nc bnc" id="L2220" title="All 2 branches missed.">    for (int i=0;i&lt;v.length;i++) {</span>
+<span class="nc" id="L2221">        double xabs = Math.abs(v[i]);</span>
+<span class="nc bnc" id="L2222" title="All 4 branches missed.">        if (xabs&lt;rdwarf || xabs&gt;agiant) {</span>
+<span class="nc bnc" id="L2223" title="All 2 branches missed.">            if (xabs&gt;rdwarf) {</span>
+<span class="nc bnc" id="L2224" title="All 2 branches missed.">                if (xabs&gt;x1max) {</span>
+<span class="nc" id="L2225">                    double r=x1max/xabs;</span>
+<span class="nc" id="L2226">                    s1=1.0+s1*r*r;</span>
+<span class="nc" id="L2227">                    x1max=xabs;</span>
+<span class="nc" id="L2228">                } else {</span>
+<span class="nc" id="L2229">                    double r=xabs/x1max;</span>
+<span class="nc" id="L2230">                    s1+=r*r;</span>
+<span class="nc" id="L2231">                }</span>
+            } else {
+<span class="nc bnc" id="L2233" title="All 2 branches missed.">                if (xabs&gt;x3max) {</span>
+<span class="nc" id="L2234">                 double r=x3max/xabs;</span>
+<span class="nc" id="L2235">                 s3=1.0+s3*r*r;</span>
+<span class="nc" id="L2236">                 x3max=xabs;</span>
+<span class="nc" id="L2237">                } else {</span>
+<span class="nc bnc" id="L2238" title="All 2 branches missed.">                    if (xabs!=0.0) {</span>
+<span class="nc" id="L2239">                        double r=xabs/x3max;</span>
+<span class="nc" id="L2240">                        s3+=r*r;</span>
+<span class="nc" id="L2241">                    }</span>
+                }
+            }
+        } else {
+<span class="nc" id="L2245">         s2+=xabs*xabs;</span>
+        }
+    }
+    double norm;
+<span class="nc bnc" id="L2249" title="All 2 branches missed.">    if (s1!=0.0) {</span>
+<span class="nc" id="L2250">        norm = x1max*Math.sqrt(s1+(s2/x1max)/x1max);</span>
+    } else {
+<span class="nc bnc" id="L2252" title="All 2 branches missed.">        if (s2==0.0) {</span>
+<span class="nc" id="L2253">            norm = x3max*Math.sqrt(s3);</span>
+        } else {
+<span class="nc bnc" id="L2255" title="All 2 branches missed.">            if (s2&gt;=x3max) {</span>
+<span class="nc" id="L2256">                norm = Math.sqrt(s2*(1.0+(x3max/s2)*(x3max*s3)));</span>
+            } else {
+<span class="nc" id="L2258">                norm = Math.sqrt(x3max*((s2/x3max)+(x3max*s3)));</span>
+            }
+        }
+    }
+<span class="nc" id="L2262">    return norm;</span>
+}
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

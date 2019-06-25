@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PowellOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.direct</a> &gt; <span class="el_source">PowellOptimizer.java</span></div><h1>PowellOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.direct;
+
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.optimization.GoalType;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.optimization.RealPointValuePair;
+import org.apache.commons.math.optimization.general.AbstractScalarDifferentiableOptimizer;
+import org.apache.commons.math.optimization.univariate.AbstractUnivariateRealOptimizer;
+import org.apache.commons.math.optimization.univariate.BracketFinder;
+import org.apache.commons.math.optimization.univariate.BrentOptimizer;
+
+/**
+ * Powell algorithm.
+ * This code is translated and adapted from the Python version of this
+ * algorithm (as implemented in module {@code optimize.py} v0.5 of
+ * &lt;em&gt;SciPy&lt;/em&gt;).
+ *
+ * @version $Revision$ $Date$
+ * @since 2.2
+ */
+public class PowellOptimizer
+    extends AbstractScalarDifferentiableOptimizer {
+    /**
+     * Default relative tolerance for line search ({@value}).
+     */
+    public static final double DEFAULT_LS_RELATIVE_TOLERANCE = 1e-7;
+    /**
+     * Default absolute tolerance for line search ({@value}).
+     */
+    public static final double DEFAULT_LS_ABSOLUTE_TOLERANCE = 1e-11;
+    /**
+     * Line search.
+     */
+    private final LineSearch line;
+
+    /**
+     * Constructor with default line search tolerances (see the
+     * {@link #PowellOptimizer(double,double) other constructor}).
+     */
+    public PowellOptimizer() {
+<span class="nc" id="L60">        this(DEFAULT_LS_RELATIVE_TOLERANCE,</span>
+             DEFAULT_LS_ABSOLUTE_TOLERANCE);
+<span class="nc" id="L62">    }</span>
+
+    /**
+     * Constructor with default absolute line search tolerances (see
+     * the {@link #PowellOptimizer(double,double) other constructor}).
+     *
+     * @param lsRelativeTolerance Relative error tolerance for
+     * the line search algorithm ({@link BrentOptimizer}).
+     */
+    public PowellOptimizer(double lsRelativeTolerance) {
+<span class="fc" id="L72">        this(lsRelativeTolerance,</span>
+             DEFAULT_LS_ABSOLUTE_TOLERANCE);
+<span class="fc" id="L74">    }</span>
+
+    /**
+     * @param lsRelativeTolerance Relative error tolerance for
+     * the line search algorithm ({@link BrentOptimizer}).
+     * @param lsAbsoluteTolerance Relative error tolerance for
+     * the line search algorithm ({@link BrentOptimizer}).
+     */
+    public PowellOptimizer(double lsRelativeTolerance,
+<span class="fc" id="L83">                           double lsAbsoluteTolerance) {</span>
+<span class="fc" id="L84">        line = new LineSearch(lsRelativeTolerance,</span>
+                              lsAbsoluteTolerance);
+<span class="fc" id="L86">    }</span>
+
+    /** {@inheritDoc} */
+    @Override
+    protected RealPointValuePair doOptimize()
+        throws FunctionEvaluationException,
+               OptimizationException {
+<span class="fc" id="L93">        final double[] guess = point.clone();</span>
+<span class="fc" id="L94">        final int n = guess.length;</span>
+
+<span class="fc" id="L96">        final double[][] direc = new double[n][n];</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L98">            direc[i][i] = 1;</span>
+        }
+
+<span class="fc" id="L101">        double[] x = guess;</span>
+<span class="fc" id="L102">        double fVal = computeObjectiveValue(x);</span>
+<span class="fc" id="L103">        double[] x1 = x.clone();</span>
+        while (true) {
+<span class="fc" id="L105">            incrementIterationsCounter();</span>
+
+<span class="fc" id="L107">            double fX = fVal;</span>
+<span class="fc" id="L108">            double fX2 = 0;</span>
+<span class="fc" id="L109">            double delta = 0;</span>
+<span class="fc" id="L110">            int bigInd = 0;</span>
+<span class="fc" id="L111">            double alphaMin = 0;</span>
+
+<span class="fc bfc" id="L113" title="All 2 branches covered.">            for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L114">                final double[] d = /* Arrays.*/ copyOf(direc[i], n); // Java 1.5 does not support Arrays.copyOf()</span>
+
+<span class="fc" id="L116">                fX2 = fVal;</span>
+
+<span class="fc" id="L118">                line.search(x, d);</span>
+<span class="fc" id="L119">                fVal = line.getValueAtOptimum();</span>
+<span class="fc" id="L120">                alphaMin = line.getOptimum();</span>
+<span class="fc" id="L121">                final double[][] result = newPointAndDirection(x, d, alphaMin);</span>
+<span class="fc" id="L122">                x = result[0];</span>
+
+<span class="fc bfc" id="L124" title="All 2 branches covered.">                if ((fX2 - fVal) &gt; delta) {</span>
+<span class="fc" id="L125">                    delta = fX2 - fVal;</span>
+<span class="fc" id="L126">                    bigInd = i;</span>
+                }
+            }
+
+<span class="fc" id="L130">            final RealPointValuePair previous = new RealPointValuePair(x1, fX);</span>
+<span class="fc" id="L131">            final RealPointValuePair current = new RealPointValuePair(x, fVal);</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            if (getConvergenceChecker().converged(getIterations(), previous, current)) {</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">                if (goal == GoalType.MINIMIZE) {</span>
+<span class="pc bpc" id="L134" title="1 of 2 branches missed.">                    return (fVal &lt; fX) ? current : previous;</span>
+                } else {
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">                    return (fVal &gt; fX) ? current : previous;</span>
+                }
+            }
+
+<span class="fc" id="L140">            final double[] d = new double[n];</span>
+<span class="fc" id="L141">            final double[] x2 = new double[n];</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">            for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L143">                d[i] = x[i] - x1[i];</span>
+<span class="fc" id="L144">                x2[i] = 2 * x[i] - x1[i];</span>
+            }
+
+<span class="fc" id="L147">            x1 = x.clone();</span>
+<span class="fc" id="L148">            fX2 = computeObjectiveValue(x2);</span>
+
+<span class="fc bfc" id="L150" title="All 2 branches covered.">            if (fX &gt; fX2) {</span>
+<span class="fc" id="L151">                double t = 2 * (fX + fX2 - 2 * fVal);</span>
+<span class="fc" id="L152">                double temp = fX - fVal - delta;</span>
+<span class="fc" id="L153">                t *= temp * temp;</span>
+<span class="fc" id="L154">                temp = fX - fX2;</span>
+<span class="fc" id="L155">                t -= delta * temp * temp;</span>
+
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">                if (t &lt; 0.0) {</span>
+<span class="fc" id="L158">                    line.search(x, d);</span>
+<span class="fc" id="L159">                    fVal = line.getValueAtOptimum();</span>
+<span class="fc" id="L160">                    alphaMin = line.getOptimum();</span>
+<span class="fc" id="L161">                    final double[][] result = newPointAndDirection(x, d, alphaMin);</span>
+<span class="fc" id="L162">                    x = result[0];</span>
+
+<span class="fc" id="L164">                    final int lastInd = n - 1;</span>
+<span class="fc" id="L165">                    direc[bigInd] = direc[lastInd];</span>
+<span class="fc" id="L166">                    direc[lastInd] = result[1];</span>
+                }
+            }
+<span class="fc" id="L169">        }</span>
+    }
+
+    /**
+     * Compute a new point (in the original space) and a new direction
+     * vector, resulting from the line search.
+     * The parameters {@code p} and {@code d} will be changed in-place.
+     *
+     * @param p Point used in the line search.
+     * @param d Direction used in the line search.
+     * @param optimum Optimum found by the line search.
+     * @return a 2-element array containing the new point (at index 0) and
+     * the new direction (at index 1).
+     */
+    private double[][] newPointAndDirection(double[] p,
+                                            double[] d,
+                                            double optimum) {
+<span class="fc" id="L186">        final int n = p.length;</span>
+<span class="fc" id="L187">        final double[][] result = new double[2][n];</span>
+<span class="fc" id="L188">        final double[] nP = result[0];</span>
+<span class="fc" id="L189">        final double[] nD = result[1];</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L191">            nD[i] = d[i] * optimum;</span>
+<span class="fc" id="L192">            nP[i] = p[i] + nD[i];</span>
+        }
+<span class="fc" id="L194">        return result;</span>
+    }
+
+    /**
+     * Class for finding the minimum of the objective function along a given
+     * direction.
+     */
+    private class LineSearch {
+        /**
+         * Optimizer.
+         */
+<span class="fc" id="L205">        private final AbstractUnivariateRealOptimizer optim = new BrentOptimizer();</span>
+        /**
+         * Automatic bracketing.
+         */
+<span class="fc" id="L209">        private final BracketFinder bracket = new BracketFinder();</span>
+        /**
+         * Value of the optimum.
+         */
+<span class="fc" id="L213">        private double optimum = Double.NaN;</span>
+        /**
+         * Value of the objective function at the optimum.
+         */
+<span class="fc" id="L217">        private double valueAtOptimum = Double.NaN;</span>
+
+        /**
+         * @param relativeTolerance Relative tolerance.
+         * @param absoluteTolerance Absolute tolerance.
+         */
+        public LineSearch(double relativeTolerance,
+<span class="fc" id="L224">                          double absoluteTolerance) {</span>
+<span class="fc" id="L225">            optim.setRelativeAccuracy(relativeTolerance);</span>
+<span class="fc" id="L226">            optim.setAbsoluteAccuracy(absoluteTolerance);</span>
+<span class="fc" id="L227">        }</span>
+
+        /**
+         * Find the minimum of the function {@code f(p + alpha * d)}.
+         *
+         * @param p Starting point.
+         * @param d Search direction.
+         * @throws FunctionEvaluationException if function cannot be evaluated at some test point
+         * @throws OptimizationException if algorithm fails to converge
+         */
+        public void search(final double[] p, final double[] d)
+            throws OptimizationException, FunctionEvaluationException {
+
+            // Reset.
+<span class="fc" id="L241">            optimum = Double.NaN;</span>
+<span class="fc" id="L242">            valueAtOptimum = Double.NaN;</span>
+
+            try {
+<span class="fc" id="L245">                final int n = p.length;</span>
+<span class="fc" id="L246">                final UnivariateRealFunction f = new UnivariateRealFunction() {</span>
+                        public double value(double alpha)
+                            throws FunctionEvaluationException {
+
+<span class="fc" id="L250">                            final double[] x = new double[n];</span>
+<span class="fc bfc" id="L251" title="All 2 branches covered.">                            for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L252">                                x[i] = p[i] + alpha * d[i];</span>
+                            }
+                            final double obj;
+<span class="fc" id="L255">                            obj = computeObjectiveValue(x);</span>
+<span class="fc" id="L256">                            return obj;</span>
+                        }
+                    };
+
+<span class="fc" id="L260">                bracket.search(f, goal, 0, 1);</span>
+<span class="fc" id="L261">                optimum = optim.optimize(f, goal,</span>
+<span class="fc" id="L262">                                         bracket.getLo(),</span>
+<span class="fc" id="L263">                                         bracket.getHi(),</span>
+<span class="fc" id="L264">                                         bracket.getMid());</span>
+<span class="fc" id="L265">                valueAtOptimum = optim.getFunctionValue();</span>
+<span class="nc" id="L266">            } catch (MaxIterationsExceededException e) {</span>
+<span class="nc" id="L267">                throw new OptimizationException(e);</span>
+<span class="fc" id="L268">            }</span>
+<span class="fc" id="L269">        }</span>
+
+        /**
+         * @return the optimum.
+         */
+        public double getOptimum() {
+<span class="fc" id="L275">            return optimum;</span>
+        }
+        /**
+         * @return the value of the function at the optimum.
+         */
+        public double getValueAtOptimum() {
+<span class="fc" id="L281">            return valueAtOptimum;</span>
+        }
+    }
+
+    /**
+     * Java 1.5 does not support Arrays.copyOf()
+     *
+     * @param source the array to be copied
+     * @param newLen the length of the copy to be returned
+     * @return the copied array, truncated or padded as necessary.
+     */
+     private double[] copyOf(double[] source, int newLen) {
+<span class="fc" id="L293">         double[] output = new double[newLen];</span>
+<span class="fc" id="L294">         System.arraycopy(source, 0, output, 0, Math.min(source.length, newLen));</span>
+<span class="fc" id="L295">         return output;</span>
+     }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

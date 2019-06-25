@@ -1,0 +1,425 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ChiSquareTestImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.stat.inference</a> &gt; <span class="el_source">ChiSquareTestImpl.java</span></div><h1>ChiSquareTestImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.stat.inference;
+
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.distribution.ChiSquaredDistribution;
+import org.apache.commons.math.distribution.ChiSquaredDistributionImpl;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements Chi-Square test statistics defined in the
+ * {@link UnknownDistributionChiSquareTest} interface.
+ *
+ * @version $Revision$ $Date$
+ */
+public class ChiSquareTestImpl implements UnknownDistributionChiSquareTest {
+
+    /** Distribution used to compute inference statistics. */
+    private ChiSquaredDistribution distribution;
+
+    /**
+     * Construct a ChiSquareTestImpl
+     */
+    public ChiSquareTestImpl() {
+<span class="fc" id="L41">        this(new ChiSquaredDistributionImpl(1.0));</span>
+<span class="fc" id="L42">    }</span>
+
+    /**
+     * Create a test instance using the given distribution for computing
+     * inference statistics.
+     * @param x distribution used to compute inference statistics.
+     * @since 1.2
+     */
+    public ChiSquareTestImpl(ChiSquaredDistribution x) {
+<span class="fc" id="L51">        super();</span>
+<span class="fc" id="L52">        setDistribution(x);</span>
+<span class="fc" id="L53">    }</span>
+     /**
+     * {@inheritDoc}
+     * &lt;p&gt;&lt;strong&gt;Note: &lt;/strong&gt;This implementation rescales the
+     * &lt;code&gt;expected&lt;/code&gt; array if necessary to ensure that the sum of the
+     * expected and observed counts are equal.&lt;/p&gt;
+     *
+     * @param observed array of observed frequency counts
+     * @param expected array of expected frequency counts
+     * @return chi-square test statistic
+     * @throws IllegalArgumentException if preconditions are not met
+     * or length is less than 2
+     */
+    public double chiSquare(double[] expected, long[] observed)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (expected.length &lt; 2) {</span>
+<span class="fc" id="L69">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L70">                  LocalizedFormats.INSUFFICIENT_DIMENSION, expected.length, 2);</span>
+        }
+<span class="fc bfc" id="L72" title="All 2 branches covered.">        if (expected.length != observed.length) {</span>
+<span class="fc" id="L73">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L74">                  LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE, expected.length, observed.length);</span>
+        }
+<span class="fc" id="L76">        checkPositive(expected);</span>
+<span class="fc" id="L77">        checkNonNegative(observed);</span>
+<span class="fc" id="L78">        double sumExpected = 0d;</span>
+<span class="fc" id="L79">        double sumObserved = 0d;</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        for (int i = 0; i &lt; observed.length; i++) {</span>
+<span class="fc" id="L81">            sumExpected += expected[i];</span>
+<span class="fc" id="L82">            sumObserved += observed[i];</span>
+        }
+<span class="fc" id="L84">        double ratio = 1.0d;</span>
+<span class="fc" id="L85">        boolean rescale = false;</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        if (FastMath.abs(sumExpected - sumObserved) &gt; 10E-6) {</span>
+<span class="fc" id="L87">            ratio = sumObserved / sumExpected;</span>
+<span class="fc" id="L88">            rescale = true;</span>
+        }
+<span class="fc" id="L90">        double sumSq = 0.0d;</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        for (int i = 0; i &lt; observed.length; i++) {</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">            if (rescale) {</span>
+<span class="fc" id="L93">                final double dev = observed[i] - ratio * expected[i];</span>
+<span class="fc" id="L94">                sumSq += dev * dev / (ratio * expected[i]);</span>
+<span class="fc" id="L95">            } else {</span>
+<span class="fc" id="L96">                final double dev = observed[i] - expected[i];</span>
+<span class="fc" id="L97">                sumSq += dev * dev / expected[i];</span>
+            }
+        }
+<span class="fc" id="L100">        return sumSq;</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     * &lt;p&gt;&lt;strong&gt;Note: &lt;/strong&gt;This implementation rescales the
+     * &lt;code&gt;expected&lt;/code&gt; array if necessary to ensure that the sum of the
+     * expected and observed counts are equal.&lt;/p&gt;
+     *
+     * @param observed array of observed frequency counts
+     * @param expected array of expected frequency counts
+     * @return p-value
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs computing the p-value
+     */
+    public double chiSquareTest(double[] expected, long[] observed)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L117">        distribution.setDegreesOfFreedom(expected.length - 1.0);</span>
+<span class="fc" id="L118">        return 1.0 - distribution.cumulativeProbability(</span>
+<span class="fc" id="L119">            chiSquare(expected, observed));</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     * &lt;p&gt;&lt;strong&gt;Note: &lt;/strong&gt;This implementation rescales the
+     * &lt;code&gt;expected&lt;/code&gt; array if necessary to ensure that the sum of the
+     * expected and observed counts are equal.&lt;/p&gt;
+     *
+     * @param observed array of observed frequency counts
+     * @param expected array of expected frequency counts
+     * @param alpha significance level of the test
+     * @return true iff null hypothesis can be rejected with confidence
+     * 1 - alpha
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs performing the test
+     */
+    public boolean chiSquareTest(double[] expected, long[] observed,
+            double alpha) throws IllegalArgumentException, MathException {
+<span class="pc bpc" id="L138" title="1 of 4 branches missed.">        if ((alpha &lt;= 0) || (alpha &gt; 0.5)) {</span>
+<span class="fc" id="L139">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.OUT_OF_BOUND_SIGNIFICANCE_LEVEL,
+<span class="fc" id="L141">                  alpha, 0, 0.5);</span>
+        }
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        return chiSquareTest(expected, observed) &lt; alpha;</span>
+    }
+
+    /**
+     * @param counts array representation of 2-way table
+     * @return chi-square test statistic
+     * @throws IllegalArgumentException if preconditions are not met
+     */
+    public double chiSquare(long[][] counts) throws IllegalArgumentException {
+
+<span class="fc" id="L153">        checkArray(counts);</span>
+<span class="fc" id="L154">        int nRows = counts.length;</span>
+<span class="fc" id="L155">        int nCols = counts[0].length;</span>
+
+        // compute row, column and total sums
+<span class="fc" id="L158">        double[] rowSum = new double[nRows];</span>
+<span class="fc" id="L159">        double[] colSum = new double[nCols];</span>
+<span class="fc" id="L160">        double total = 0.0d;</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L163">                rowSum[row] += counts[row][col];</span>
+<span class="fc" id="L164">                colSum[col] += counts[row][col];</span>
+<span class="fc" id="L165">                total += counts[row][col];</span>
+            }
+        }
+
+        // compute expected counts and chi-square
+<span class="fc" id="L170">        double sumSq = 0.0d;</span>
+<span class="fc" id="L171">        double expected = 0.0d;</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        for (int row = 0; row &lt; nRows; row++) {</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">            for (int col = 0; col &lt; nCols; col++) {</span>
+<span class="fc" id="L174">                expected = (rowSum[row] * colSum[col]) / total;</span>
+<span class="fc" id="L175">                sumSq += ((counts[row][col] - expected) *</span>
+                        (counts[row][col] - expected)) / expected;
+            }
+        }
+<span class="fc" id="L179">        return sumSq;</span>
+    }
+
+    /**
+     * @param counts array representation of 2-way table
+     * @return p-value
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs computing the p-value
+     */
+    public double chiSquareTest(long[][] counts)
+    throws IllegalArgumentException, MathException {
+<span class="fc" id="L190">        checkArray(counts);</span>
+<span class="fc" id="L191">        double df = ((double) counts.length -1) * ((double) counts[0].length - 1);</span>
+<span class="fc" id="L192">        distribution.setDegreesOfFreedom(df);</span>
+<span class="fc" id="L193">        return 1 - distribution.cumulativeProbability(chiSquare(counts));</span>
+    }
+
+    /**
+     * @param counts array representation of 2-way table
+     * @param alpha significance level of the test
+     * @return true iff null hypothesis can be rejected with confidence
+     * 1 - alpha
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs performing the test
+     */
+    public boolean chiSquareTest(long[][] counts, double alpha)
+    throws IllegalArgumentException, MathException {
+<span class="pc bpc" id="L206" title="1 of 4 branches missed.">        if ((alpha &lt;= 0) || (alpha &gt; 0.5)) {</span>
+<span class="fc" id="L207">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.OUT_OF_BOUND_SIGNIFICANCE_LEVEL,
+<span class="fc" id="L209">                  alpha, 0.0, 0.5);</span>
+        }
+<span class="fc bfc" id="L211" title="All 2 branches covered.">        return chiSquareTest(counts) &lt; alpha;</span>
+    }
+
+    /**
+     * @param observed1 array of observed frequency counts of the first data set
+     * @param observed2 array of observed frequency counts of the second data set
+     * @return chi-square test statistic
+     * @throws IllegalArgumentException if preconditions are not met
+     * @since 1.2
+     */
+    public double chiSquareDataSetsComparison(long[] observed1, long[] observed2)
+        throws IllegalArgumentException {
+
+        // Make sure lengths are same
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">        if (observed1.length &lt; 2) {</span>
+<span class="nc" id="L226">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L227">                  LocalizedFormats.INSUFFICIENT_DIMENSION, observed1.length, 2);</span>
+        }
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        if (observed1.length != observed2.length) {</span>
+<span class="nc" id="L230">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE,
+<span class="nc" id="L232">                  observed1.length, observed2.length);</span>
+        }
+
+        // Ensure non-negative counts
+<span class="fc" id="L236">        checkNonNegative(observed1);</span>
+<span class="fc" id="L237">        checkNonNegative(observed2);</span>
+
+        // Compute and compare count sums
+<span class="fc" id="L240">        long countSum1 = 0;</span>
+<span class="fc" id="L241">        long countSum2 = 0;</span>
+<span class="fc" id="L242">        boolean unequalCounts = false;</span>
+<span class="fc" id="L243">        double weight = 0.0;</span>
+<span class="fc bfc" id="L244" title="All 2 branches covered.">        for (int i = 0; i &lt; observed1.length; i++) {</span>
+<span class="fc" id="L245">            countSum1 += observed1[i];</span>
+<span class="fc" id="L246">            countSum2 += observed2[i];</span>
+        }
+        // Ensure neither sample is uniformly 0
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">        if (countSum1 == 0) {</span>
+<span class="nc" id="L250">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L251">                  LocalizedFormats.OBSERVED_COUNTS_ALL_ZERO, 1);</span>
+        }
+<span class="fc bfc" id="L253" title="All 2 branches covered.">        if (countSum2 == 0) {</span>
+<span class="fc" id="L254">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L255">                  LocalizedFormats.OBSERVED_COUNTS_ALL_ZERO, 2);</span>
+        }
+        // Compare and compute weight only if different
+<span class="fc bfc" id="L258" title="All 2 branches covered.">        unequalCounts = countSum1 != countSum2;</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (unequalCounts) {</span>
+<span class="fc" id="L260">            weight = FastMath.sqrt((double) countSum1 / (double) countSum2);</span>
+        }
+        // Compute ChiSquare statistic
+<span class="fc" id="L263">        double sumSq = 0.0d;</span>
+<span class="fc" id="L264">        double dev = 0.0d;</span>
+<span class="fc" id="L265">        double obs1 = 0.0d;</span>
+<span class="fc" id="L266">        double obs2 = 0.0d;</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        for (int i = 0; i &lt; observed1.length; i++) {</span>
+<span class="pc bpc" id="L268" title="1 of 4 branches missed.">            if (observed1[i] == 0 &amp;&amp; observed2[i] == 0) {</span>
+<span class="fc" id="L269">                throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L270">                      LocalizedFormats.OBSERVED_COUNTS_BOTTH_ZERO_FOR_ENTRY, i);</span>
+            } else {
+<span class="fc" id="L272">                obs1 = observed1[i];</span>
+<span class="fc" id="L273">                obs2 = observed2[i];</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">                if (unequalCounts) { // apply weights</span>
+<span class="fc" id="L275">                    dev = obs1/weight - obs2 * weight;</span>
+                } else {
+<span class="fc" id="L277">                    dev = obs1 - obs2;</span>
+                }
+<span class="fc" id="L279">                sumSq += (dev * dev) / (obs1 + obs2);</span>
+            }
+        }
+<span class="fc" id="L282">        return sumSq;</span>
+    }
+
+    /**
+     * @param observed1 array of observed frequency counts of the first data set
+     * @param observed2 array of observed frequency counts of the second data set
+     * @return p-value
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs computing the p-value
+     * @since 1.2
+     */
+    public double chiSquareTestDataSetsComparison(long[] observed1, long[] observed2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L295">        distribution.setDegreesOfFreedom((double) observed1.length - 1);</span>
+<span class="fc" id="L296">        return 1 - distribution.cumulativeProbability(</span>
+<span class="fc" id="L297">                chiSquareDataSetsComparison(observed1, observed2));</span>
+    }
+
+    /**
+     * @param observed1 array of observed frequency counts of the first data set
+     * @param observed2 array of observed frequency counts of the second data set
+     * @param alpha significance level of the test
+     * @return true iff null hypothesis can be rejected with confidence
+     * 1 - alpha
+     * @throws IllegalArgumentException if preconditions are not met
+     * @throws MathException if an error occurs performing the test
+     * @since 1.2
+     */
+    public boolean chiSquareTestDataSetsComparison(long[] observed1, long[] observed2,
+            double alpha) throws IllegalArgumentException, MathException {
+<span class="pc bpc" id="L312" title="2 of 4 branches missed.">        if ((alpha &lt;= 0) || (alpha &gt; 0.5)) {</span>
+<span class="nc" id="L313">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.OUT_OF_BOUND_SIGNIFICANCE_LEVEL,
+<span class="nc" id="L315">                  alpha, 0.0, 0.5);</span>
+        }
+<span class="fc bfc" id="L317" title="All 2 branches covered.">        return chiSquareTestDataSetsComparison(observed1, observed2) &lt; alpha;</span>
+    }
+
+    /**
+     * Checks to make sure that the input long[][] array is rectangular,
+     * has at least 2 rows and 2 columns, and has all non-negative entries,
+     * throwing IllegalArgumentException if any of these checks fail.
+     *
+     * @param in input 2-way table to check
+     * @throws IllegalArgumentException if the array is not valid
+     */
+    private void checkArray(long[][] in) throws IllegalArgumentException {
+
+<span class="fc bfc" id="L330" title="All 2 branches covered.">        if (in.length &lt; 2) {</span>
+<span class="fc" id="L331">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L332">                  LocalizedFormats.INSUFFICIENT_DIMENSION, in.length, 2);</span>
+        }
+
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        if (in[0].length &lt; 2) {</span>
+<span class="fc" id="L336">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L337">                  LocalizedFormats.INSUFFICIENT_DIMENSION, in[0].length, 2);</span>
+        }
+
+<span class="fc" id="L340">        checkRectangular(in);</span>
+<span class="fc" id="L341">        checkNonNegative(in);</span>
+
+<span class="fc" id="L343">    }</span>
+
+    //---------------------  Private array methods -- should find a utility home for these
+
+    /**
+     * Throws IllegalArgumentException if the input array is not rectangular.
+     *
+     * @param in array to be tested
+     * @throws NullPointerException if input array is null
+     * @throws IllegalArgumentException if input array is not rectangular
+     */
+    private void checkRectangular(long[][] in) {
+<span class="fc bfc" id="L355" title="All 2 branches covered.">        for (int i = 1; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L356" title="All 2 branches covered.">            if (in[i].length != in[0].length) {</span>
+<span class="fc" id="L357">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.DIFFERENT_ROWS_LENGTHS,
+<span class="fc" id="L359">                      in[i].length, in[0].length);</span>
+            }
+        }
+<span class="fc" id="L362">    }</span>
+
+    /**
+     * Check all entries of the input array are &gt; 0.
+     *
+     * @param in array to be tested
+     * @exception IllegalArgumentException if one entry is not positive
+     */
+    private void checkPositive(double[] in) throws IllegalArgumentException {
+<span class="fc bfc" id="L371" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">            if (in[i] &lt;= 0) {</span>
+<span class="fc" id="L373">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.NOT_POSITIVE_ELEMENT_AT_INDEX,
+<span class="fc" id="L375">                      i, in[i]);</span>
+            }
+        }
+<span class="fc" id="L378">    }</span>
+
+    /**
+     * Check all entries of the input array are &gt;= 0.
+     *
+     * @param in array to be tested
+     * @exception IllegalArgumentException if one entry is negative
+     */
+    private void checkNonNegative(long[] in) throws IllegalArgumentException {
+<span class="fc bfc" id="L387" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i++) {</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            if (in[i] &lt; 0) {</span>
+<span class="fc" id="L389">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.NEGATIVE_ELEMENT_AT_INDEX,
+<span class="fc" id="L391">                      i, in[i]);</span>
+            }
+        }
+<span class="fc" id="L394">    }</span>
+
+    /**
+     * Check all entries of the input array are &gt;= 0.
+     *
+     * @param in array to be tested
+     * @exception IllegalArgumentException if one entry is negative
+     */
+    private void checkNonNegative(long[][] in) throws IllegalArgumentException {
+<span class="fc bfc" id="L403" title="All 2 branches covered.">        for (int i = 0; i &lt; in.length; i ++) {</span>
+<span class="fc bfc" id="L404" title="All 2 branches covered.">            for (int j = 0; j &lt; in[i].length; j++) {</span>
+<span class="fc bfc" id="L405" title="All 2 branches covered.">                if (in[i][j] &lt; 0) {</span>
+<span class="fc" id="L406">                    throw MathRuntimeException.createIllegalArgumentException(</span>
+                          LocalizedFormats.NEGATIVE_ELEMENT_AT_2D_INDEX,
+<span class="fc" id="L408">                          i, j, in[i][j]);</span>
+                }
+            }
+        }
+<span class="fc" id="L412">    }</span>
+
+    /**
+     * Modify the distribution used to compute inference statistics.
+     *
+     * @param value
+     *            the new distribution
+     * @since 1.2
+     */
+    public void setDistribution(ChiSquaredDistribution value) {
+<span class="fc" id="L422">        distribution = value;</span>
+<span class="fc" id="L423">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

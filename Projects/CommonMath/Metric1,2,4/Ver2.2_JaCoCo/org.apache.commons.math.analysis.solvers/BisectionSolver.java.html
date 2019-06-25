@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>BisectionSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">BisectionSolver.java</span></div><h1>BisectionSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements the &lt;a href=&quot;http://mathworld.wolfram.com/Bisection.html&quot;&gt;
+ * bisection algorithm&lt;/a&gt; for finding zeros of univariate real functions.
+ * &lt;p&gt;
+ * The function should be continuous but not necessarily smooth.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public class BisectionSolver extends UnivariateRealSolverImpl {
+
+    /**
+     * Construct a solver for the given function.
+     *
+     * @param f function to solve.
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public BisectionSolver(UnivariateRealFunction f) {
+<span class="fc" id="L45">        super(f, 100, 1E-6);</span>
+<span class="fc" id="L46">    }</span>
+
+    /**
+     * Construct a solver.
+     *
+     */
+    public BisectionSolver() {
+<span class="fc" id="L53">        super(100, 1E-6);</span>
+<span class="fc" id="L54">    }</span>
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(double min, double max, double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L60">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(double min, double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="fc" id="L67">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f, double min, double max, double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="fc" id="L77">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f, double min, double max, double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L84">        return solve(maxEval, f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f, double min, double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L91">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L92">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * {@inheritDoc}
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f, double min, double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+<span class="fc" id="L103">        clearResult();</span>
+<span class="fc" id="L104">        verifyInterval(min,max);</span>
+        double m;
+        double fm;
+        double fmin;
+
+<span class="fc" id="L109">        int i = 0;</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        while (i &lt; maximalIterationCount) {</span>
+<span class="fc" id="L111">            m = UnivariateRealSolverUtils.midpoint(min, max);</span>
+<span class="fc" id="L112">           fmin = f.value(min);</span>
+<span class="fc" id="L113">           fm = f.value(m);</span>
+
+<span class="fc bfc" id="L115" title="All 2 branches covered.">            if (fm * fmin &gt; 0.0) {</span>
+                // max and m bracket the root.
+<span class="fc" id="L117">                min = m;</span>
+            } else {
+                // min and m bracket the root.
+<span class="fc" id="L120">                max = m;</span>
+            }
+
+<span class="fc bfc" id="L123" title="All 2 branches covered.">            if (FastMath.abs(max - min) &lt;= absoluteAccuracy) {</span>
+<span class="fc" id="L124">                m = UnivariateRealSolverUtils.midpoint(min, max);</span>
+<span class="fc" id="L125">                setResult(m, i);</span>
+<span class="fc" id="L126">                return m;</span>
+            }
+<span class="fc" id="L128">            ++i;</span>
+        }
+
+<span class="nc" id="L131">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

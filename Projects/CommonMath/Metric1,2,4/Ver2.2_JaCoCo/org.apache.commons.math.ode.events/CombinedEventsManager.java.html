@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>CombinedEventsManager.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.ode.events</a> &gt; <span class="el_source">CombinedEventsManager.java</span></div><h1>CombinedEventsManager.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.ode.events;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.ode.DerivativeException;
+import org.apache.commons.math.ode.IntegratorException;
+import org.apache.commons.math.ode.sampling.StepInterpolator;
+
+/** This class manages several {@link EventHandler event handlers} during integration.
+ *
+ * @see EventHandler
+ * @see EventState
+ * @version $Revision$ $Date$
+ * @since 1.2
+ * @deprecated as of 2.2, this class is not used anymore
+ */
+@Deprecated
+public class CombinedEventsManager {
+
+    /** Events states. */
+    private final List&lt;EventState&gt; states;
+
+    /** First active event. */
+    private EventState first;
+
+    /** Initialization indicator. */
+    private boolean initialized;
+
+    /** Simple constructor.
+     * Create an empty manager
+     */
+<span class="nc" id="L53">    public CombinedEventsManager() {</span>
+<span class="nc" id="L54">        states      = new ArrayList&lt;EventState&gt;();</span>
+<span class="nc" id="L55">        first       = null;</span>
+<span class="nc" id="L56">        initialized = false;</span>
+<span class="nc" id="L57">    }</span>
+
+    /** Add an events handler.
+     * @param handler event handler
+     * @param maxCheckInterval maximal time interval between events
+     * checks (this interval prevents missing sign changes in
+     * case the integration steps becomes very large)
+     * @param convergence convergence threshold in the event time search
+     * @param maxIterationCount upper limit of the iteration count in
+     * the event time search
+     * @see #getEventsHandlers()
+     * @see #clearEventsHandlers()
+     */
+    public void addEventHandler(final EventHandler handler, final double maxCheckInterval,
+                                final double convergence, final int maxIterationCount) {
+<span class="nc" id="L72">        states.add(new EventState(handler, maxCheckInterval,</span>
+                                  convergence, maxIterationCount));
+<span class="nc" id="L74">    }</span>
+
+    /** Get all the events handlers that have been added to the manager.
+     * @return an unmodifiable collection of the added event handlers
+     * @see #addEventHandler(EventHandler, double, double, int)
+     * @see #clearEventsHandlers()
+     * @see #getEventsStates()
+     */
+    public Collection&lt;EventHandler&gt; getEventsHandlers() {
+<span class="nc" id="L83">        final List&lt;EventHandler&gt; list = new ArrayList&lt;EventHandler&gt;();</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (EventState state : states) {</span>
+<span class="nc" id="L85">            list.add(state.getEventHandler());</span>
+<span class="nc" id="L86">        }</span>
+<span class="nc" id="L87">        return Collections.unmodifiableCollection(list);</span>
+    }
+
+    /** Remove all the events handlers that have been added to the manager.
+     * @see #addEventHandler(EventHandler, double, double, int)
+     * @see #getEventsHandlers()
+     */
+    public void clearEventsHandlers() {
+<span class="nc" id="L95">        states.clear();</span>
+<span class="nc" id="L96">    }</span>
+
+    /** Get all the events state wrapping the handlers that have been added to the manager.
+     * @return a collection of the events states
+     * @see #getEventsHandlers()
+     */
+    public Collection&lt;EventState&gt; getEventsStates() {
+<span class="nc" id="L103">        return states;</span>
+    }
+
+    /** Check if the manager does not manage any event handlers.
+     * @return true if manager is empty
+     */
+    public boolean isEmpty() {
+<span class="nc" id="L110">        return states.isEmpty();</span>
+    }
+
+    /** Evaluate the impact of the proposed step on all managed
+     * event handlers.
+     * @param interpolator step interpolator for the proposed step
+     * @return true if at least one event handler triggers an event
+     * before the end of the proposed step (this implies the step should
+     * be rejected)
+     * @exception DerivativeException if the interpolator fails to
+     * compute the function somewhere within the step
+     * @exception IntegratorException if an event cannot be located
+     */
+    public boolean evaluateStep(final StepInterpolator interpolator)
+    throws DerivativeException, IntegratorException {
+
+        try {
+
+<span class="nc" id="L128">            first = null;</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (states.isEmpty()) {</span>
+                // there is nothing to do, return now to avoid setting the
+                // interpolator time (and hence avoid unneeded calls to the
+                // user function due to interpolator finalization)
+<span class="nc" id="L133">                return false;</span>
+            }
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (! initialized) {</span>
+
+                // initialize the events states
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                for (EventState state : states) {</span>
+<span class="nc" id="L140">                    state.reinitializeBegin(interpolator);</span>
+<span class="nc" id="L141">                }</span>
+
+<span class="nc" id="L143">                initialized = true;</span>
+
+            }
+
+            // check events occurrence
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            for (EventState state : states) {</span>
+
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                if (state.evaluateStep(interpolator)) {</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                    if (first == null) {</span>
+<span class="nc" id="L152">                        first = state;</span>
+                    } else {
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                        if (interpolator.isForward()) {</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                            if (state.getEventTime() &lt; first.getEventTime()) {</span>
+<span class="nc" id="L156">                                first = state;</span>
+                            }
+                        } else {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                            if (state.getEventTime() &gt; first.getEventTime()) {</span>
+<span class="nc" id="L160">                                first = state;</span>
+                            }
+                        }
+                    }
+                }
+
+<span class="nc" id="L166">            }</span>
+
+<span class="nc bnc" id="L168" title="All 2 branches missed.">            return first != null;</span>
+
+<span class="nc" id="L170">        } catch (EventException se) {</span>
+<span class="nc" id="L171">            final Throwable cause = se.getCause();</span>
+<span class="nc bnc" id="L172" title="All 4 branches missed.">            if ((cause != null) &amp;&amp; (cause instanceof DerivativeException)) {</span>
+<span class="nc" id="L173">                throw (DerivativeException) cause;</span>
+            }
+<span class="nc" id="L175">            throw new IntegratorException(se);</span>
+<span class="nc" id="L176">        } catch (ConvergenceException ce) {</span>
+<span class="nc" id="L177">            throw new IntegratorException(ce);</span>
+        }
+
+    }
+
+    /** Get the occurrence time of the first event triggered in the
+     * last evaluated step.
+     * @return occurrence time of the first event triggered in the last
+     * evaluated step, or &lt;/code&gt;Double.NaN&lt;/code&gt; if no event is
+     * triggered
+     */
+    public double getEventTime() {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        return (first == null) ? Double.NaN : first.getEventTime();</span>
+    }
+
+    /** Inform the event handlers that the step has been accepted
+     * by the integrator.
+     * @param t value of the independent &lt;i&gt;time&lt;/i&gt; variable at the
+     * end of the step
+     * @param y array containing the current value of the state vector
+     * at the end of the step
+     * @exception IntegratorException if the value of one of the
+     * events states cannot be evaluated
+     */
+    public void stepAccepted(final double t, final double[] y)
+    throws IntegratorException {
+        try {
+<span class="nc bnc" id="L204" title="All 2 branches missed.">            for (EventState state : states) {</span>
+<span class="nc" id="L205">                state.stepAccepted(t, y);</span>
+<span class="nc" id="L206">            }</span>
+<span class="nc" id="L207">        } catch (EventException se) {</span>
+<span class="nc" id="L208">            throw new IntegratorException(se);</span>
+<span class="nc" id="L209">        }</span>
+<span class="nc" id="L210">    }</span>
+
+    /** Check if the integration should be stopped at the end of the
+     * current step.
+     * @return true if the integration should be stopped
+     */
+    public boolean stop() {
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        for (EventState state : states) {</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            if (state.stop()) {</span>
+<span class="nc" id="L219">                return true;</span>
+            }
+<span class="nc" id="L221">        }</span>
+<span class="nc" id="L222">        return false;</span>
+    }
+
+    /** Let the event handlers reset the state if they want.
+     * @param t value of the independent &lt;i&gt;time&lt;/i&gt; variable at the
+     * beginning of the next step
+     * @param y array were to put the desired state vector at the beginning
+     * of the next step
+     * @return true if the integrator should reset the derivatives too
+     * @exception IntegratorException if one of the events states
+     * that should reset the state fails to do it
+     */
+    public boolean reset(final double t, final double[] y)
+        throws IntegratorException {
+        try {
+<span class="nc" id="L237">            boolean resetDerivatives = false;</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            for (EventState state : states) {</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                if (state.reset(t, y)) {</span>
+<span class="nc" id="L240">                    resetDerivatives = true;</span>
+                }
+<span class="nc" id="L242">            }</span>
+<span class="nc" id="L243">            return resetDerivatives;</span>
+<span class="nc" id="L244">        } catch (EventException se) {</span>
+<span class="nc" id="L245">            throw new IntegratorException(se);</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

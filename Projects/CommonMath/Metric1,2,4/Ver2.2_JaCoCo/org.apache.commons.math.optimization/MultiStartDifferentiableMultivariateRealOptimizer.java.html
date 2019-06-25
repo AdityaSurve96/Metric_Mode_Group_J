@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MultiStartDifferentiableMultivariateRealOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization</a> &gt; <span class="el_source">MultiStartDifferentiableMultivariateRealOptimizer.java</span></div><h1>MultiStartDifferentiableMultivariateRealOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization;
+
+import java.util.Arrays;
+import java.util.Comparator;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.analysis.DifferentiableMultivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.random.RandomVectorGenerator;
+
+/**
+ * Special implementation of the {@link DifferentiableMultivariateRealOptimizer} interface adding
+ * multi-start features to an existing optimizer.
+ * &lt;p&gt;
+ * This class wraps a classical optimizer to use it several times in
+ * turn with different starting points in order to avoid being trapped
+ * into a local extremum when looking for a global one.
+ * &lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class MultiStartDifferentiableMultivariateRealOptimizer
+    implements DifferentiableMultivariateRealOptimizer {
+
+    /** Underlying classical optimizer. */
+    private final DifferentiableMultivariateRealOptimizer optimizer;
+
+    /** Maximal number of iterations allowed. */
+    private int maxIterations;
+
+    /** Number of iterations already performed for all starts. */
+    private int totalIterations;
+
+    /** Maximal number of evaluations allowed. */
+    private int maxEvaluations;
+
+    /** Number of evaluations already performed for all starts. */
+    private int totalEvaluations;
+
+    /** Number of gradient evaluations already performed for all starts. */
+    private int totalGradientEvaluations;
+
+    /** Number of starts to go. */
+    private int starts;
+
+    /** Random generator for multi-start. */
+    private RandomVectorGenerator generator;
+
+    /** Found optima. */
+    private RealPointValuePair[] optima;
+
+    /**
+     * Create a multi-start optimizer from a single-start optimizer
+     * @param optimizer single-start optimizer to wrap
+     * @param starts number of starts to perform (including the
+     * first one), multi-start is disabled if value is less than or
+     * equal to 1
+     * @param generator random vector generator to use for restarts
+     */
+    public MultiStartDifferentiableMultivariateRealOptimizer(final DifferentiableMultivariateRealOptimizer optimizer,
+                                                             final int starts,
+<span class="fc" id="L80">                                                             final RandomVectorGenerator generator) {</span>
+<span class="fc" id="L81">        this.optimizer                = optimizer;</span>
+<span class="fc" id="L82">        this.totalIterations          = 0;</span>
+<span class="fc" id="L83">        this.totalEvaluations         = 0;</span>
+<span class="fc" id="L84">        this.totalGradientEvaluations = 0;</span>
+<span class="fc" id="L85">        this.starts                   = starts;</span>
+<span class="fc" id="L86">        this.generator                = generator;</span>
+<span class="fc" id="L87">        this.optima                   = null;</span>
+<span class="fc" id="L88">        setMaxIterations(Integer.MAX_VALUE);</span>
+<span class="fc" id="L89">        setMaxEvaluations(Integer.MAX_VALUE);</span>
+<span class="fc" id="L90">    }</span>
+
+    /** Get all the optima found during the last call to {@link
+     * #optimize(DifferentiableMultivariateRealFunction, GoalType, double[])
+     * optimize}.
+     * &lt;p&gt;The optimizer stores all the optima found during a set of
+     * restarts. The {@link #optimize(DifferentiableMultivariateRealFunction,
+     * GoalType, double[]) optimize} method returns the best point only. This
+     * method returns all the points found at the end of each starts,
+     * including the best one already returned by the {@link
+     * #optimize(DifferentiableMultivariateRealFunction, GoalType, double[])
+     * optimize} method.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * The returned array as one element for each start as specified
+     * in the constructor. It is ordered with the results from the
+     * runs that did converge first, sorted from best to worst
+     * objective value (i.e in ascending order if minimizing and in
+     * descending order if maximizing), followed by and null elements
+     * corresponding to the runs that did not converge. This means all
+     * elements will be null if the {@link #optimize(DifferentiableMultivariateRealFunction,
+     * GoalType, double[]) optimize} method did throw a {@link
+     * org.apache.commons.math.ConvergenceException ConvergenceException}).
+     * This also means that if the first element is non null, it is the best
+     * point found across all starts.&lt;/p&gt;
+     * @return array containing the optima
+     * @exception IllegalStateException if {@link #optimize(DifferentiableMultivariateRealFunction,
+     * GoalType, double[]) optimize} has not been called
+     */
+    public RealPointValuePair[] getOptima() throws IllegalStateException {
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">        if (optima == null) {</span>
+<span class="nc" id="L121">            throw MathRuntimeException.createIllegalStateException(LocalizedFormats.NO_OPTIMUM_COMPUTED_YET);</span>
+        }
+<span class="fc" id="L123">        return optima.clone();</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setMaxIterations(int maxIterations) {
+<span class="fc" id="L128">        this.maxIterations = maxIterations;</span>
+<span class="fc" id="L129">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxIterations() {
+<span class="fc" id="L133">        return maxIterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getIterations() {
+<span class="fc" id="L138">        return totalIterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setMaxEvaluations(int maxEvaluations) {
+<span class="fc" id="L143">        this.maxEvaluations = maxEvaluations;</span>
+<span class="fc" id="L144">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxEvaluations() {
+<span class="fc" id="L148">        return maxEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getEvaluations() {
+<span class="fc" id="L153">        return totalEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getGradientEvaluations() {
+<span class="fc" id="L158">        return totalGradientEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setConvergenceChecker(RealConvergenceChecker checker) {
+<span class="fc" id="L163">        optimizer.setConvergenceChecker(checker);</span>
+<span class="fc" id="L164">    }</span>
+
+    /** {@inheritDoc} */
+    public RealConvergenceChecker getConvergenceChecker() {
+<span class="nc" id="L168">        return optimizer.getConvergenceChecker();</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealPointValuePair optimize(final DifferentiableMultivariateRealFunction f,
+                                         final GoalType goalType,
+                                         double[] startPoint)
+        throws FunctionEvaluationException, OptimizationException, FunctionEvaluationException {
+
+<span class="fc" id="L177">        optima                   = new RealPointValuePair[starts];</span>
+<span class="fc" id="L178">        totalIterations          = 0;</span>
+<span class="fc" id="L179">        totalEvaluations         = 0;</span>
+<span class="fc" id="L180">        totalGradientEvaluations = 0;</span>
+
+        // multi-start loop
+<span class="fc bfc" id="L183" title="All 2 branches covered.">        for (int i = 0; i &lt; starts; ++i) {</span>
+
+            try {
+<span class="fc" id="L186">                optimizer.setMaxIterations(maxIterations - totalIterations);</span>
+<span class="fc" id="L187">                optimizer.setMaxEvaluations(maxEvaluations - totalEvaluations);</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">                optima[i] = optimizer.optimize(f, goalType,</span>
+<span class="fc" id="L189">                                               (i == 0) ? startPoint : generator.nextVector());</span>
+<span class="nc" id="L190">            } catch (FunctionEvaluationException fee) {</span>
+<span class="nc" id="L191">                optima[i] = null;</span>
+<span class="nc" id="L192">            } catch (OptimizationException oe) {</span>
+<span class="nc" id="L193">                optima[i] = null;</span>
+<span class="pc" id="L194">            }</span>
+
+<span class="fc" id="L196">            totalIterations          += optimizer.getIterations();</span>
+<span class="fc" id="L197">            totalEvaluations         += optimizer.getEvaluations();</span>
+<span class="fc" id="L198">            totalGradientEvaluations += optimizer.getGradientEvaluations();</span>
+
+        }
+
+        // sort the optima from best to worst, followed by null elements
+<span class="fc" id="L203">        Arrays.sort(optima, new Comparator&lt;RealPointValuePair&gt;() {</span>
+            public int compare(final RealPointValuePair o1, final RealPointValuePair o2) {
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">                if (o1 == null) {</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">                    return (o2 == null) ? 0 : +1;</span>
+<span class="pc bpc" id="L207" title="1 of 2 branches missed.">                } else if (o2 == null) {</span>
+<span class="nc" id="L208">                    return -1;</span>
+                }
+<span class="fc" id="L210">                final double v1 = o1.getValue();</span>
+<span class="fc" id="L211">                final double v2 = o2.getValue();</span>
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">                return (goalType == GoalType.MINIMIZE) ?</span>
+<span class="pc" id="L213">                        Double.compare(v1, v2) : Double.compare(v2, v1);</span>
+            }
+        });
+
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">        if (optima[0] == null) {</span>
+<span class="nc" id="L218">            throw new OptimizationException(</span>
+                    LocalizedFormats.NO_CONVERGENCE_WITH_ANY_START_POINT,
+<span class="nc" id="L220">                    starts);</span>
+        }
+
+        // return the found point given the best objective function value
+<span class="fc" id="L224">        return optima[0];</span>
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,870 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ArrayFieldVector.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">ArrayFieldVector.java</span></div><h1>ArrayFieldVector.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.linear;
+
+import java.io.Serializable;
+import java.lang.reflect.Array;
+import java.util.Arrays;
+
+import org.apache.commons.math.Field;
+import org.apache.commons.math.FieldElement;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+
+/**
+ * This class implements the {@link FieldVector} interface with a {@link FieldElement} array.
+ * @param &lt;T&gt; the type of the field elements
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class ArrayFieldVector&lt;T extends FieldElement&lt;T&gt;&gt; implements FieldVector&lt;T&gt;, Serializable {
+
+    /** Serializable version identifier. */
+    private static final long serialVersionUID = 7648186910365927050L;
+
+    /** Entries of the vector. */
+    protected T[] data;
+
+    /** Field to which the elements belong. */
+    private final Field&lt;T&gt; field;
+
+    /**
+     * Build a 0-length vector.
+     * &lt;p&gt;Zero-length vectors may be used to initialized construction of vectors
+     * by data gathering. We start with zero-length and use either the {@link
+     * #ArrayFieldVector(ArrayFieldVector, ArrayFieldVector)} constructor
+     * or one of the &lt;code&gt;append&lt;/code&gt; methods ({@link #append(FieldElement[])},
+     * {@link #add(FieldVector)}, {@link #append(ArrayFieldVector)}) to gather data
+     * into this vector.&lt;/p&gt;
+     * @param field field to which the elements belong
+     */
+    public ArrayFieldVector(final Field&lt;T&gt; field) {
+<span class="fc" id="L56">        this(field, 0);</span>
+<span class="fc" id="L57">    }</span>
+
+    /**
+     * Construct a (size)-length vector of zeros.
+     * @param field field to which the elements belong
+     * @param size size of the vector
+     */
+<span class="fc" id="L64">    public ArrayFieldVector(Field&lt;T&gt; field, int size) {</span>
+<span class="fc" id="L65">        this.field = field;</span>
+<span class="fc" id="L66">        data = buildArray(size);</span>
+<span class="fc" id="L67">        Arrays.fill(data, field.getZero());</span>
+<span class="fc" id="L68">    }</span>
+
+    /**
+     * Construct an (size)-length vector with preset values.
+     * @param size size of the vector
+     * @param preset fill the vector with this scalar value
+     */
+    public ArrayFieldVector(int size, T preset) {
+<span class="fc" id="L76">        this(preset.getField(), size);</span>
+<span class="fc" id="L77">        Arrays.fill(data, preset);</span>
+<span class="fc" id="L78">    }</span>
+
+    /**
+     * Construct a vector from an array, copying the input array.
+     * &lt;p&gt;
+     * This constructor needs a non-empty {@code d} array to retrieve
+     * the field from its first element. This implies it cannot build
+     * 0 length vectors. To build vectors from any size, one should
+     * use the {@link #ArrayFieldVector(Field, FieldElement[])} constructor.
+     * &lt;/p&gt;
+     * @param d array of Ts.
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is empty
+     * @see #ArrayFieldVector(Field, FieldElement[])
+     */
+    public ArrayFieldVector(T[] d)
+<span class="fc" id="L93">        throws IllegalArgumentException {</span>
+        try {
+<span class="fc" id="L95">            field = d[0].getField();</span>
+<span class="fc" id="L96">            data = d.clone();</span>
+<span class="fc" id="L97">        } catch (ArrayIndexOutOfBoundsException e) {</span>
+<span class="fc" id="L98">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.VECTOR_MUST_HAVE_AT_LEAST_ONE_ELEMENT);
+<span class="fc" id="L100">        }</span>
+<span class="fc" id="L101">    }</span>
+
+    /**
+     * Construct a vector from an array, copying the input array.
+     * @param field field to which the elements belong
+     * @param d array of Ts.
+     * @see #ArrayFieldVector(FieldElement[])
+     */
+<span class="fc" id="L109">    public ArrayFieldVector(Field&lt;T&gt; field, T[] d) {</span>
+<span class="fc" id="L110">        this.field = field;</span>
+<span class="fc" id="L111">        data = d.clone();</span>
+<span class="fc" id="L112">    }</span>
+
+    /**
+     * Create a new ArrayFieldVector using the input array as the underlying
+     * data array.
+     * &lt;p&gt;If an array is built specially in order to be embedded in a
+     * ArrayFieldVector and not used directly, the &lt;code&gt;copyArray&lt;/code&gt; may be
+     * set to &lt;code&gt;false&lt;/code. This will prevent the copying and improve
+     * performance as no new array will be built and no data will be copied.&lt;/p&gt;
+     * &lt;p&gt;
+     * This constructor needs a non-empty {@code d} array to retrieve
+     * the field from its first element. This implies it cannot build
+     * 0 length vectors. To build vectors from any size, one should
+     * use the {@link #ArrayFieldVector(Field, FieldElement[], boolean)} constructor.
+     * &lt;/p&gt;
+     * @param d data for new vector
+     * @param copyArray if true, the input array will be copied, otherwise
+     * it will be referenced
+     * @throws IllegalArgumentException if &lt;code&gt;d&lt;/code&gt; is empty
+     * @throws NullPointerException if &lt;code&gt;d&lt;/code&gt; is null
+     * @see #ArrayFieldVector(FieldElement[])
+     * @see #ArrayFieldVector(Field, FieldElement[], boolean)
+     */
+    public ArrayFieldVector(T[] d, boolean copyArray)
+<span class="fc" id="L136">        throws NullPointerException, IllegalArgumentException {</span>
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        if (d.length == 0) {</span>
+<span class="fc" id="L138">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.VECTOR_MUST_HAVE_AT_LEAST_ONE_ELEMENT);
+        }
+<span class="fc" id="L141">        field = d[0].getField();</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        data = copyArray ? d.clone() :  d;</span>
+<span class="fc" id="L143">    }</span>
+
+    /**
+     * Create a new ArrayFieldVector using the input array as the underlying
+     * data array.
+     * &lt;p&gt;If an array is built specially in order to be embedded in a
+     * ArrayFieldVector and not used directly, the &lt;code&gt;copyArray&lt;/code&gt; may be
+     * set to &lt;code&gt;false&lt;/code. This will prevent the copying and improve
+     * performance as no new array will be built and no data will be copied.&lt;/p&gt;
+     * @param field field to which the elements belong
+     * @param d data for new vector
+     * @param copyArray if true, the input array will be copied, otherwise
+     * it will be referenced
+     * @see #ArrayFieldVector(FieldElement[], boolean)
+     */
+<span class="fc" id="L158">    public ArrayFieldVector(Field&lt;T&gt; field, T[] d, boolean copyArray) {</span>
+<span class="fc" id="L159">        this.field = field;</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        data = copyArray ? d.clone() :  d;</span>
+<span class="fc" id="L161">    }</span>
+
+    /**
+     * Construct a vector from part of a array.
+     * @param d array of Ts.
+     * @param pos position of first entry
+     * @param size number of entries to copy
+     */
+<span class="fc" id="L169">    public ArrayFieldVector(T[] d, int pos, int size) {</span>
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (d.length &lt; pos + size) {</span>
+<span class="fc" id="L171">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.POSITION_SIZE_MISMATCH_INPUT_ARRAY,
+<span class="fc" id="L173">                    pos, size, d.length);</span>
+        }
+<span class="fc" id="L175">        field = d[0].getField();</span>
+<span class="fc" id="L176">        data = buildArray(size);</span>
+<span class="fc" id="L177">        System.arraycopy(d, pos, data, 0, size);</span>
+<span class="fc" id="L178">    }</span>
+
+    /**
+     * Construct a vector from another vector, using a deep copy.
+     * @param v vector to copy
+     */
+<span class="fc" id="L184">    public ArrayFieldVector(FieldVector&lt;T&gt; v) {</span>
+<span class="fc" id="L185">        field = v.getField();</span>
+<span class="fc" id="L186">        data = buildArray(v.getDimension());</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="fc" id="L188">            data[i] = v.getEntry(i);</span>
+        }
+<span class="fc" id="L190">    }</span>
+
+    /**
+     * Construct a vector from another vector, using a deep copy.
+     * @param v vector to copy
+     */
+<span class="fc" id="L196">    public ArrayFieldVector(ArrayFieldVector&lt;T&gt; v) {</span>
+<span class="fc" id="L197">        field = v.getField();</span>
+<span class="fc" id="L198">        data = v.data.clone();</span>
+<span class="fc" id="L199">    }</span>
+
+    /**
+     * Construct a vector from another vector.
+     * @param v vector to copy
+     * @param deep if true perform a deep copy otherwise perform a shallow copy
+     */
+<span class="fc" id="L206">    public ArrayFieldVector(ArrayFieldVector&lt;T&gt; v, boolean deep) {</span>
+<span class="fc" id="L207">        field = v.getField();</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        data = deep ? v.data.clone() : v.data;</span>
+<span class="fc" id="L209">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L216">    public ArrayFieldVector(ArrayFieldVector&lt;T&gt; v1, ArrayFieldVector&lt;T&gt; v2) {</span>
+<span class="fc" id="L217">        field = v1.getField();</span>
+<span class="fc" id="L218">        data = buildArray(v1.data.length + v2.data.length);</span>
+<span class="fc" id="L219">        System.arraycopy(v1.data, 0, data, 0, v1.data.length);</span>
+<span class="fc" id="L220">        System.arraycopy(v2.data, 0, data, v1.data.length, v2.data.length);</span>
+<span class="fc" id="L221">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="fc" id="L228">    public ArrayFieldVector(ArrayFieldVector&lt;T&gt; v1, T[] v2) {</span>
+<span class="fc" id="L229">        field = v1.getField();</span>
+<span class="fc" id="L230">        data = buildArray(v1.data.length + v2.length);</span>
+<span class="fc" id="L231">        System.arraycopy(v1.data, 0, data, 0, v1.data.length);</span>
+<span class="fc" id="L232">        System.arraycopy(v2, 0, data, v1.data.length, v2.length);</span>
+<span class="fc" id="L233">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     */
+<span class="nc" id="L240">    public ArrayFieldVector(T[] v1, ArrayFieldVector&lt;T&gt; v2) {</span>
+<span class="nc" id="L241">        field = v2.getField();</span>
+<span class="nc" id="L242">        data = buildArray(v1.length + v2.data.length);</span>
+<span class="nc" id="L243">        System.arraycopy(v1, 0, data, 0, v1.length);</span>
+<span class="nc" id="L244">        System.arraycopy(v2.data, 0, data, v1.length, v2.data.length);</span>
+<span class="nc" id="L245">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * &lt;p&gt;
+     * This constructor needs at least one non-empty array to retrieve
+     * the field from its first element. This implies it cannot build
+     * 0 length vectors. To build vectors from any size, one should
+     * use the {@link #ArrayFieldVector(Field, FieldElement[], FieldElement[])} constructor.
+     * &lt;/p&gt;
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     * @exception IllegalArgumentException if both vectors are empty
+     * @see #ArrayFieldVector(Field, FieldElement[], FieldElement[])
+     */
+<span class="nc" id="L260">    public ArrayFieldVector(T[] v1, T[] v2) {</span>
+        try {
+<span class="nc" id="L262">            data = buildArray(v1.length + v2.length);</span>
+<span class="nc" id="L263">            System.arraycopy(v1, 0, data, 0, v1.length);</span>
+<span class="nc" id="L264">            System.arraycopy(v2, 0, data, v1.length, v2.length);</span>
+<span class="nc" id="L265">            field = data[0].getField();</span>
+<span class="nc" id="L266">        } catch (ArrayIndexOutOfBoundsException e) {</span>
+<span class="nc" id="L267">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.VECTOR_MUST_HAVE_AT_LEAST_ONE_ELEMENT);
+<span class="nc" id="L269">        }</span>
+<span class="nc" id="L270">    }</span>
+
+    /**
+     * Construct a vector by appending one vector to another vector.
+     * @param field field to which the elements belong
+     * @param v1 first vector (will be put in front of the new vector)
+     * @param v2 second vector (will be put at back of the new vector)
+     * @see #ArrayFieldVector(FieldElement[], FieldElement[])
+     */
+<span class="nc" id="L279">    public ArrayFieldVector(Field&lt;T&gt; field, T[] v1, T[] v2) {</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (v1.length + v2.length == 0) {</span>
+<span class="nc" id="L281">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.VECTOR_MUST_HAVE_AT_LEAST_ONE_ELEMENT);
+        }
+<span class="nc" id="L284">        data = buildArray(v1.length + v2.length);</span>
+<span class="nc" id="L285">        System.arraycopy(v1, 0, data, 0, v1.length);</span>
+<span class="nc" id="L286">        System.arraycopy(v2, 0, data, v1.length, v2.length);</span>
+<span class="nc" id="L287">        this.field = data[0].getField();</span>
+<span class="nc" id="L288">    }</span>
+
+    /** Build an array of elements.
+     * @param length size of the array to build
+     * @return a new array
+     */
+    @SuppressWarnings(&quot;unchecked&quot;) // field is of type T
+    private T[] buildArray(final int length) {
+<span class="fc" id="L296">        return (T[]) Array.newInstance(field.getZero().getClass(), length);</span>
+    }
+
+    /** {@inheritDoc} */
+    public Field&lt;T&gt; getField() {
+<span class="fc" id="L301">        return field;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; copy() {
+<span class="fc" id="L306">        return new ArrayFieldVector&lt;T&gt;(this, true);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; add(FieldVector&lt;T&gt; v) throws IllegalArgumentException {
+        try {
+<span class="nc" id="L312">            return add((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L313">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L314">            checkVectorDimensions(v);</span>
+<span class="fc" id="L315">            T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L317">                out[i] = data[i].add(v.getEntry(i));</span>
+            }
+<span class="fc" id="L319">            return new ArrayFieldVector&lt;T&gt;(out);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; add(T[] v) throws IllegalArgumentException {
+<span class="fc" id="L325">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L326">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L328">            out[i] = data[i].add(v[i]);</span>
+        }
+<span class="fc" id="L330">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /**
+     * Compute the sum of this and v.
+     * @param v vector to be added
+     * @return this + v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayFieldVector&lt;T&gt; add(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L341">        return (ArrayFieldVector&lt;T&gt;) add(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; subtract(FieldVector&lt;T&gt; v) throws IllegalArgumentException {
+        try {
+<span class="nc" id="L347">            return subtract((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L348">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L349">            checkVectorDimensions(v);</span>
+<span class="fc" id="L350">            T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L351" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L352">                out[i] = data[i].subtract(v.getEntry(i));</span>
+            }
+<span class="fc" id="L354">            return new ArrayFieldVector&lt;T&gt;(out);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; subtract(T[] v) throws IllegalArgumentException {
+<span class="fc" id="L360">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L361">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L362" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L363">            out[i] = data[i].subtract(v[i]);</span>
+        }
+<span class="fc" id="L365">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /**
+     * Compute this minus v.
+     * @param v vector to be subtracted
+     * @return this + v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayFieldVector&lt;T&gt; subtract(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L376">        return (ArrayFieldVector&lt;T&gt;) subtract(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapAdd(T d) {
+<span class="fc" id="L381">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L382" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L383">            out[i] = data[i].add(d);</span>
+        }
+<span class="fc" id="L385">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapAddToSelf(T d) {
+<span class="fc bfc" id="L390" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L391">            data[i] = data[i].add(d);</span>
+        }
+<span class="fc" id="L393">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapSubtract(T d) {
+<span class="fc" id="L398">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L399" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L400">            out[i] = data[i].subtract(d);</span>
+        }
+<span class="fc" id="L402">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapSubtractToSelf(T d) {
+<span class="fc bfc" id="L407" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L408">            data[i] = data[i].subtract(d);</span>
+        }
+<span class="fc" id="L410">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapMultiply(T d) {
+<span class="fc" id="L415">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L416" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L417">            out[i] = data[i].multiply(d);</span>
+        }
+<span class="fc" id="L419">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapMultiplyToSelf(T d) {
+<span class="fc bfc" id="L424" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L425">            data[i] = data[i].multiply(d);</span>
+        }
+<span class="fc" id="L427">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapDivide(T d) {
+<span class="fc" id="L432">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L433" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L434">            out[i] = data[i].divide(d);</span>
+        }
+<span class="fc" id="L436">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapDivideToSelf(T d) {
+<span class="fc bfc" id="L441" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L442">            data[i] = data[i].divide(d);</span>
+        }
+<span class="fc" id="L444">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapInv() {
+<span class="fc" id="L449">        T[] out = buildArray(data.length);</span>
+<span class="fc" id="L450">        final T one = field.getOne();</span>
+<span class="fc bfc" id="L451" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L452">            out[i] = one.divide(data[i]);</span>
+        }
+<span class="fc" id="L454">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; mapInvToSelf() {
+<span class="fc" id="L459">        final T one = field.getOne();</span>
+<span class="fc bfc" id="L460" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L461">            data[i] = one.divide(data[i]);</span>
+        }
+<span class="fc" id="L463">        return this;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; ebeMultiply(FieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+        try {
+<span class="nc" id="L470">            return ebeMultiply((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L471">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L472">            checkVectorDimensions(v);</span>
+<span class="fc" id="L473">            T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L475">                out[i] = data[i].multiply(v.getEntry(i));</span>
+            }
+<span class="fc" id="L477">            return new ArrayFieldVector&lt;T&gt;(out);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; ebeMultiply(T[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L484">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L485">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L486" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L487">            out[i] = data[i].multiply(v[i]);</span>
+        }
+<span class="fc" id="L489">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /**
+     * Element-by-element multiplication.
+     * @param v vector by which instance elements must be multiplied
+     * @return a vector containing this[i] * v[i] for all i
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayFieldVector&lt;T&gt; ebeMultiply(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L500">        return (ArrayFieldVector&lt;T&gt;) ebeMultiply(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; ebeDivide(FieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+        try {
+<span class="nc" id="L507">            return ebeDivide((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L508">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L509">            checkVectorDimensions(v);</span>
+<span class="fc" id="L510">            T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L511" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L512">                out[i] = data[i].divide(v.getEntry(i));</span>
+            }
+<span class="fc" id="L514">            return new ArrayFieldVector&lt;T&gt;(out);</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; ebeDivide(T[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L521">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L522">        T[] out = buildArray(data.length);</span>
+<span class="fc bfc" id="L523" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L524">                out[i] = data[i].divide(v[i]);</span>
+        }
+<span class="fc" id="L526">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /**
+     * Element-by-element division.
+     * @param v vector by which instance elements must be divided
+     * @return a vector containing this[i] / v[i] for all i
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayFieldVector&lt;T&gt; ebeDivide(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L537">        return (ArrayFieldVector&lt;T&gt;) ebeDivide(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public T[] getData() {
+<span class="fc" id="L542">        return data.clone();</span>
+    }
+
+    /**
+     * Returns a reference to the underlying data array.
+     * &lt;p&gt;Does not make a fresh copy of the underlying data.&lt;/p&gt;
+     * @return array of entries
+     */
+    public T[] getDataRef() {
+<span class="fc" id="L551">        return data;</span>
+    }
+
+    /** {@inheritDoc} */
+    public T dotProduct(FieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+        try {
+<span class="nc" id="L558">            return dotProduct((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L559">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L560">            checkVectorDimensions(v);</span>
+<span class="fc" id="L561">            T dot = field.getZero();</span>
+<span class="fc bfc" id="L562" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L563">                dot = dot.add(data[i].multiply(v.getEntry(i)));</span>
+            }
+<span class="fc" id="L565">            return dot;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public T dotProduct(T[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L572">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L573">        T dot = field.getZero();</span>
+<span class="fc bfc" id="L574" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc" id="L575">            dot = dot.add(data[i].multiply(v[i]));</span>
+        }
+<span class="fc" id="L577">        return dot;</span>
+    }
+
+    /**
+     * Compute the dot product.
+     * @param v vector with which dot product should be computed
+     * @return the scalar dot product between instance and v
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public T dotProduct(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L588">        return dotProduct(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; projection(FieldVector&lt;T&gt; v) {
+<span class="fc" id="L593">        return v.mapMultiply(dotProduct(v).divide(v.dotProduct(v)));</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; projection(T[] v) {
+<span class="nc" id="L598">        return projection(new ArrayFieldVector&lt;T&gt;(v, false));</span>
+    }
+
+   /** Find the orthogonal projection of this vector onto another vector.
+     * @param v vector onto which instance must be projected
+     * @return projection of the instance onto v
+     * @throws IllegalArgumentException if v is not the same size as this
+     */
+    public ArrayFieldVector&lt;T&gt; projection(ArrayFieldVector&lt;T&gt; v) {
+<span class="fc" id="L607">        return (ArrayFieldVector&lt;T&gt;) v.mapMultiply(dotProduct(v).divide(v.dotProduct(v)));</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldMatrix&lt;T&gt; outerProduct(FieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+        try {
+<span class="nc" id="L614">            return outerProduct((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L615">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L616">            checkVectorDimensions(v);</span>
+<span class="fc" id="L617">            final int m = data.length;</span>
+<span class="fc" id="L618">            final FieldMatrix&lt;T&gt; out = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L619" title="All 2 branches covered.">            for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc bfc" id="L620" title="All 2 branches covered.">                for (int j = 0; j &lt; data.length; j++) {</span>
+<span class="fc" id="L621">                    out.setEntry(i, j, data[i].multiply(v.getEntry(j)));</span>
+                }
+            }
+<span class="fc" id="L624">            return out;</span>
+        }
+    }
+
+    /**
+     * Compute the outer product.
+     * @param v vector with which outer product should be computed
+     * @return the square matrix outer product between instance and v
+     * @exception IllegalArgumentException if v is not the same size as this
+     */
+    public FieldMatrix&lt;T&gt; outerProduct(ArrayFieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L636">        return outerProduct(v.data);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldMatrix&lt;T&gt; outerProduct(T[] v)
+        throws IllegalArgumentException {
+<span class="fc" id="L642">        checkVectorDimensions(v.length);</span>
+<span class="fc" id="L643">        final int m = data.length;</span>
+<span class="fc" id="L644">        final FieldMatrix&lt;T&gt; out = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L645" title="All 2 branches covered.">        for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="fc bfc" id="L646" title="All 2 branches covered.">            for (int j = 0; j &lt; data.length; j++) {</span>
+<span class="fc" id="L647">                out.setEntry(i, j, data[i].multiply(v[j]));</span>
+            }
+        }
+<span class="fc" id="L650">        return out;</span>
+    }
+
+    /** {@inheritDoc} */
+    public T getEntry(int index) throws MatrixIndexException {
+<span class="fc" id="L655">        return data[index];</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getDimension() {
+<span class="fc" id="L660">        return data.length;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; append(FieldVector&lt;T&gt; v) {
+        try {
+<span class="nc" id="L666">            return append((ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L667">        } catch (ClassCastException cce) {</span>
+<span class="fc" id="L668">            return new ArrayFieldVector&lt;T&gt;(this,new ArrayFieldVector&lt;T&gt;(v));</span>
+        }
+    }
+
+    /**
+     * Construct a vector by appending a vector to this vector.
+     * @param v vector to append to this one.
+     * @return a new vector
+     */
+    public ArrayFieldVector&lt;T&gt; append(ArrayFieldVector&lt;T&gt; v) {
+<span class="fc" id="L678">        return new ArrayFieldVector&lt;T&gt;(this, v);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; append(T in) {
+<span class="fc" id="L683">        final T[] out = buildArray(data.length + 1);</span>
+<span class="fc" id="L684">        System.arraycopy(data, 0, out, 0, data.length);</span>
+<span class="fc" id="L685">        out[data.length] = in;</span>
+<span class="fc" id="L686">        return new ArrayFieldVector&lt;T&gt;(out);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; append(T[] in) {
+<span class="fc" id="L691">        return new ArrayFieldVector&lt;T&gt;(this, in);</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldVector&lt;T&gt; getSubVector(int index, int n) {
+<span class="fc" id="L696">        ArrayFieldVector&lt;T&gt; out = new ArrayFieldVector&lt;T&gt;(field, n);</span>
+        try {
+<span class="fc" id="L698">            System.arraycopy(data, index, out.data, 0, n);</span>
+<span class="fc" id="L699">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L700">            checkIndex(index);</span>
+<span class="nc" id="L701">            checkIndex(index + n - 1);</span>
+<span class="fc" id="L702">        }</span>
+<span class="fc" id="L703">        return out;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setEntry(int index, T value) {
+        try {
+<span class="fc" id="L709">            data[index] = value;</span>
+<span class="fc" id="L710">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="nc" id="L711">            checkIndex(index);</span>
+<span class="fc" id="L712">        }</span>
+<span class="fc" id="L713">    }</span>
+
+    /** {@inheritDoc} */
+    public void setSubVector(int index, FieldVector&lt;T&gt; v) {
+        try {
+            try {
+<span class="nc" id="L719">                set(index, (ArrayFieldVector&lt;T&gt;) v);</span>
+<span class="fc" id="L720">            } catch (ClassCastException cce) {</span>
+<span class="fc bfc" id="L721" title="All 2 branches covered.">                for (int i = index; i &lt; index + v.getDimension(); ++i) {</span>
+<span class="fc" id="L722">                    data[i] = v.getEntry(i-index);</span>
+                }
+<span class="nc" id="L724">            }</span>
+<span class="fc" id="L725">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L726">            checkIndex(index);</span>
+<span class="nc" id="L727">            checkIndex(index + v.getDimension() - 1);</span>
+<span class="fc" id="L728">        }</span>
+<span class="fc" id="L729">    }</span>
+
+    /** {@inheritDoc} */
+    public void setSubVector(int index, T[] v) {
+        try {
+<span class="fc" id="L734">            System.arraycopy(v, 0, data, index, v.length);</span>
+<span class="fc" id="L735">        } catch (IndexOutOfBoundsException e) {</span>
+<span class="fc" id="L736">            checkIndex(index);</span>
+<span class="nc" id="L737">            checkIndex(index + v.length - 1);</span>
+<span class="fc" id="L738">        }</span>
+<span class="fc" id="L739">    }</span>
+
+    /**
+     * Set a set of consecutive elements.
+     *
+     * @param index index of first element to be set.
+     * @param v vector containing the values to set.
+     * @exception MatrixIndexException if the index is
+     * inconsistent with vector size
+     */
+    public void set(int index, ArrayFieldVector&lt;T&gt; v)
+        throws MatrixIndexException {
+<span class="fc" id="L751">        setSubVector(index, v.data);</span>
+<span class="fc" id="L752">    }</span>
+
+    /** {@inheritDoc} */
+    public void set(T value) {
+<span class="fc" id="L756">        Arrays.fill(data, value);</span>
+<span class="fc" id="L757">    }</span>
+
+    /** {@inheritDoc} */
+    public T[] toArray(){
+<span class="fc" id="L761">        return data.clone();</span>
+    }
+
+    /**
+     * Check if instance and specified vectors have the same dimension.
+     * @param v vector to compare instance with
+     * @exception IllegalArgumentException if the vectors do not
+     * have the same dimension
+     */
+    protected void checkVectorDimensions(FieldVector&lt;T&gt; v)
+        throws IllegalArgumentException {
+<span class="fc" id="L772">        checkVectorDimensions(v.getDimension());</span>
+<span class="fc" id="L773">    }</span>
+
+    /**
+     * Check if instance dimension is equal to some expected value.
+     *
+     * @param n expected dimension.
+     * @exception IllegalArgumentException if the dimension is
+     * inconsistent with vector size
+     */
+    protected void checkVectorDimensions(int n)
+        throws IllegalArgumentException {
+<span class="fc bfc" id="L784" title="All 2 branches covered.">        if (data.length != n) {</span>
+<span class="fc" id="L785">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="fc" id="L787">                    data.length, n);</span>
+        }
+<span class="fc" id="L789">    }</span>
+
+    /**
+     * Test for the equality of two real vectors.
+     * &lt;p&gt;
+     * If all coordinates of two real vectors are exactly the same, and none are
+     * &lt;code&gt;Double.NaN&lt;/code&gt;, the two real vectors are considered to be equal.
+     * &lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;code&gt;NaN&lt;/code&gt; coordinates are considered to affect globally the vector
+     * and be equals to each other - i.e, if either (or all) coordinates of the
+     * real vector are equal to &lt;code&gt;Double.NaN&lt;/code&gt;, the real vector is equal to
+     * a vector with all &lt;code&gt;Double.NaN&lt;/code&gt; coordinates.
+     * &lt;/p&gt;
+     *
+     * @param other Object to test for equality to this
+     * @return true if two 3D vector objects are equal, false if
+     *         object is null, not an instance of Vector3D, or
+     *         not equal to this Vector3D instance
+     *
+     */
+    @Override
+    public boolean equals(Object other) {
+
+<span class="pc bpc" id="L813" title="1 of 2 branches missed.">      if (this == other) {</span>
+<span class="nc" id="L814">        return true;</span>
+      }
+
+<span class="pc bpc" id="L817" title="1 of 2 branches missed.">      if (other == null) {</span>
+<span class="nc" id="L818">        return false;</span>
+      }
+
+      try {
+          @SuppressWarnings(&quot;unchecked&quot;) // May fail, but we ignore ClassCastException
+<span class="fc" id="L823">          FieldVector&lt;T&gt; rhs = (FieldVector&lt;T&gt;) other;</span>
+<span class="pc bpc" id="L824" title="1 of 2 branches missed.">          if (data.length != rhs.getDimension()) {</span>
+<span class="nc" id="L825">              return false;</span>
+          }
+
+<span class="fc bfc" id="L828" title="All 2 branches covered.">          for (int i = 0; i &lt; data.length; ++i) {</span>
+<span class="pc bpc" id="L829" title="1 of 2 branches missed.">              if (!data[i].equals(rhs.getEntry(i))) {</span>
+<span class="nc" id="L830">                  return false;</span>
+              }
+          }
+<span class="fc" id="L833">          return true;</span>
+
+<span class="nc" id="L835">      } catch (ClassCastException ex) {</span>
+          // ignore exception
+<span class="nc" id="L837">          return false;</span>
+      }
+
+    }
+
+    /**
+     * Get a hashCode for the real vector.
+     * &lt;p&gt;All NaN values have the same hash code.&lt;/p&gt;
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode() {
+<span class="fc" id="L849">        int h = 3542;</span>
+<span class="fc bfc" id="L850" title="All 2 branches covered.">        for (final T a : data) {</span>
+<span class="fc" id="L851">            h = h ^ a.hashCode();</span>
+        }
+<span class="fc" id="L853">        return h;</span>
+    }
+
+    /**
+     * Check if an index is valid.
+     * @param index index to check
+     * @exception MatrixIndexException if index is not valid
+     */
+    private void checkIndex(final int index)
+        throws MatrixIndexException {
+<span class="pc bpc" id="L863" title="1 of 4 branches missed.">        if (index &lt; 0 || index &gt;= getDimension()) {</span>
+<span class="fc" id="L864">            throw new MatrixIndexException(LocalizedFormats.INDEX_OUT_OF_RANGE,</span>
+<span class="fc" id="L865">                                           index, 0, getDimension() - 1);</span>
+        }
+<span class="fc" id="L867">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

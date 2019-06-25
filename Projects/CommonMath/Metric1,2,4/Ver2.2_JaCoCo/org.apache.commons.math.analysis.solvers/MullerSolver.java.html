@@ -1,0 +1,416 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MullerSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">MullerSolver.java</span></div><h1>MullerSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.util.FastMath;
+import org.apache.commons.math.util.MathUtils;
+
+/**
+ * Implements the &lt;a href=&quot;http://mathworld.wolfram.com/MullersMethod.html&quot;&gt;
+ * Muller's Method&lt;/a&gt; for root finding of real univariate functions. For
+ * reference, see &lt;b&gt;Elementary Numerical Analysis&lt;/b&gt;, ISBN 0070124477,
+ * chapter 3.
+ * &lt;p&gt;
+ * Muller's method applies to both real and complex functions, but here we
+ * restrict ourselves to real functions. Methods solve() and solve2() find
+ * real zeros, using different ways to bypass complex arithmetics.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class MullerSolver extends UnivariateRealSolverImpl {
+
+    /**
+     * Construct a solver for the given function.
+     *
+     * @param f function to solve
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public MullerSolver(UnivariateRealFunction f) {
+<span class="fc" id="L52">        super(f, 100, 1E-6);</span>
+<span class="fc" id="L53">    }</span>
+
+    /**
+     * Construct a solver.
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public MullerSolver() {
+<span class="fc" id="L61">        super(100, 1E-6);</span>
+<span class="fc" id="L62">    }</span>
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L68">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L75">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a real root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L98">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L99">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a real root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        // check for zeros before verifying bracketing
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (f.value(min) == 0.0) { return min; }</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (f.value(max) == 0.0) { return max; }</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (f.value(initial) == 0.0) { return initial; }</span>
+
+<span class="nc" id="L128">        verifyBracketing(min, max, f);</span>
+<span class="nc" id="L129">        verifySequence(min, initial, max);</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (isBracketing(min, initial, f)) {</span>
+<span class="nc" id="L131">            return solve(f, min, initial);</span>
+        } else {
+<span class="nc" id="L133">            return solve(f, initial, max);</span>
+        }
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * Original Muller's method would have function evaluation at complex point.
+     * Since our f(x) is real, we have to find ways to avoid that. Bracketing
+     * condition is one way to go: by requiring bracketing in every iteration,
+     * the newly computed approximation is guaranteed to be real.&lt;/p&gt;
+     * &lt;p&gt;
+     * Normally Muller's method converges quadratically in the vicinity of a
+     * zero, however it may be very slow in regions far away from zeros. For
+     * example, f(x) = exp(x) - 1, min = -50, max = 100. In such case we use
+     * bisection as a safety backup if it performs very poorly.&lt;/p&gt;
+     * &lt;p&gt;
+     * The formulas here use divided differences directly.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L166">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L167">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * Original Muller's method would have function evaluation at complex point.
+     * Since our f(x) is real, we have to find ways to avoid that. Bracketing
+     * condition is one way to go: by requiring bracketing in every iteration,
+     * the newly computed approximation is guaranteed to be real.&lt;/p&gt;
+     * &lt;p&gt;
+     * Normally Muller's method converges quadratically in the vicinity of a
+     * zero, however it may be very slow in regions far away from zeros. For
+     * example, f(x) = exp(x) - 1, min = -50, max = 100. In such case we use
+     * bisection as a safety backup if it performs very poorly.&lt;/p&gt;
+     * &lt;p&gt;
+     * The formulas here use divided differences directly.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        // [x0, x2] is the bracketing interval in each iteration
+        // x1 is the last approximation and an interpolation point in (x0, x2)
+        // x is the new root approximation and new x1 for next round
+        // d01, d12, d012 are divided differences
+
+<span class="fc" id="L205">        double x0 = min;</span>
+<span class="fc" id="L206">        double y0 = f.value(x0);</span>
+<span class="fc" id="L207">        double x2 = max;</span>
+<span class="fc" id="L208">        double y2 = f.value(x2);</span>
+<span class="fc" id="L209">        double x1 = 0.5 * (x0 + x2);</span>
+<span class="fc" id="L210">        double y1 = f.value(x1);</span>
+
+        // check for zeros before verifying bracketing
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">        if (y0 == 0.0) {</span>
+<span class="nc" id="L214">            return min;</span>
+        }
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        if (y2 == 0.0) {</span>
+<span class="nc" id="L217">            return max;</span>
+        }
+<span class="fc" id="L219">        verifyBracketing(min, max, f);</span>
+
+<span class="fc" id="L221">        double oldx = Double.POSITIVE_INFINITY;</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">        for (int i = 1; i &lt;= maximalIterationCount; ++i) {</span>
+            // Muller's method employs quadratic interpolation through
+            // x0, x1, x2 and x is the zero of the interpolating parabola.
+            // Due to bracketing condition, this parabola must have two
+            // real roots and we choose one in [x0, x2] to be x.
+<span class="fc" id="L227">            final double d01 = (y1 - y0) / (x1 - x0);</span>
+<span class="fc" id="L228">            final double d12 = (y2 - y1) / (x2 - x1);</span>
+<span class="fc" id="L229">            final double d012 = (d12 - d01) / (x2 - x0);</span>
+<span class="fc" id="L230">            final double c1 = d01 + (x1 - x0) * d012;</span>
+<span class="fc" id="L231">            final double delta = c1 * c1 - 4 * y1 * d012;</span>
+<span class="fc" id="L232">            final double xplus = x1 + (-2.0 * y1) / (c1 + FastMath.sqrt(delta));</span>
+<span class="fc" id="L233">            final double xminus = x1 + (-2.0 * y1) / (c1 - FastMath.sqrt(delta));</span>
+            // xplus and xminus are two roots of parabola and at least
+            // one of them should lie in (x0, x2)
+<span class="fc bfc" id="L236" title="All 2 branches covered.">            final double x = isSequence(x0, xplus, x2) ? xplus : xminus;</span>
+<span class="fc" id="L237">            final double y = f.value(x);</span>
+
+            // check for convergence
+<span class="fc" id="L240">            final double tolerance = FastMath.max(relativeAccuracy * FastMath.abs(x), absoluteAccuracy);</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">            if (FastMath.abs(x - oldx) &lt;= tolerance) {</span>
+<span class="fc" id="L242">                setResult(x, i);</span>
+<span class="fc" id="L243">                return result;</span>
+            }
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">            if (FastMath.abs(y) &lt;= functionValueAccuracy) {</span>
+<span class="nc" id="L246">                setResult(x, i);</span>
+<span class="nc" id="L247">                return result;</span>
+            }
+
+            // Bisect if convergence is too slow. Bisection would waste
+            // our calculation of x, hopefully it won't happen often.
+            // the real number equality test x == x1 is intentional and
+            // completes the proximity tests above it
+<span class="fc bfc" id="L254" title="All 10 branches covered.">            boolean bisect = (x &lt; x1 &amp;&amp; (x1 - x0) &gt; 0.95 * (x2 - x0)) ||</span>
+                             (x &gt; x1 &amp;&amp; (x2 - x1) &gt; 0.95 * (x2 - x0)) ||
+                             (x == x1);
+            // prepare the new bracketing interval for next iteration
+<span class="fc bfc" id="L258" title="All 2 branches covered.">            if (!bisect) {</span>
+<span class="fc bfc" id="L259" title="All 2 branches covered.">                x0 = x &lt; x1 ? x0 : x1;</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                y0 = x &lt; x1 ? y0 : y1;</span>
+<span class="fc bfc" id="L261" title="All 2 branches covered.">                x2 = x &gt; x1 ? x2 : x1;</span>
+<span class="fc bfc" id="L262" title="All 2 branches covered.">                y2 = x &gt; x1 ? y2 : y1;</span>
+<span class="fc" id="L263">                x1 = x; y1 = y;</span>
+<span class="fc" id="L264">                oldx = x;</span>
+            } else {
+<span class="fc" id="L266">                double xm = 0.5 * (x0 + x2);</span>
+<span class="fc" id="L267">                double ym = f.value(xm);</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">                if (MathUtils.sign(y0) + MathUtils.sign(ym) == 0.0) {</span>
+<span class="fc" id="L269">                    x2 = xm; y2 = ym;</span>
+                } else {
+<span class="fc" id="L271">                    x0 = xm; y0 = ym;</span>
+                }
+<span class="fc" id="L273">                x1 = 0.5 * (x0 + x2);</span>
+<span class="fc" id="L274">                y1 = f.value(x1);</span>
+<span class="fc" id="L275">                oldx = Double.POSITIVE_INFINITY;</span>
+            }
+        }
+<span class="nc" id="L278">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * solve2() differs from solve() in the way it avoids complex operations.
+     * Except for the initial [min, max], solve2() does not require bracketing
+     * condition, e.g. f(x0), f(x1), f(x2) can have the same sign. If complex
+     * number arises in the computation, we simply use its modulus as real
+     * approximation.&lt;/p&gt;
+     * &lt;p&gt;
+     * Because the interval may not be bracketing, bisection alternative is
+     * not applicable here. However in practice our treatment usually works
+     * well, especially near real zeros where the imaginary part of complex
+     * approximation is often negligible.&lt;/p&gt;
+     * &lt;p&gt;
+     * The formulas here do not use divided differences directly.&lt;/p&gt;
+     *
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated replaced by {@link #solve2(UnivariateRealFunction, double, double)}
+     * since 2.0
+     */
+    @Deprecated
+    public double solve2(final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="fc" id="L310">        return solve2(f, min, max);</span>
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * solve2() differs from solve() in the way it avoids complex operations.
+     * Except for the initial [min, max], solve2() does not require bracketing
+     * condition, e.g. f(x0), f(x1), f(x2) can have the same sign. If complex
+     * number arises in the computation, we simply use its modulus as real
+     * approximation.&lt;/p&gt;
+     * &lt;p&gt;
+     * Because the interval may not be bracketing, bisection alternative is
+     * not applicable here. However in practice our treatment usually works
+     * well, especially near real zeros where the imaginary part of complex
+     * approximation is often negligible.&lt;/p&gt;
+     * &lt;p&gt;
+     * The formulas here do not use divided differences directly.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve2(final UnivariateRealFunction f,
+                         final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        // x2 is the last root approximation
+        // x is the new approximation and new x2 for next round
+        // x0 &lt; x1 &lt; x2 does not hold here
+
+<span class="fc" id="L348">        double x0 = min;</span>
+<span class="fc" id="L349">        double y0 = f.value(x0);</span>
+<span class="fc" id="L350">        double x1 = max;</span>
+<span class="fc" id="L351">        double y1 = f.value(x1);</span>
+<span class="fc" id="L352">        double x2 = 0.5 * (x0 + x1);</span>
+<span class="fc" id="L353">        double y2 = f.value(x2);</span>
+
+        // check for zeros before verifying bracketing
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">        if (y0 == 0.0) { return min; }</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">        if (y1 == 0.0) { return max; }</span>
+<span class="fc" id="L358">        verifyBracketing(min, max, f);</span>
+
+<span class="fc" id="L360">        double oldx = Double.POSITIVE_INFINITY;</span>
+<span class="pc bpc" id="L361" title="1 of 2 branches missed.">        for (int i = 1; i &lt;= maximalIterationCount; ++i) {</span>
+            // quadratic interpolation through x0, x1, x2
+<span class="fc" id="L363">            final double q = (x2 - x1) / (x1 - x0);</span>
+<span class="fc" id="L364">            final double a = q * (y2 - (1 + q) * y1 + q * y0);</span>
+<span class="fc" id="L365">            final double b = (2 * q + 1) * y2 - (1 + q) * (1 + q) * y1 + q * q * y0;</span>
+<span class="fc" id="L366">            final double c = (1 + q) * y2;</span>
+<span class="fc" id="L367">            final double delta = b * b - 4 * a * c;</span>
+            double x;
+            final double denominator;
+<span class="fc bfc" id="L370" title="All 2 branches covered.">            if (delta &gt;= 0.0) {</span>
+                // choose a denominator larger in magnitude
+<span class="fc" id="L372">                double dplus = b + FastMath.sqrt(delta);</span>
+<span class="fc" id="L373">                double dminus = b - FastMath.sqrt(delta);</span>
+<span class="fc bfc" id="L374" title="All 2 branches covered.">                denominator = FastMath.abs(dplus) &gt; FastMath.abs(dminus) ? dplus : dminus;</span>
+<span class="fc" id="L375">            } else {</span>
+                // take the modulus of (B +/- FastMath.sqrt(delta))
+<span class="fc" id="L377">                denominator = FastMath.sqrt(b * b - delta);</span>
+            }
+<span class="pc bpc" id="L379" title="1 of 2 branches missed.">            if (denominator != 0) {</span>
+<span class="fc" id="L380">                x = x2 - 2.0 * c * (x2 - x1) / denominator;</span>
+                // perturb x if it exactly coincides with x1 or x2
+                // the equality tests here are intentional
+<span class="pc bpc" id="L383" title="1 of 4 branches missed.">                while (x == x1 || x == x2) {</span>
+<span class="fc" id="L384">                    x += absoluteAccuracy;</span>
+                }
+            } else {
+                // extremely rare case, get a random number to skip it
+<span class="nc" id="L388">                x = min + FastMath.random() * (max - min);</span>
+<span class="nc" id="L389">                oldx = Double.POSITIVE_INFINITY;</span>
+            }
+<span class="fc" id="L391">            final double y = f.value(x);</span>
+
+            // check for convergence
+<span class="fc" id="L394">            final double tolerance = FastMath.max(relativeAccuracy * FastMath.abs(x), absoluteAccuracy);</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">            if (FastMath.abs(x - oldx) &lt;= tolerance) {</span>
+<span class="fc" id="L396">                setResult(x, i);</span>
+<span class="fc" id="L397">                return result;</span>
+            }
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">            if (FastMath.abs(y) &lt;= functionValueAccuracy) {</span>
+<span class="nc" id="L400">                setResult(x, i);</span>
+<span class="nc" id="L401">                return result;</span>
+            }
+
+            // prepare the next iteration
+<span class="fc" id="L405">            x0 = x1;</span>
+<span class="fc" id="L406">            y0 = y1;</span>
+<span class="fc" id="L407">            x1 = x2;</span>
+<span class="fc" id="L408">            y1 = y2;</span>
+<span class="fc" id="L409">            x2 = x;</span>
+<span class="fc" id="L410">            y2 = y;</span>
+<span class="fc" id="L411">            oldx = x;</span>
+        }
+<span class="nc" id="L413">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

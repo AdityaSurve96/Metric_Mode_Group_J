@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>EmpiricalDistributionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.random</a> &gt; <span class="el_source">EmpiricalDistributionImpl.java</span></div><h1>EmpiricalDistributionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.random;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Serializable;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.stat.descriptive.StatisticalSummary;
+import org.apache.commons.math.stat.descriptive.SummaryStatistics;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements &lt;code&gt;EmpiricalDistribution&lt;/code&gt; interface.  This implementation
+ * uses what amounts to the
+ * &lt;a href=&quot;http://nedwww.ipac.caltech.edu/level5/March02/Silverman/Silver2_6.html&quot;&gt;
+ * Variable Kernel Method&lt;/a&gt; with Gaussian smoothing:&lt;p&gt;
+ * &lt;strong&gt;Digesting the input file&lt;/strong&gt;
+ * &lt;ol&gt;&lt;li&gt;Pass the file once to compute min and max.&lt;/li&gt;
+ * &lt;li&gt;Divide the range from min-max into &lt;code&gt;binCount&lt;/code&gt; &quot;bins.&quot;&lt;/li&gt;
+ * &lt;li&gt;Pass the data file again, computing bin counts and univariate
+ *     statistics (mean, std dev.) for each of the bins &lt;/li&gt;
+ * &lt;li&gt;Divide the interval (0,1) into subintervals associated with the bins,
+ *     with the length of a bin's subinterval proportional to its count.&lt;/li&gt;&lt;/ol&gt;
+ * &lt;strong&gt;Generating random values from the distribution&lt;/strong&gt;&lt;ol&gt;
+ * &lt;li&gt;Generate a uniformly distributed value in (0,1) &lt;/li&gt;
+ * &lt;li&gt;Select the subinterval to which the value belongs.
+ * &lt;li&gt;Generate a random Gaussian value with mean = mean of the associated
+ *     bin and std dev = std dev of associated bin.&lt;/li&gt;&lt;/ol&gt;&lt;/p&gt;&lt;p&gt;
+ *&lt;strong&gt;USAGE NOTES:&lt;/strong&gt;&lt;ul&gt;
+ *&lt;li&gt;The &lt;code&gt;binCount&lt;/code&gt; is set by default to 1000.  A good rule of thumb
+ *    is to set the bin count to approximately the length of the input file divided
+ *    by 10. &lt;/li&gt;
+ *&lt;li&gt;The input file &lt;i&gt;must&lt;/i&gt; be a plain text file containing one valid numeric
+ *    entry per line.&lt;/li&gt;
+ * &lt;/ul&gt;&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public class EmpiricalDistributionImpl implements Serializable, EmpiricalDistribution {
+
+    /** Serializable version identifier */
+    private static final long serialVersionUID = 5729073523949762654L;
+
+    /** List of SummaryStatistics objects characterizing the bins */
+    private final List&lt;SummaryStatistics&gt; binStats;
+
+    /** Sample statistics */
+<span class="fc" id="L72">    private SummaryStatistics sampleStats = null;</span>
+
+    /** Max loaded value */
+<span class="fc" id="L75">    private double max = Double.NEGATIVE_INFINITY;</span>
+
+    /** Min loaded value */
+<span class="fc" id="L78">    private double min = Double.POSITIVE_INFINITY;</span>
+
+    /** Grid size */
+<span class="fc" id="L81">    private double delta = 0d;</span>
+
+    /** number of bins */
+    private final int binCount;
+
+    /** is the distribution loaded? */
+<span class="fc" id="L87">    private boolean loaded = false;</span>
+
+    /** upper bounds of subintervals in (0,1) &quot;belonging&quot; to the bins */
+<span class="fc" id="L90">    private double[] upperBounds = null;</span>
+
+    /** RandomData instance to use in repeated calls to getNext() */
+<span class="fc" id="L93">    private final RandomData randomData = new RandomDataImpl();</span>
+
+    /**
+     * Creates a new EmpiricalDistribution with the default bin count.
+     */
+<span class="fc" id="L98">    public EmpiricalDistributionImpl() {</span>
+<span class="fc" id="L99">        binCount = 1000;</span>
+<span class="fc" id="L100">        binStats = new ArrayList&lt;SummaryStatistics&gt;();</span>
+<span class="fc" id="L101">    }</span>
+
+    /**
+     * Creates a new EmpiricalDistribution  with the specified bin count.
+     *
+     * @param binCount number of bins
+     */
+<span class="fc" id="L108">    public EmpiricalDistributionImpl(int binCount) {</span>
+<span class="fc" id="L109">        this.binCount = binCount;</span>
+<span class="fc" id="L110">        binStats = new ArrayList&lt;SummaryStatistics&gt;();</span>
+<span class="fc" id="L111">    }</span>
+
+     /**
+     * Computes the empirical distribution from the provided
+     * array of numbers.
+     *
+     * @param in the input data array
+     */
+    public void load(double[] in) {
+<span class="fc" id="L120">        DataAdapter da = new ArrayDataAdapter(in);</span>
+        try {
+<span class="fc" id="L122">            da.computeStats();</span>
+<span class="fc" id="L123">            fillBinStats(in);</span>
+<span class="nc" id="L124">        } catch (IOException e) {</span>
+<span class="nc" id="L125">            throw new MathRuntimeException(e);</span>
+<span class="fc" id="L126">        }</span>
+<span class="fc" id="L127">        loaded = true;</span>
+
+<span class="fc" id="L129">    }</span>
+
+    /**
+     * Computes the empirical distribution using data read from a URL.
+     * @param url  url of the input file
+     *
+     * @throws IOException if an IO error occurs
+     */
+    public void load(URL url) throws IOException {
+<span class="fc" id="L138">        BufferedReader in =</span>
+<span class="fc" id="L139">            new BufferedReader(new InputStreamReader(url.openStream()));</span>
+        try {
+<span class="fc" id="L141">            DataAdapter da = new StreamDataAdapter(in);</span>
+<span class="fc" id="L142">            da.computeStats();</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">            if (sampleStats.getN() == 0) {</span>
+<span class="fc" id="L144">                throw MathRuntimeException.createEOFException(LocalizedFormats.URL_CONTAINS_NO_DATA,</span>
+                                                              url);
+            }
+<span class="fc" id="L147">            in = new BufferedReader(new InputStreamReader(url.openStream()));</span>
+<span class="fc" id="L148">            fillBinStats(in);</span>
+<span class="fc" id="L149">            loaded = true;</span>
+        } finally {
+<span class="fc" id="L151">           try {</span>
+<span class="fc" id="L152">               in.close();</span>
+<span class="nc" id="L153">           } catch (IOException ex) {</span>
+               // ignore
+<span class="fc" id="L155">           }</span>
+<span class="pc" id="L156">        }</span>
+<span class="fc" id="L157">    }</span>
+
+    /**
+     * Computes the empirical distribution from the input file.
+     *
+     * @param file the input file
+     * @throws IOException if an IO error occurs
+     */
+    public void load(File file) throws IOException {
+<span class="nc" id="L166">        BufferedReader in = new BufferedReader(new FileReader(file));</span>
+        try {
+<span class="nc" id="L168">            DataAdapter da = new StreamDataAdapter(in);</span>
+<span class="nc" id="L169">            da.computeStats();</span>
+<span class="nc" id="L170">            in = new BufferedReader(new FileReader(file));</span>
+<span class="nc" id="L171">            fillBinStats(in);</span>
+<span class="nc" id="L172">            loaded = true;</span>
+        } finally {
+<span class="nc" id="L174">            try {</span>
+<span class="nc" id="L175">                in.close();</span>
+<span class="nc" id="L176">            } catch (IOException ex) {</span>
+                // ignore
+<span class="nc" id="L178">            }</span>
+<span class="nc" id="L179">        }</span>
+<span class="nc" id="L180">    }</span>
+
+    /**
+     * Provides methods for computing &lt;code&gt;sampleStats&lt;/code&gt; and
+     * &lt;code&gt;beanStats&lt;/code&gt; abstracting the source of data.
+     */
+<span class="fc" id="L186">    private abstract class DataAdapter{</span>
+
+        /**
+         * Compute bin stats.
+         *
+         * @throws IOException  if an error occurs computing bin stats
+         */
+        public abstract void computeBinStats() throws IOException;
+
+        /**
+         * Compute sample statistics.
+         *
+         * @throws IOException if an error occurs computing sample stats
+         */
+        public abstract void computeStats() throws IOException;
+
+    }
+
+    /**
+     * Factory of &lt;code&gt;DataAdapter&lt;/code&gt; objects. For every supported source
+     * of data (array of doubles, file, etc.) an instance of the proper object
+     * is returned.
+     */
+<span class="fc" id="L209">    private class DataAdapterFactory{</span>
+        /**
+         * Creates a DataAdapter from a data object
+         *
+         * @param in object providing access to the data
+         * @return DataAdapter instance
+         */
+        public DataAdapter getAdapter(Object in) {
+<span class="fc bfc" id="L217" title="All 2 branches covered.">            if (in instanceof BufferedReader) {</span>
+<span class="fc" id="L218">                BufferedReader inputStream = (BufferedReader) in;</span>
+<span class="fc" id="L219">                return new StreamDataAdapter(inputStream);</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">            } else if (in instanceof double[]) {</span>
+<span class="fc" id="L221">                double[] inputArray = (double[]) in;</span>
+<span class="fc" id="L222">                return new ArrayDataAdapter(inputArray);</span>
+            } else {
+<span class="nc" id="L224">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                      LocalizedFormats.INPUT_DATA_FROM_UNSUPPORTED_DATASOURCE,
+<span class="nc" id="L226">                      in.getClass().getName(),</span>
+<span class="nc" id="L227">                      BufferedReader.class.getName(), double[].class.getName());</span>
+            }
+        }
+    }
+    /**
+     * &lt;code&gt;DataAdapter&lt;/code&gt; for data provided through some input stream
+     */
+    private class StreamDataAdapter extends DataAdapter{
+
+        /** Input stream providing access to the data */
+        private BufferedReader inputStream;
+
+        /**
+         * Create a StreamDataAdapter from a BufferedReader
+         *
+         * @param in BufferedReader input stream
+         */
+<span class="fc" id="L244">        public StreamDataAdapter(BufferedReader in){</span>
+<span class="fc" id="L245">            super();</span>
+<span class="fc" id="L246">            inputStream = in;</span>
+<span class="fc" id="L247">        }</span>
+
+        /** {@inheritDoc} */
+        @Override
+        public void computeBinStats() throws IOException {
+<span class="fc" id="L252">            String str = null;</span>
+<span class="fc" id="L253">            double val = 0.0d;</span>
+<span class="fc bfc" id="L254" title="All 2 branches covered.">            while ((str = inputStream.readLine()) != null) {</span>
+<span class="fc" id="L255">                val = Double.parseDouble(str);</span>
+<span class="fc" id="L256">                SummaryStatistics stats = binStats.get(findBin(val));</span>
+<span class="fc" id="L257">                stats.addValue(val);</span>
+<span class="fc" id="L258">            }</span>
+
+<span class="fc" id="L260">            inputStream.close();</span>
+<span class="fc" id="L261">            inputStream = null;</span>
+<span class="fc" id="L262">        }</span>
+
+        /** {@inheritDoc} */
+        @Override
+        public void computeStats() throws IOException {
+<span class="fc" id="L267">            String str = null;</span>
+<span class="fc" id="L268">            double val = 0.0;</span>
+<span class="fc" id="L269">            sampleStats = new SummaryStatistics();</span>
+<span class="fc bfc" id="L270" title="All 2 branches covered.">            while ((str = inputStream.readLine()) != null) {</span>
+<span class="fc" id="L271">                val = Double.valueOf(str).doubleValue();</span>
+<span class="fc" id="L272">                sampleStats.addValue(val);</span>
+            }
+<span class="fc" id="L274">            inputStream.close();</span>
+<span class="fc" id="L275">            inputStream = null;</span>
+<span class="fc" id="L276">        }</span>
+    }
+
+    /**
+     * &lt;code&gt;DataAdapter&lt;/code&gt; for data provided as array of doubles.
+     */
+    private class ArrayDataAdapter extends DataAdapter {
+
+        /** Array of input  data values */
+        private double[] inputArray;
+
+        /**
+         * Construct an ArrayDataAdapter from a double[] array
+         *
+         * @param in double[] array holding the data
+         */
+<span class="fc" id="L292">        public ArrayDataAdapter(double[] in){</span>
+<span class="fc" id="L293">            super();</span>
+<span class="fc" id="L294">            inputArray = in;</span>
+<span class="fc" id="L295">        }</span>
+
+        /** {@inheritDoc} */
+        @Override
+        public void computeStats() throws IOException {
+<span class="fc" id="L300">            sampleStats = new SummaryStatistics();</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">            for (int i = 0; i &lt; inputArray.length; i++) {</span>
+<span class="fc" id="L302">                sampleStats.addValue(inputArray[i]);</span>
+            }
+<span class="fc" id="L304">        }</span>
+
+        /** {@inheritDoc} */
+        @Override
+        public void computeBinStats() throws IOException {
+<span class="fc bfc" id="L309" title="All 2 branches covered.">            for (int i = 0; i &lt; inputArray.length; i++) {</span>
+<span class="fc" id="L310">                SummaryStatistics stats =</span>
+<span class="fc" id="L311">                    binStats.get(findBin(inputArray[i]));</span>
+<span class="fc" id="L312">                stats.addValue(inputArray[i]);</span>
+            }
+<span class="fc" id="L314">        }</span>
+    }
+
+    /**
+     * Fills binStats array (second pass through data file).
+     *
+     * @param in object providing access to the data
+     * @throws IOException  if an IO error occurs
+     */
+    private void fillBinStats(Object in) throws IOException {
+        // Set up grid
+<span class="fc" id="L325">        min = sampleStats.getMin();</span>
+<span class="fc" id="L326">        max = sampleStats.getMax();</span>
+<span class="fc" id="L327">        delta = (max - min)/(Double.valueOf(binCount)).doubleValue();</span>
+
+        // Initialize binStats ArrayList
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">        if (!binStats.isEmpty()) {</span>
+<span class="nc" id="L331">            binStats.clear();</span>
+        }
+<span class="fc bfc" id="L333" title="All 2 branches covered.">        for (int i = 0; i &lt; binCount; i++) {</span>
+<span class="fc" id="L334">            SummaryStatistics stats = new SummaryStatistics();</span>
+<span class="fc" id="L335">            binStats.add(i,stats);</span>
+        }
+
+        // Filling data in binStats Array
+<span class="fc" id="L339">        DataAdapterFactory aFactory = new DataAdapterFactory();</span>
+<span class="fc" id="L340">        DataAdapter da = aFactory.getAdapter(in);</span>
+<span class="fc" id="L341">        da.computeBinStats();</span>
+
+        // Assign upperBounds based on bin counts
+<span class="fc" id="L344">        upperBounds = new double[binCount];</span>
+<span class="fc" id="L345">        upperBounds[0] =</span>
+<span class="fc" id="L346">        ((double) binStats.get(0).getN()) / (double) sampleStats.getN();</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">        for (int i = 1; i &lt; binCount-1; i++) {</span>
+<span class="fc" id="L348">            upperBounds[i] = upperBounds[i-1] +</span>
+<span class="fc" id="L349">            ((double) binStats.get(i).getN()) / (double) sampleStats.getN();</span>
+        }
+<span class="fc" id="L351">        upperBounds[binCount-1] = 1.0d;</span>
+<span class="fc" id="L352">    }</span>
+
+    /**
+     * Returns the index of the bin to which the given value belongs
+     *
+     * @param value  the value whose bin we are trying to find
+     * @return the index of the bin containing the value
+     */
+    private int findBin(double value) {
+<span class="fc" id="L361">        return FastMath.min(</span>
+<span class="fc" id="L362">                FastMath.max((int) FastMath.ceil((value- min) / delta) - 1, 0),</span>
+                binCount - 1);
+        }
+
+    /**
+     * Generates a random value from this distribution.
+     *
+     * @return the random value.
+     * @throws IllegalStateException if the distribution has not been loaded
+     */
+    public double getNextValue() throws IllegalStateException {
+
+<span class="fc bfc" id="L374" title="All 2 branches covered.">        if (!loaded) {</span>
+<span class="fc" id="L375">            throw MathRuntimeException.createIllegalStateException(LocalizedFormats.DISTRIBUTION_NOT_LOADED);</span>
+        }
+
+        // Start with a uniformly distributed random number in (0,1)
+<span class="fc" id="L379">        double x = FastMath.random();</span>
+
+        // Use this to select the bin and generate a Gaussian within the bin
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        for (int i = 0; i &lt; binCount; i++) {</span>
+<span class="fc bfc" id="L383" title="All 2 branches covered.">           if (x &lt;= upperBounds[i]) {</span>
+<span class="fc" id="L384">               SummaryStatistics stats = binStats.get(i);</span>
+<span class="pc bpc" id="L385" title="1 of 2 branches missed.">               if (stats.getN() &gt; 0) {</span>
+<span class="fc bfc" id="L386" title="All 2 branches covered.">                   if (stats.getStandardDeviation() &gt; 0) {  // more than one obs</span>
+<span class="fc" id="L387">                        return randomData.nextGaussian</span>
+<span class="fc" id="L388">                            (stats.getMean(),stats.getStandardDeviation());</span>
+                   } else {
+<span class="fc" id="L390">                       return stats.getMean(); // only one obs in bin</span>
+                   }
+               }
+           }
+        }
+<span class="nc" id="L395">        throw new MathRuntimeException(LocalizedFormats.NO_BIN_SELECTED);</span>
+    }
+
+    /**
+     * Returns a {@link StatisticalSummary} describing this distribution.
+     * &lt;strong&gt;Preconditions:&lt;/strong&gt;&lt;ul&gt;
+     * &lt;li&gt;the distribution must be loaded before invoking this method&lt;/li&gt;&lt;/ul&gt;
+     *
+     * @return the sample statistics
+     * @throws IllegalStateException if the distribution has not been loaded
+     */
+    public StatisticalSummary getSampleStats() {
+<span class="fc" id="L407">        return sampleStats;</span>
+    }
+
+    /**
+     * Returns the number of bins.
+     *
+     * @return the number of bins.
+     */
+    public int getBinCount() {
+<span class="fc" id="L416">        return binCount;</span>
+    }
+
+    /**
+     * Returns a List of {@link SummaryStatistics} instances containing
+     * statistics describing the values in each of the bins.  The list is
+     * indexed on the bin number.
+     *
+     * @return List of bin statistics.
+     */
+    public List&lt;SummaryStatistics&gt; getBinStats() {
+<span class="fc" id="L427">        return binStats;</span>
+    }
+
+    /**
+     * &lt;p&gt;Returns a fresh copy of the array of upper bounds for the bins.
+     * Bins are: &lt;br/&gt;
+     * [min,upperBounds[0]],(upperBounds[0],upperBounds[1]],...,
+     *  (upperBounds[binCount-2], upperBounds[binCount-1] = max].&lt;/p&gt;
+     *
+     * &lt;p&gt;Note: In versions 1.0-2.0 of commons-math, this method
+     * incorrectly returned the array of probability generator upper
+     * bounds now returned by {@link #getGeneratorUpperBounds()}.&lt;/p&gt;
+     *
+     * @return array of bin upper bounds
+     * @since 2.1
+     */
+    public double[] getUpperBounds() {
+<span class="fc" id="L444">        double[] binUpperBounds = new double[binCount];</span>
+<span class="fc" id="L445">        binUpperBounds[0] = min + delta;</span>
+<span class="fc bfc" id="L446" title="All 2 branches covered.">        for (int i = 1; i &lt; binCount - 1; i++) {</span>
+<span class="fc" id="L447">            binUpperBounds[i] = binUpperBounds[i-1] + delta;</span>
+        }
+<span class="fc" id="L449">        binUpperBounds[binCount - 1] = max;</span>
+<span class="fc" id="L450">        return binUpperBounds;</span>
+    }
+
+    /**
+     * &lt;p&gt;Returns a fresh copy of the array of upper bounds of the subintervals
+     * of [0,1] used in generating data from the empirical distribution.
+     * Subintervals correspond to bins with lengths proportional to bin counts.&lt;/p&gt;
+     *
+     * &lt;p&gt;In versions 1.0-2.0 of commons-math, this array was (incorrectly) returned
+     * by {@link #getUpperBounds()}.&lt;/p&gt;
+     *
+     * @since 2.1
+     * @return array of upper bounds of subintervals used in data generation
+     */
+    public double[] getGeneratorUpperBounds() {
+<span class="fc" id="L465">        int len = upperBounds.length;</span>
+<span class="fc" id="L466">        double[] out = new double[len];</span>
+<span class="fc" id="L467">        System.arraycopy(upperBounds, 0, out, 0, len);</span>
+<span class="fc" id="L468">        return out;</span>
+    }
+
+    /**
+     * Property indicating whether or not the distribution has been loaded.
+     *
+     * @return true if the distribution has been loaded
+     */
+    public boolean isLoaded() {
+<span class="fc" id="L477">        return loaded;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

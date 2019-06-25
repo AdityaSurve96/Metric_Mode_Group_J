@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UnivariateRealSolverUtils.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">UnivariateRealSolverUtils.java</span></div><h1>UnivariateRealSolverUtils.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.exception.NullArgumentException;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Utility routines for {@link UnivariateRealSolver} objects.
+ *
+ * @version $Revision$ $Date$
+ */
+public class UnivariateRealSolverUtils {
+
+    /**
+     * Default constructor.
+     */
+    private UnivariateRealSolverUtils() {
+<span class="nc" id="L38">        super();</span>
+<span class="nc" id="L39">    }</span>
+
+    /**
+     * Convenience method to find a zero of a univariate real function.  A default
+     * solver is used.
+     *
+     * @param f the function.
+     * @param x0 the lower bound for the interval.
+     * @param x1 the upper bound for the interval.
+     * @return a value where the function is zero.
+     * @throws ConvergenceException if the iteration count was exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if f is null or the endpoints do not
+     * specify a valid interval
+     */
+    public static double solve(UnivariateRealFunction f, double x0, double x1)
+    throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L56">        setup(f);</span>
+<span class="fc" id="L57">        return LazyHolder.FACTORY.newDefaultSolver().solve(f, x0, x1);</span>
+    }
+
+    /**
+     * Convenience method to find a zero of a univariate real function.  A default
+     * solver is used.
+     *
+     * @param f the function
+     * @param x0 the lower bound for the interval
+     * @param x1 the upper bound for the interval
+     * @param absoluteAccuracy the accuracy to be used by the solver
+     * @return a value where the function is zero
+     * @throws ConvergenceException if the iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if f is null, the endpoints do not
+     * specify a valid interval, or the absoluteAccuracy is not valid for the
+     * default solver
+     */
+    public static double solve(UnivariateRealFunction f, double x0, double x1,
+            double absoluteAccuracy) throws ConvergenceException,
+            FunctionEvaluationException {
+
+<span class="fc" id="L79">        setup(f);</span>
+<span class="fc" id="L80">        UnivariateRealSolver solver = LazyHolder.FACTORY.newDefaultSolver();</span>
+<span class="fc" id="L81">        solver.setAbsoluteAccuracy(absoluteAccuracy);</span>
+<span class="fc" id="L82">        return solver.solve(f, x0, x1);</span>
+    }
+
+    /**
+     * This method attempts to find two values a and b satisfying &lt;ul&gt;
+    * &lt;li&gt; &lt;code&gt; lowerBound &lt;= a &lt; initial &lt; b &lt;= upperBound&lt;/code&gt; &lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; f(a) * f(b) &lt; 0 &lt;/code&gt;&lt;/li&gt;
+     * &lt;/ul&gt;
+     * If f is continuous on &lt;code&gt;[a,b],&lt;/code&gt; this means that &lt;code&gt;a&lt;/code&gt;
+     * and &lt;code&gt;b&lt;/code&gt; bracket a root of f.
+     * &lt;p&gt;
+     * The algorithm starts by setting
+     * &lt;code&gt;a := initial -1; b := initial +1,&lt;/code&gt; examines the value of the
+     * function at &lt;code&gt;a&lt;/code&gt; and &lt;code&gt;b&lt;/code&gt; and keeps moving
+     * the endpoints out by one unit each time through a loop that terminates
+     * when one of the following happens: &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt; f(a) * f(b) &lt; 0 &lt;/code&gt; --  success!&lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; a = lower &lt;/code&gt; and &lt;code&gt; b = upper&lt;/code&gt;
+     * -- ConvergenceException &lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; Integer.MAX_VALUE&lt;/code&gt; iterations elapse
+     * -- ConvergenceException &lt;/li&gt;
+     * &lt;/ul&gt;&lt;/p&gt;
+     * &lt;p&gt;
+     * &lt;strong&gt;Note: &lt;/strong&gt; this method can take
+     * &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt; iterations to throw a
+     * &lt;code&gt;ConvergenceException.&lt;/code&gt;  Unless you are confident that there
+     * is a root between &lt;code&gt;lowerBound&lt;/code&gt; and &lt;code&gt;upperBound&lt;/code&gt;
+     * near &lt;code&gt;initial,&lt;/code&gt; it is better to use
+     * {@link #bracket(UnivariateRealFunction, double, double, double, int)},
+     * explicitly specifying the maximum number of iterations.&lt;/p&gt;
+     *
+     * @param function the function
+     * @param initial initial midpoint of interval being expanded to
+     * bracket a root
+     * @param lowerBound lower bound (a is never lower than this value)
+     * @param upperBound upper bound (b never is greater than this
+     * value)
+     * @return a two element array holding {a, b}
+     * @throws ConvergenceException if a root can not be bracketted
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if function is null, maximumIterations
+     * is not positive, or initial is not between lowerBound and upperBound
+     */
+    public static double[] bracket(UnivariateRealFunction function,
+            double initial, double lowerBound, double upperBound)
+    throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L128">        return bracket( function, initial, lowerBound, upperBound,</span>
+            Integer.MAX_VALUE ) ;
+    }
+
+     /**
+     * This method attempts to find two values a and b satisfying &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt; lowerBound &lt;= a &lt; initial &lt; b &lt;= upperBound&lt;/code&gt; &lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; f(a) * f(b) &lt;= 0 &lt;/code&gt; &lt;/li&gt;
+     * &lt;/ul&gt;
+     * If f is continuous on &lt;code&gt;[a,b],&lt;/code&gt; this means that &lt;code&gt;a&lt;/code&gt;
+     * and &lt;code&gt;b&lt;/code&gt; bracket a root of f.
+     * &lt;p&gt;
+     * The algorithm starts by setting
+     * &lt;code&gt;a := initial -1; b := initial +1,&lt;/code&gt; examines the value of the
+     * function at &lt;code&gt;a&lt;/code&gt; and &lt;code&gt;b&lt;/code&gt; and keeps moving
+     * the endpoints out by one unit each time through a loop that terminates
+     * when one of the following happens: &lt;ul&gt;
+     * &lt;li&gt; &lt;code&gt; f(a) * f(b) &lt;= 0 &lt;/code&gt; --  success!&lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; a = lower &lt;/code&gt; and &lt;code&gt; b = upper&lt;/code&gt;
+     * -- ConvergenceException &lt;/li&gt;
+     * &lt;li&gt; &lt;code&gt; maximumIterations&lt;/code&gt; iterations elapse
+     * -- ConvergenceException &lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @param function the function
+     * @param initial initial midpoint of interval being expanded to
+     * bracket a root
+     * @param lowerBound lower bound (a is never lower than this value)
+     * @param upperBound upper bound (b never is greater than this
+     * value)
+     * @param maximumIterations maximum number of iterations to perform
+     * @return a two element array holding {a, b}.
+     * @throws ConvergenceException if the algorithm fails to find a and b
+     * satisfying the desired conditions
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if function is null, maximumIterations
+     * is not positive, or initial is not between lowerBound and upperBound
+     */
+    public static double[] bracket(UnivariateRealFunction function,
+            double initial, double lowerBound, double upperBound,
+            int maximumIterations) throws ConvergenceException,
+            FunctionEvaluationException {
+
+<span class="fc bfc" id="L170" title="All 2 branches covered.">        if (function == null) {</span>
+<span class="fc" id="L171">            throw new NullArgumentException(LocalizedFormats.FUNCTION);</span>
+        }
+<span class="fc bfc" id="L173" title="All 2 branches covered.">        if (maximumIterations &lt;= 0)  {</span>
+<span class="fc" id="L174">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L175">                  LocalizedFormats.INVALID_MAX_ITERATIONS, maximumIterations);</span>
+        }
+<span class="pc bpc" id="L177" title="1 of 6 branches missed.">        if (initial &lt; lowerBound || initial &gt; upperBound || lowerBound &gt;= upperBound) {</span>
+<span class="fc" id="L178">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                  LocalizedFormats.INVALID_BRACKETING_PARAMETERS,
+<span class="fc" id="L180">                  lowerBound, initial, upperBound);</span>
+        }
+<span class="fc" id="L182">        double a = initial;</span>
+<span class="fc" id="L183">        double b = initial;</span>
+        double fa;
+        double fb;
+<span class="fc" id="L186">        int numIterations = 0 ;</span>
+
+        do {
+<span class="fc" id="L189">            a = FastMath.max(a - 1.0, lowerBound);</span>
+<span class="fc" id="L190">            b = FastMath.min(b + 1.0, upperBound);</span>
+<span class="fc" id="L191">            fa = function.value(a);</span>
+
+<span class="fc" id="L193">            fb = function.value(b);</span>
+<span class="fc" id="L194">            numIterations++ ;</span>
+<span class="pc bpc" id="L195" title="2 of 8 branches missed.">        } while ((fa * fb &gt; 0.0) &amp;&amp; (numIterations &lt; maximumIterations) &amp;&amp;</span>
+                ((a &gt; lowerBound) || (b &lt; upperBound)));
+
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">        if (fa * fb &gt; 0.0 ) {</span>
+<span class="nc" id="L199">            throw new ConvergenceException(</span>
+                      LocalizedFormats.FAILED_BRACKETING,
+<span class="nc" id="L201">                      numIterations, maximumIterations, initial,</span>
+<span class="nc" id="L202">                      lowerBound, upperBound, a, b, fa, fb);</span>
+        }
+
+<span class="fc" id="L205">        return new double[]{a, b};</span>
+    }
+
+    /**
+     * Compute the midpoint of two values.
+     *
+     * @param a first value.
+     * @param b second value.
+     * @return the midpoint.
+     */
+    public static double midpoint(double a, double b) {
+<span class="fc" id="L216">        return (a + b) * .5;</span>
+    }
+
+    /**
+     * Checks to see if f is null, throwing IllegalArgumentException if so.
+     * @param f  input function
+     * @throws IllegalArgumentException if f is null
+     */
+    private static void setup(UnivariateRealFunction f) {
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (f == null) {</span>
+<span class="fc" id="L226">            throw new NullArgumentException(LocalizedFormats.FUNCTION);</span>
+        }
+<span class="fc" id="L228">    }</span>
+
+    // CHECKSTYLE: stop HideUtilityClassConstructor
+    /** Holder for the factory.
+     * &lt;p&gt;We use here the Initialization On Demand Holder Idiom.&lt;/p&gt;
+     */
+<span class="nc" id="L234">    private static class LazyHolder {</span>
+        /** Cached solver factory */
+<span class="fc" id="L236">        private static final UnivariateRealSolverFactory FACTORY = UnivariateRealSolverFactory.newInstance();</span>
+    }
+    // CHECKSTYLE: resume HideUtilityClassConstructor
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
