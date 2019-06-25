@@ -21,9 +21,9 @@ Test coverage can be done in two ways; namely code statement coverage and code b
   * Based on the coverage status of each branch JaCoCo also calculates covered and missed complexity for each method.Missed complexity again is an indication for the number of test cases missing to fully cover a module. Note that as JaCoCo does not   consider exception handling as branches try/catch blocks will also not increase complexity.
 
 ### Metric 5- Sofware Maintainance Metric :Code Churn
-  Code churn is a means to figure out the changes in the code from one release to next .
-    * It monitors changes in code like refactoring ,  adding new features etc. to ensure that the code remains stable after these changes.
-    * We have used _CLOC_ to determine the number of lines of code added, modified and deleted.
+  Code churn is a means to figure out the changes in the code from one release to next.  
+   * It monitors changes in code like refactoring ,  adding new features etc. to ensure that the code remains stable after these changes.  
+   * We have used _CLOC_ to determine the number of lines of code added, modified and deleted.
 
 ### Metric 6- Software quality metric :Code Smells
   A code smell is a surface indication that usually corresponds to a deeper problem in the system.
@@ -34,35 +34,36 @@ Test coverage can be done in two ways; namely code statement coverage and code b
 
 ## Projects
 We have Chosen the following Projects for analysis:-  
-1. Commons Math    		     SLOC ~ 186K  
+1. Commons Math &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;&nbsp;&nbsp; SLOC ~ 186K  
    * Versions:-
       * 3.6
       * 3.4
       * 3.3
       * 3.1
       * 2.1
-2. Commons Collection		   SLOC ~ 130K  
+2. Commons Collection &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; SLOC ~ 130K  
     * Versions:-  
       * 3.6
       * 3.4
       * 3.3
       * 3.1
       * 2.1
-3. Commons Lang			        SLOC ~ 80K 
+3. Commons Lang &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SLOC ~ 80K 
     * Versions:-  
       * 3.9
       * 3.8.1
       * 3.7
       * 3.6
       * 2.5
-4. Commons Digestor	        SLOC ~ 27K 
+4. Commons Digestor &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SLOC ~ 27K 
     * Versions:-  
       * 3.2
       * 3.1
       * 3.0
       * 2.1
       * 1.8.1
-4. Commons Configuration 	SLOC ~ 600K
+4. Commons Configuration &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SLOC ~ 600K
     * Versions:-  
       * 2.4
       * 2
@@ -96,11 +97,11 @@ We have Chosen the following Projects for analysis:-
 
 ## Team Details  
 
-  - ADITYA SURVE  || 40087470 || aditya.surve2913@gmail.com
-  - PALLAVI KUMAR || 40049791 || pallavikumar88992@gmail.com  
-  - DIVYA PANDIT  || 40087471 || divyapandit13@gmail.com
-  - ANKUR AGARWAL || 40105298 || ankur.96469@gmail.com
-  - HITESH AGARWAL|| 40104304 || hitesh0981@gmail.com
+  - ADITYA SURVE        || 40087470 || aditya.surve2913@gmail.com
+  - PALLAVI KUMAR       || 40049791 || pallavikumar88992@gmail.com  
+  - DIVYA PANDIT        || 40087471 || divyapandit13@gmail.com
+  - ANKUR AGARWAL       || 40105298 || ankur.96469@gmail.com
+  - HITESH AGARWAL      || 40104304 || hitesh0981@gmail.com
 
 
 
