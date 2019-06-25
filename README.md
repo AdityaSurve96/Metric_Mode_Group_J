@@ -43,11 +43,11 @@ We have Chosen the following Projects for analysis:-
       * 2.1
 2. Commons Collection &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; SLOC ~ 130K  
     * Versions:-  
-      * 3.6
-      * 3.4
-      * 3.3
-      * 3.1
-      * 2.1
+      * 4.3
+      * 4.2
+      * 4.1
+      * 4.0
+      * 4.3-RC2
 3. Commons Lang &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SLOC ~ 80K 
     * Versions:-  
@@ -55,7 +55,7 @@ We have Chosen the following Projects for analysis:-
       * 3.8.1
       * 3.7
       * 3.6
-      * 2.5
+      * 3.5
 4. Commons Digestor &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SLOC ~ 27K 
     * Versions:-  
       * 3.2
@@ -66,7 +66,7 @@ We have Chosen the following Projects for analysis:-
 4. Commons Configuration &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SLOC ~ 600K
     * Versions:-  
       * 2.4
-      * 2
+      * 2.3
       * 2.2
       * 2.1
       * 2.0
