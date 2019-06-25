@@ -1,0 +1,1761 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>DSCompiler.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math3.analysis.differentiation</a> &gt; <span class="el_source">DSCompiler.java</span></div><h1>DSCompiler.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math3.analysis.differentiation;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.commons.math3.exception.DimensionMismatchException;
+import org.apache.commons.math3.exception.NumberIsTooLargeException;
+import org.apache.commons.math3.util.ArithmeticUtils;
+import org.apache.commons.math3.util.FastMath;
+import org.apache.commons.math3.util.MathArrays;
+
+/** Class holding &quot;compiled&quot; computation rules for derivative structures.
+ * &lt;p&gt;This class implements the computation rules described in Dan Kalman's paper &lt;a
+ * href=&quot;http://www.math.american.edu/People/kalman/pdffiles/mmgautodiff.pdf&quot;&gt;Doubly
+ * Recursive Multivariate Automatic Differentiation&lt;/a&gt;, Mathematics Magazine, vol. 75,
+ * no. 3, June 2002. However, in order to avoid performances bottlenecks, the recursive
+ * rules are &quot;compiled&quot; once in an unfold form. This class does this recursion unrolling
+ * and stores the computation rules as simple loops with pre-computed indirection arrays.&lt;/p&gt;
+ * &lt;p&gt;
+ * This class maps all derivative computation into single dimension arrays that hold the
+ * value and partial derivatives. The class does not hold these arrays, which remains under
+ * the responsibility of the caller. For each combination of number of free parameters and
+ * derivation order, only one compiler is necessary, and this compiler will be used to
+ * perform computations on all arrays provided to it, which can represent hundreds or
+ * thousands of different parameters kept together with all theur partial derivatives.
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * The arrays on which compilers operate contain only the partial derivatives together
+ * with the 0&lt;sup&gt;th&lt;/sup&gt; derivative, i.e. the value. The partial derivatives are stored in
+ * a compiler-specific order, which can be retrieved using methods {@link
+ * #getPartialDerivativeIndex(int...) getPartialDerivativeIndex} and {@link
+ * #getPartialDerivativeOrders(int)}. The value is guaranteed to be stored as the first element
+ * (i.e. the {@link #getPartialDerivativeIndex(int...) getPartialDerivativeIndex} method returns
+ * 0 when called with 0 for all derivation orders and {@link #getPartialDerivativeOrders(int)
+ * getPartialDerivativeOrders} returns an array filled with 0 when called with 0 as the index).
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Note that the ordering changes with number of parameters and derivation order. For example
+ * given 2 parameters x and y, df/dy is stored at index 2 when derivation order is set to 1 (in
+ * this case the array has three elements: f, df/dx and df/dy). If derivation order is set to
+ * 2, then df/dy will be stored at index 3 (in this case the array has six elements: f, df/dx,
+ * df/dxdx, df/dy, df/dxdy and df/dydy).
+ * &lt;/p&gt;
+ * &lt;p&gt;
+ * Given this structure, users can perform some simple operations like adding, subtracting
+ * or multiplying constants and negating the elements by themselves, knowing if they want to
+ * mutate their array or create a new array. These simple operations are not provided by
+ * the compiler. The compiler provides only the more complex operations between several arrays.
+ * &lt;/p&gt;
+ * &lt;p&gt;This class is mainly used as the engine for scalar variable {@link DerivativeStructure}.
+ * It can also be used directly to hold several variables in arrays for more complex data
+ * structures. User can for example store a vector of n variables depending on three x, y
+ * and z free parameters in one array as follows:
+ * &lt;pre&gt;
+ *   // parameter 0 is x, parameter 1 is y, parameter 2 is z
+ *   int parameters = 3;
+ *   DSCompiler compiler = DSCompiler.getCompiler(parameters, order);
+ *   int size = compiler.getSize();
+ *
+ *   // pack all elements in a single array
+ *   double[] array = new double[n * size];
+ *   for (int i = 0; i &lt; n; ++i) {
+ *
+ *     // we know value is guaranteed to be the first element
+ *     array[i * size] = v[i];
+ *
+ *     // we don't know where first derivatives are stored, so we ask the compiler
+ *     array[i * size + compiler.getPartialDerivativeIndex(1, 0, 0) = dvOnDx[i][0];
+ *     array[i * size + compiler.getPartialDerivativeIndex(0, 1, 0) = dvOnDy[i][0];
+ *     array[i * size + compiler.getPartialDerivativeIndex(0, 0, 1) = dvOnDz[i][0];
+ *
+ *     // we let all higher order derivatives set to 0
+ *
+ *   }
+ * &lt;/pre&gt;
+ * Then in another function, user can perform some operations on all elements stored
+ * in the single array, such as a simple product of all variables:
+ * &lt;pre&gt;
+ *   // compute the product of all elements
+ *   double[] product = new double[size];
+ *   prod[0] = 1.0;
+ *   for (int i = 0; i &lt; n; ++i) {
+ *     double[] tmp = product.clone();
+ *     compiler.multiply(tmp, 0, array, i * size, product, 0);
+ *   }
+ *
+ *   // value
+ *   double p = product[0];
+ *
+ *   // first derivatives
+ *   double dPdX = product[compiler.getPartialDerivativeIndex(1, 0, 0)];
+ *   double dPdY = product[compiler.getPartialDerivativeIndex(0, 1, 0)];
+ *   double dPdZ = product[compiler.getPartialDerivativeIndex(0, 0, 1)];
+ *
+ *   // cross derivatives (assuming order was at least 2)
+ *   double dPdXdX = product[compiler.getPartialDerivativeIndex(2, 0, 0)];
+ *   double dPdXdY = product[compiler.getPartialDerivativeIndex(1, 1, 0)];
+ *   double dPdXdZ = product[compiler.getPartialDerivativeIndex(1, 0, 1)];
+ *   double dPdYdY = product[compiler.getPartialDerivativeIndex(0, 2, 0)];
+ *   double dPdYdZ = product[compiler.getPartialDerivativeIndex(0, 1, 1)];
+ *   double dPdZdZ = product[compiler.getPartialDerivativeIndex(0, 0, 2)];
+ * &lt;/p&gt;
+ * @see DerivativeStructure
+ * @version $Id$
+ * @since 3.1
+ */
+public class DSCompiler {
+
+    /** Array of all compilers created so far. */
+<span class="fc" id="L128">    private static AtomicReference&lt;DSCompiler[][]&gt; compilers =</span>
+            new AtomicReference&lt;DSCompiler[][]&gt;(null);
+
+    /** Number of free parameters. */
+    private final int parameters;
+
+    /** Derivation order. */
+    private final int order;
+
+    /** Number of partial derivatives (including the single 0 order derivative element). */
+    private final int[][] sizes;
+
+    /** Indirection array for partial derivatives. */
+    private final int[][] derivativesIndirection;
+
+    /** Indirection array of the lower derivative elements. */
+    private final int[] lowerIndirection;
+
+    /** Indirection arrays for multiplication. */
+    private final int[][][] multIndirection;
+
+    /** Indirection arrays for function composition. */
+    private final int[][][] compIndirection;
+
+    /** Private constructor, reserved for the factory method {@link #getCompiler(int, int)}.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @param derivativeCompiler compiler for the derivative part
+     */
+    private DSCompiler(final int parameters, final int order,
+<span class="fc" id="L159">                       final DSCompiler valueCompiler, final DSCompiler derivativeCompiler) {</span>
+
+<span class="fc" id="L161">        this.parameters = parameters;</span>
+<span class="fc" id="L162">        this.order      = order;</span>
+<span class="fc" id="L163">        this.sizes      = compileSizes(parameters, order, valueCompiler);</span>
+<span class="fc" id="L164">        this.derivativesIndirection =</span>
+<span class="fc" id="L165">                compileDerivativesIndirection(parameters, order,</span>
+                                              valueCompiler, derivativeCompiler);
+<span class="fc" id="L167">        this.lowerIndirection =</span>
+<span class="fc" id="L168">                compileLowerIndirection(parameters, order,</span>
+                                        valueCompiler, derivativeCompiler);
+<span class="fc" id="L170">        this.multIndirection =</span>
+<span class="fc" id="L171">                compileMultiplicationIndirection(parameters, order,</span>
+                                                 valueCompiler, derivativeCompiler, lowerIndirection);
+<span class="fc" id="L173">        this.compIndirection =</span>
+<span class="fc" id="L174">                compileCompositionIndirection(parameters, order,</span>
+                                              valueCompiler, derivativeCompiler,
+                                              sizes, derivativesIndirection);
+
+<span class="fc" id="L178">    }</span>
+
+    /** Get the compiler for number of free parameters and order.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @return cached rules set
+     */
+    public static DSCompiler getCompiler(int parameters, int order) {
+
+        // get the cached compilers
+<span class="fc" id="L188">        final DSCompiler[][] cache = compilers.get();</span>
+<span class="fc bfc" id="L189" title="All 6 branches covered.">        if (cache != null &amp;&amp; cache.length &gt; parameters &amp;&amp; cache[parameters].length &gt; order) {</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            if (cache[parameters][order] != null) {</span>
+                // the compiler has already been created
+<span class="fc" id="L192">                return cache[parameters][order];</span>
+            }
+        }
+
+        // we need to create more compilers
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        final int maxParameters = FastMath.max(parameters, cache == null ? 0 : cache.length);</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        final int maxOrder      = FastMath.max(order,     cache == null ? 0 : cache[0].length);</span>
+<span class="fc" id="L199">        final DSCompiler[][] newCache = new DSCompiler[maxParameters + 1][maxOrder + 1];</span>
+
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        if (cache != null) {</span>
+            // preserve the already created compilers
+<span class="fc bfc" id="L203" title="All 2 branches covered.">            for (int i = 0; i &lt; cache.length; ++i) {</span>
+<span class="fc" id="L204">                System.arraycopy(cache[i], 0, newCache[i], 0, cache[i].length);</span>
+            }
+        }
+
+        // create the array in increasing diagonal order
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        for (int diag = 0; diag &lt;= parameters + order; ++diag) {</span>
+<span class="fc bfc" id="L210" title="All 2 branches covered.">            for (int o = FastMath.max(0, diag - parameters); o &lt;= FastMath.min(order, diag); ++o) {</span>
+<span class="fc" id="L211">                final int p = diag - o;</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">                if (newCache[p][o] == null) {</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">                    final DSCompiler valueCompiler      = (p == 0) ? null : newCache[p - 1][o];</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">                    final DSCompiler derivativeCompiler = (o == 0) ? null : newCache[p][o - 1];</span>
+<span class="fc" id="L215">                    newCache[p][o] = new DSCompiler(p, o, valueCompiler, derivativeCompiler);</span>
+                }
+            }
+        }
+
+        // atomically reset the cached compilers array
+<span class="fc" id="L221">        compilers.compareAndSet(cache, newCache);</span>
+
+<span class="fc" id="L223">        return newCache[parameters][order];</span>
+
+    }
+
+    /** Compile the sizes array.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @return sizes array
+     */
+    private static int[][] compileSizes(final int parameters, final int order,
+                                        final DSCompiler valueCompiler) {
+
+<span class="fc" id="L236">        final int[][] sizes = new int[parameters + 1][order + 1];</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">        if (parameters == 0) {</span>
+<span class="fc" id="L238">            Arrays.fill(sizes[0], 1);</span>
+        } else {
+<span class="fc" id="L240">            System.arraycopy(valueCompiler.sizes, 0, sizes, 0, parameters);</span>
+<span class="fc" id="L241">            sizes[parameters][0] = 1;</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">            for (int i = 0; i &lt; order; ++i) {</span>
+<span class="fc" id="L243">                sizes[parameters][i + 1] = sizes[parameters][i] + sizes[parameters - 1][i + 1];</span>
+            }
+        }
+
+<span class="fc" id="L247">        return sizes;</span>
+
+    }
+
+    /** Compile the derivatives indirection array.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @param derivativeCompiler compiler for the derivative part
+     * @return derivatives indirection array
+     */
+    private static int[][] compileDerivativesIndirection(final int parameters, final int order,
+                                                      final DSCompiler valueCompiler,
+                                                      final DSCompiler derivativeCompiler) {
+
+<span class="fc bfc" id="L262" title="All 4 branches covered.">        if (parameters == 0 || order == 0) {</span>
+<span class="fc" id="L263">            return new int[1][parameters];</span>
+        }
+
+<span class="fc" id="L266">        final int vSize = valueCompiler.derivativesIndirection.length;</span>
+<span class="fc" id="L267">        final int dSize = derivativeCompiler.derivativesIndirection.length;</span>
+<span class="fc" id="L268">        final int[][] derivativesIndirection = new int[vSize + dSize][parameters];</span>
+
+        // set up the indices for the value part
+<span class="fc bfc" id="L271" title="All 2 branches covered.">        for (int i = 0; i &lt; vSize; ++i) {</span>
+            // copy the first indices, the last one remaining set to 0
+<span class="fc" id="L273">            System.arraycopy(valueCompiler.derivativesIndirection[i], 0,</span>
+                             derivativesIndirection[i], 0,
+                             parameters - 1);
+        }
+
+        // set up the indices for the derivative part
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        for (int i = 0; i &lt; dSize; ++i) {</span>
+
+            // copy the indices
+<span class="fc" id="L282">            System.arraycopy(derivativeCompiler.derivativesIndirection[i], 0,</span>
+                             derivativesIndirection[vSize + i], 0,
+                             parameters);
+
+            // increment the derivation order for the last parameter
+<span class="fc" id="L287">            derivativesIndirection[vSize + i][parameters - 1]++;</span>
+
+        }
+
+<span class="fc" id="L291">        return derivativesIndirection;</span>
+
+    }
+
+    /** Compile the lower derivatives indirection array.
+     * &lt;p&gt;
+     * This indirection array contains the indices of all elements
+     * except derivatives for last derivation order.
+     * &lt;/p&gt;
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @param derivativeCompiler compiler for the derivative part
+     * @return lower derivatives indirection array
+     */
+    private static int[] compileLowerIndirection(final int parameters, final int order,
+                                              final DSCompiler valueCompiler,
+                                              final DSCompiler derivativeCompiler) {
+
+<span class="fc bfc" id="L310" title="All 4 branches covered.">        if (parameters == 0 || order &lt;= 1) {</span>
+<span class="fc" id="L311">            return new int[] { 0 };</span>
+        }
+
+        // this is an implementation of definition 6 in Dan Kalman's paper.
+<span class="fc" id="L315">        final int vSize = valueCompiler.lowerIndirection.length;</span>
+<span class="fc" id="L316">        final int dSize = derivativeCompiler.lowerIndirection.length;</span>
+<span class="fc" id="L317">        final int[] lowerIndirection = new int[vSize + dSize];</span>
+<span class="fc" id="L318">        System.arraycopy(valueCompiler.lowerIndirection, 0, lowerIndirection, 0, vSize);</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        for (int i = 0; i &lt; dSize; ++i) {</span>
+<span class="fc" id="L320">            lowerIndirection[vSize + i] = valueCompiler.getSize() + derivativeCompiler.lowerIndirection[i];</span>
+        }
+
+<span class="fc" id="L323">        return lowerIndirection;</span>
+
+    }
+
+    /** Compile the multiplication indirection array.
+     * &lt;p&gt;
+     * This indirection array contains the indices of all pairs of elements
+     * involved when computing a multiplication. This allows a straightforward
+     * loop-based multiplication (see {@link #multiply(double[], int, double[], int, double[], int)}).
+     * &lt;/p&gt;
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @param derivativeCompiler compiler for the derivative part
+     * @param lowerIndirection lower derivatives indirection array
+     * @return multiplication indirection array
+     */
+    private static int[][][] compileMultiplicationIndirection(final int parameters, final int order,
+                                                           final DSCompiler valueCompiler,
+                                                           final DSCompiler derivativeCompiler,
+                                                           final int[] lowerIndirection) {
+
+<span class="fc bfc" id="L345" title="All 4 branches covered.">        if ((parameters == 0) || (order == 0)) {</span>
+<span class="fc" id="L346">            return new int[][][] { { { 1, 0, 0 } } };</span>
+        }
+
+        // this is an implementation of definition 3 in Dan Kalman's paper.
+<span class="fc" id="L350">        final int vSize = valueCompiler.multIndirection.length;</span>
+<span class="fc" id="L351">        final int dSize = derivativeCompiler.multIndirection.length;</span>
+<span class="fc" id="L352">        final int[][][] multIndirection = new int[vSize + dSize][][];</span>
+
+<span class="fc" id="L354">        System.arraycopy(valueCompiler.multIndirection, 0, multIndirection, 0, vSize);</span>
+
+<span class="fc bfc" id="L356" title="All 2 branches covered.">        for (int i = 0; i &lt; dSize; ++i) {</span>
+<span class="fc" id="L357">            final int[][] dRow = derivativeCompiler.multIndirection[i];</span>
+<span class="fc" id="L358">            List&lt;int[]&gt; row = new ArrayList&lt;int[]&gt;();</span>
+<span class="fc bfc" id="L359" title="All 2 branches covered.">            for (int j = 0; j &lt; dRow.length; ++j) {</span>
+<span class="fc" id="L360">                row.add(new int[] { dRow[j][0], lowerIndirection[dRow[j][1]], vSize + dRow[j][2] });</span>
+<span class="fc" id="L361">                row.add(new int[] { dRow[j][0], vSize + dRow[j][1], lowerIndirection[dRow[j][2]] });</span>
+            }
+
+            // combine terms with similar derivation orders
+<span class="fc" id="L365">            final List&lt;int[]&gt; combined = new ArrayList&lt;int[]&gt;(row.size());</span>
+<span class="fc bfc" id="L366" title="All 2 branches covered.">            for (int j = 0; j &lt; row.size(); ++j) {</span>
+<span class="fc" id="L367">                final int[] termJ = row.get(j);</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">                if (termJ[0] &gt; 0) {</span>
+<span class="fc bfc" id="L369" title="All 2 branches covered.">                    for (int k = j + 1; k &lt; row.size(); ++k) {</span>
+<span class="fc" id="L370">                        final int[] termK = row.get(k);</span>
+<span class="pc bpc" id="L371" title="1 of 4 branches missed.">                        if (termJ[1] == termK[1] &amp;&amp; termJ[2] == termK[2]) {</span>
+                            // combine termJ and termK
+<span class="fc" id="L373">                            termJ[0] += termK[0];</span>
+                            // make sure we will skip termK later on in the outer loop
+<span class="fc" id="L375">                            termK[0] = 0;</span>
+                        }
+                    }
+<span class="fc" id="L378">                    combined.add(termJ);</span>
+                }
+            }
+
+<span class="fc" id="L382">            multIndirection[vSize + i] = combined.toArray(new int[combined.size()][]);</span>
+
+        }
+
+<span class="fc" id="L386">        return multIndirection;</span>
+
+    }
+
+    /** Compile the function composition indirection array.
+     * &lt;p&gt;
+     * This indirection array contains the indices of all sets of elements
+     * involved when computing a composition. This allows a straightforward
+     * loop-based composition (see {@link #compose(double[], int, double[], double[], int)}).
+     * &lt;/p&gt;
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param valueCompiler compiler for the value part
+     * @param derivativeCompiler compiler for the derivative part
+     * @param sizes sizes array
+     * @param derivativesIndirection derivatives indirection array
+     * @return multiplication indirection array
+     */
+    private static int[][][] compileCompositionIndirection(final int parameters, final int order,
+                                                        final DSCompiler valueCompiler,
+                                                        final DSCompiler derivativeCompiler,
+                                                        final int[][] sizes,
+                                                        final int[][] derivativesIndirection) {
+
+<span class="fc bfc" id="L410" title="All 4 branches covered.">        if ((parameters == 0) || (order == 0)) {</span>
+<span class="fc" id="L411">            return new int[][][] { { { 1, 0 } } };</span>
+        }
+
+<span class="fc" id="L414">        final int vSize = valueCompiler.compIndirection.length;</span>
+<span class="fc" id="L415">        final int dSize = derivativeCompiler.compIndirection.length;</span>
+<span class="fc" id="L416">        final int[][][] compIndirection = new int[vSize + dSize][][];</span>
+
+        // the composition rules from the value part can be reused as is
+<span class="fc" id="L419">        System.arraycopy(valueCompiler.compIndirection, 0, compIndirection, 0, vSize);</span>
+
+        // the composition rules for the derivative part are deduced by
+        // differentiation the rules from the underlying compiler once
+        // with respect to the parameter this compiler handles and the
+        // underlying one did not handle
+<span class="fc bfc" id="L425" title="All 2 branches covered.">        for (int i = 0; i &lt; dSize; ++i) {</span>
+<span class="fc" id="L426">            List&lt;int[]&gt; row = new ArrayList&lt;int[]&gt;();</span>
+<span class="fc bfc" id="L427" title="All 2 branches covered.">            for (int[] term : derivativeCompiler.compIndirection[i]) {</span>
+
+                // handle term p * f_k(g(x)) * g_l1(x) * g_l2(x) * ... * g_lp(x)
+
+                // derive the first factor in the term: f_k with respect to new parameter
+<span class="fc" id="L432">                int[] derivedTermF = new int[term.length + 1];</span>
+<span class="fc" id="L433">                derivedTermF[0] = term[0];     // p</span>
+<span class="fc" id="L434">                derivedTermF[1] = term[1] + 1; // f_(k+1)</span>
+<span class="fc" id="L435">                int[] orders = new int[parameters];</span>
+<span class="fc" id="L436">                orders[parameters - 1] = 1;</span>
+<span class="fc" id="L437">                derivedTermF[term.length] = getPartialDerivativeIndex(parameters, order, sizes, orders);  // g_1</span>
+<span class="fc bfc" id="L438" title="All 2 branches covered.">                for (int j = 2; j &lt; term.length; ++j) {</span>
+                    // convert the indices as the mapping for the current order
+                    // is different from the mapping with one less order
+<span class="fc" id="L441">                    derivedTermF[j] = convertIndex(term[j], parameters,</span>
+                                                   derivativeCompiler.derivativesIndirection,
+                                                   parameters, order, sizes);
+                }
+<span class="fc" id="L445">                Arrays.sort(derivedTermF, 2, derivedTermF.length);</span>
+<span class="fc" id="L446">                row.add(derivedTermF);</span>
+
+                // derive the various g_l
+<span class="fc bfc" id="L449" title="All 2 branches covered.">                for (int l = 2; l &lt; term.length; ++l) {</span>
+<span class="fc" id="L450">                    int[] derivedTermG = new int[term.length];</span>
+<span class="fc" id="L451">                    derivedTermG[0] = term[0];</span>
+<span class="fc" id="L452">                    derivedTermG[1] = term[1];</span>
+<span class="fc bfc" id="L453" title="All 2 branches covered.">                    for (int j = 2; j &lt; term.length; ++j) {</span>
+                        // convert the indices as the mapping for the current order
+                        // is different from the mapping with one less order
+<span class="fc" id="L456">                        derivedTermG[j] = convertIndex(term[j], parameters,</span>
+                                                       derivativeCompiler.derivativesIndirection,
+                                                       parameters, order, sizes);
+<span class="fc bfc" id="L459" title="All 2 branches covered.">                        if (j == l) {</span>
+                            // derive this term
+<span class="fc" id="L461">                            System.arraycopy(derivativesIndirection[derivedTermG[j]], 0, orders, 0, parameters);</span>
+<span class="fc" id="L462">                            orders[parameters - 1]++;</span>
+<span class="fc" id="L463">                            derivedTermG[j] = getPartialDerivativeIndex(parameters, order, sizes, orders);</span>
+                        }
+                    }
+<span class="fc" id="L466">                    Arrays.sort(derivedTermG, 2, derivedTermG.length);</span>
+<span class="fc" id="L467">                    row.add(derivedTermG);</span>
+                }
+
+            }
+
+            // combine terms with similar derivation orders
+<span class="fc" id="L473">            final List&lt;int[]&gt; combined = new ArrayList&lt;int[]&gt;(row.size());</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">            for (int j = 0; j &lt; row.size(); ++j) {</span>
+<span class="fc" id="L475">                final int[] termJ = row.get(j);</span>
+<span class="fc bfc" id="L476" title="All 2 branches covered.">                if (termJ[0] &gt; 0) {</span>
+<span class="fc bfc" id="L477" title="All 2 branches covered.">                    for (int k = j + 1; k &lt; row.size(); ++k) {</span>
+<span class="fc" id="L478">                        final int[] termK = row.get(k);</span>
+<span class="fc bfc" id="L479" title="All 2 branches covered.">                        boolean equals = termJ.length == termK.length;</span>
+<span class="fc bfc" id="L480" title="All 4 branches covered.">                        for (int l = 1; equals &amp;&amp; l &lt; termJ.length; ++l) {</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">                            equals &amp;= termJ[l] == termK[l];</span>
+                        }
+<span class="fc bfc" id="L483" title="All 2 branches covered.">                        if (equals) {</span>
+                            // combine termJ and termK
+<span class="fc" id="L485">                            termJ[0] += termK[0];</span>
+                            // make sure we will skip termK later on in the outer loop
+<span class="fc" id="L487">                            termK[0] = 0;</span>
+                        }
+                    }
+<span class="fc" id="L490">                    combined.add(termJ);</span>
+                }
+            }
+
+<span class="fc" id="L494">            compIndirection[vSize + i] = combined.toArray(new int[combined.size()][]);</span>
+
+        }
+
+<span class="fc" id="L498">        return compIndirection;</span>
+
+    }
+
+    /** Get the index of a partial derivative in the array.
+     * &lt;p&gt;
+     * If all orders are set to 0, then the 0&lt;sup&gt;th&lt;/sup&gt; order derivative
+     * is returned, which is the value of the function.
+     * &lt;/p&gt;
+     * &lt;p&gt;The indices of derivatives are between 0 and {@link #getSize() getSize()} - 1.
+     * Their specific order is fixed for a given compiler, but otherwise not
+     * publicly specified. There are however some simple cases which have guaranteed
+     * indices:
+     * &lt;/p&gt;
+     * &lt;ul&gt;
+     *   &lt;li&gt;the index of 0&lt;sup&gt;th&lt;/sup&gt; order derivative is always 0&lt;/li&gt;
+     *   &lt;li&gt;if there is only 1 {@link #getFreeParameters() free parameter}, then the
+     *   derivatives are sorted in increasing derivation order (i.e. f at index 0, df/dp
+     *   at index 1, d&lt;sup&gt;2&lt;/sup&gt;f/dp&lt;sup&gt;2&lt;/sup&gt; at index 2 ...
+     *   d&lt;sup&gt;k&lt;/sup&gt;f/dp&lt;sup&gt;k&lt;/sup&gt; at index k),&lt;/li&gt;
+     *   &lt;li&gt;if the {@link #getOrder() derivation order} is 1, then the derivatives
+     *   are sorted in incresing free parameter order (i.e. f at index 0, df/dx&lt;sub&gt;1&lt;/sub&gt;
+     *   at index 1, df/dx&lt;sub&gt;2&lt;/sub&gt; at index 2 ... df/dx&lt;sub&gt;k&lt;/sub&gt; at index k),&lt;/li&gt;
+     *   &lt;li&gt;all other cases are not publicly specified&lt;/li&gt;
+     * &lt;/ul&gt;
+     * &lt;p&gt;
+     * This method is the inverse of method {@link #getPartialDerivativeOrders(int)}
+     * &lt;/p&gt;
+     * @param orders derivation orders with respect to each parameter
+     * @return index of the partial derivative
+     * @exception DimensionMismatchException if the numbers of parameters does not
+     * match the instance
+     * @exception NumberIsTooLargeException if sum of derivation orders is larger
+     * than the instance limits
+     * @see #getPartialDerivativeOrders(int)
+     */
+    public int getPartialDerivativeIndex(final int ... orders)
+            throws DimensionMismatchException, NumberIsTooLargeException {
+
+        // safety check
+<span class="fc bfc" id="L538" title="All 2 branches covered.">        if (orders.length != getFreeParameters()) {</span>
+<span class="fc" id="L539">            throw new DimensionMismatchException(orders.length, getFreeParameters());</span>
+        }
+
+<span class="fc" id="L542">        return getPartialDerivativeIndex(parameters, order, sizes, orders);</span>
+
+    }
+
+    /** Get the index of a partial derivative in an array.
+     * @param parameters number of free parameters
+     * @param order derivation order
+     * @param sizes sizes array
+     * @param orders derivation orders with respect to each parameter
+     * (the lenght of this array must match the number of parameters)
+     * @return index of the partial derivative
+     * @exception NumberIsTooLargeException if sum of derivation orders is larger
+     * than the instance limits
+     */
+    private static int getPartialDerivativeIndex(final int parameters, final int order,
+                                                 final int[][] sizes, final int ... orders)
+        throws NumberIsTooLargeException {
+
+        // the value is obtained by diving into the recursive Dan Kalman's structure
+        // this is theorem 2 of his paper, with recursion replaced by iteration
+<span class="fc" id="L562">        int index     = 0;</span>
+<span class="fc" id="L563">        int m         = order;</span>
+<span class="fc" id="L564">        int ordersSum = 0;</span>
+<span class="fc bfc" id="L565" title="All 2 branches covered.">        for (int i = parameters - 1; i &gt;= 0; --i) {</span>
+
+            // derivative order for current free parameter
+<span class="fc" id="L568">            int derivativeOrder = orders[i];</span>
+
+            // safety check
+<span class="fc" id="L571">            ordersSum += derivativeOrder;</span>
+<span class="fc bfc" id="L572" title="All 2 branches covered.">            if (ordersSum &gt; order) {</span>
+<span class="fc" id="L573">                throw new NumberIsTooLargeException(ordersSum, order, true);</span>
+            }
+
+<span class="fc bfc" id="L576" title="All 2 branches covered.">            while (derivativeOrder-- &gt; 0) {</span>
+                // as long as we differentiate according to current free parameter,
+                // we have to skip the value part and dive into the derivative part
+                // so we add the size of the value part to the base index
+<span class="fc" id="L580">                index += sizes[i][m--];</span>
+            }
+
+        }
+
+<span class="fc" id="L585">        return index;</span>
+
+    }
+
+    /** Convert an index from one (parameters, order) structure to another.
+     * @param index index of a partial derivative in source derivative structure
+     * @param srcP number of free parameters in source derivative structure
+     * @param srcDerivativesIndirection derivatives indirection array for the source
+     * derivative structure
+     * @param destP number of free parameters in destination derivative structure
+     * @param destO derivation order in destination derivative structure
+     * @param destSizes sizes array for the destination derivative structure
+     * @return index of the partial derivative with the &lt;em&gt;same&lt;/em&gt; characteristics
+     * in destination derivative structure
+     */
+    private static int convertIndex(final int index,
+                                    final int srcP, final int[][] srcDerivativesIndirection,
+                                    final int destP, final int destO, final int[][] destSizes) {
+<span class="fc" id="L603">        int[] orders = new int[destP];</span>
+<span class="fc" id="L604">        System.arraycopy(srcDerivativesIndirection[index], 0, orders, 0, FastMath.min(srcP, destP));</span>
+<span class="fc" id="L605">        return getPartialDerivativeIndex(destP, destO, destSizes, orders);</span>
+    }
+
+    /** Get the derivation orders for a specific index in the array.
+     * &lt;p&gt;
+     * This method is the inverse of {@link #getPartialDerivativeIndex(int...)}.
+     * &lt;/p&gt;
+     * @param index of the partial derivative
+     * @return orders derivation orders with respect to each parameter
+     * @see #getPartialDerivativeIndex(int...)
+     */
+    public int[] getPartialDerivativeOrders(final int index) {
+<span class="fc" id="L617">        return derivativesIndirection[index];</span>
+    }
+
+    /** Get the number of free parameters.
+     * @return number of free parameters
+     */
+    public int getFreeParameters() {
+<span class="fc" id="L624">        return parameters;</span>
+    }
+
+    /** Get the derivation order.
+     * @return derivation order
+     */
+    public int getOrder() {
+<span class="fc" id="L631">        return order;</span>
+    }
+
+    /** Get the array size required for holding partial derivatives data.
+     * &lt;p&gt;
+     * This number includes the single 0 order derivative element, which is
+     * guaranteed to be stored in the first element of the array.
+     * &lt;/p&gt;
+     * @return array size required for holding partial derivatives data
+     */
+    public int getSize() {
+<span class="fc" id="L642">        return sizes[parameters][order];</span>
+    }
+
+    /** Compute linear combination.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2
+     * @param a1 first scale factor
+     * @param c1 first base (unscaled) component
+     * @param offset1 offset of first operand in its array
+     * @param a2 second scale factor
+     * @param c2 second base (unscaled) component
+     * @param offset2 offset of second operand in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void linearCombination(final double a1, final double[] c1, final int offset1,
+                                  final double a2, final double[] c2, final int offset2,
+                                  final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L660" title="All 2 branches covered.">        for (int i = 0; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L661">            result[resultOffset + i] =</span>
+<span class="fc" id="L662">                    MathArrays.linearCombination(a1, c1[offset1 + i], a2, c2[offset2 + i]);</span>
+        }
+<span class="fc" id="L664">    }</span>
+
+    /** Compute linear combination.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2 + a3 * ds3 + a4 * ds4
+     * @param a1 first scale factor
+     * @param c1 first base (unscaled) component
+     * @param offset1 offset of first operand in its array
+     * @param a2 second scale factor
+     * @param c2 second base (unscaled) component
+     * @param offset2 offset of second operand in its array
+     * @param a3 third scale factor
+     * @param c3 third base (unscaled) component
+     * @param offset3 offset of third operand in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void linearCombination(final double a1, final double[] c1, final int offset1,
+                                  final double a2, final double[] c2, final int offset2,
+                                  final double a3, final double[] c3, final int offset3,
+                                  final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L685" title="All 2 branches covered.">        for (int i = 0; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L686">            result[resultOffset + i] =</span>
+<span class="fc" id="L687">                    MathArrays.linearCombination(a1, c1[offset1 + i],</span>
+                                                 a2, c2[offset2 + i],
+                                                 a3, c3[offset3 + i]);
+        }
+<span class="fc" id="L691">    }</span>
+
+    /** Compute linear combination.
+     * The derivative structure built will be a1 * ds1 + a2 * ds2 + a3 * ds3 + a4 * ds4
+     * @param a1 first scale factor
+     * @param c1 first base (unscaled) component
+     * @param offset1 offset of first operand in its array
+     * @param a2 second scale factor
+     * @param c2 second base (unscaled) component
+     * @param offset2 offset of second operand in its array
+     * @param a3 third scale factor
+     * @param c3 third base (unscaled) component
+     * @param offset3 offset of third operand in its array
+     * @param a4 fourth scale factor
+     * @param c4 fourth base (unscaled) component
+     * @param offset4 offset of fourth operand in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void linearCombination(final double a1, final double[] c1, final int offset1,
+                                  final double a2, final double[] c2, final int offset2,
+                                  final double a3, final double[] c3, final int offset3,
+                                  final double a4, final double[] c4, final int offset4,
+                                  final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L716" title="All 2 branches covered.">        for (int i = 0; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L717">            result[resultOffset + i] =</span>
+<span class="fc" id="L718">                    MathArrays.linearCombination(a1, c1[offset1 + i],</span>
+                                                 a2, c2[offset2 + i],
+                                                 a3, c3[offset3 + i],
+                                                 a4, c4[offset4 + i]);
+        }
+<span class="fc" id="L723">    }</span>
+
+    /** Perform addition of two derivative structures.
+     * @param lhs array holding left hand side of addition
+     * @param lhsOffset offset of the left hand side in its array
+     * @param rhs array right hand side of addition
+     * @param rhsOffset offset of the right hand side in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void add(final double[] lhs, final int lhsOffset,
+                    final double[] rhs, final int rhsOffset,
+                    final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L737" title="All 2 branches covered.">        for (int i = 0; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L738">            result[resultOffset + i] = lhs[lhsOffset + i] + rhs[rhsOffset + i];</span>
+        }
+<span class="fc" id="L740">    }</span>
+    /** Perform subtraction of two derivative structures.
+     * @param lhs array holding left hand side of subtraction
+     * @param lhsOffset offset of the left hand side in its array
+     * @param rhs array right hand side of subtraction
+     * @param rhsOffset offset of the right hand side in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void subtract(final double[] lhs, final int lhsOffset,
+                         final double[] rhs, final int rhsOffset,
+                         final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L753" title="All 2 branches covered.">        for (int i = 0; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L754">            result[resultOffset + i] = lhs[lhsOffset + i] - rhs[rhsOffset + i];</span>
+        }
+<span class="fc" id="L756">    }</span>
+
+    /** Perform multiplication of two derivative structures.
+     * @param lhs array holding left hand side of multiplication
+     * @param lhsOffset offset of the left hand side in its array
+     * @param rhs array right hand side of multiplication
+     * @param rhsOffset offset of the right hand side in its array
+     * @param result array where result must be stored (for
+     * multiplication the result array &lt;em&gt;cannot&lt;/em&gt; be one of
+     * the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void multiply(final double[] lhs, final int lhsOffset,
+                         final double[] rhs, final int rhsOffset,
+                         final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L771" title="All 2 branches covered.">        for (int i = 0; i &lt; multIndirection.length; ++i) {</span>
+<span class="fc" id="L772">            final int[][] mappingI = multIndirection[i];</span>
+<span class="fc" id="L773">            double r = 0;</span>
+<span class="fc bfc" id="L774" title="All 2 branches covered.">            for (int j = 0; j &lt; mappingI.length; ++j) {</span>
+<span class="fc" id="L775">                r += mappingI[j][0] *</span>
+                     lhs[lhsOffset + mappingI[j][1]] *
+                     rhs[rhsOffset + mappingI[j][2]];
+            }
+<span class="fc" id="L779">            result[resultOffset + i] = r;</span>
+        }
+<span class="fc" id="L781">    }</span>
+
+    /** Perform division of two derivative structures.
+     * @param lhs array holding left hand side of division
+     * @param lhsOffset offset of the left hand side in its array
+     * @param rhs array right hand side of division
+     * @param rhsOffset offset of the right hand side in its array
+     * @param result array where result must be stored (for
+     * division the result array &lt;em&gt;cannot&lt;/em&gt; be one of
+     * the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void divide(final double[] lhs, final int lhsOffset,
+                       final double[] rhs, final int rhsOffset,
+                       final double[] result, final int resultOffset) {
+<span class="fc" id="L796">        final double[] reciprocal = new double[getSize()];</span>
+<span class="fc" id="L797">        pow(rhs, lhsOffset, -1, reciprocal, 0);</span>
+<span class="fc" id="L798">        multiply(lhs, lhsOffset, reciprocal, 0, result, resultOffset);</span>
+<span class="fc" id="L799">    }</span>
+
+    /** Perform remainder of two derivative structures.
+     * @param lhs array holding left hand side of remainder
+     * @param lhsOffset offset of the left hand side in its array
+     * @param rhs array right hand side of remainder
+     * @param rhsOffset offset of the right hand side in its array
+     * @param result array where result must be stored (it may be
+     * one of the input arrays)
+     * @param resultOffset offset of the result in its array
+     */
+    public void remainder(final double[] lhs, final int lhsOffset,
+                          final double[] rhs, final int rhsOffset,
+                          final double[] result, final int resultOffset) {
+
+        // compute k such that lhs % rhs = lhs - k rhs
+<span class="fc" id="L815">        final double rem = lhs[lhsOffset] % rhs[rhsOffset];</span>
+<span class="fc" id="L816">        final double k   = FastMath.rint((lhs[lhsOffset] - rem) / rhs[rhsOffset]);</span>
+
+        // set up value
+<span class="fc" id="L819">        result[resultOffset] = rem;</span>
+
+        // set up partial derivatives
+<span class="fc bfc" id="L822" title="All 2 branches covered.">        for (int i = 1; i &lt; getSize(); ++i) {</span>
+<span class="fc" id="L823">            result[resultOffset + i] = lhs[lhsOffset + i] - k * rhs[rhsOffset + i];</span>
+        }
+
+<span class="fc" id="L826">    }</span>
+
+    /** Compute power of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param p power to apply
+     * @param result array where result must be stored (for
+     * power the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void pow(final double[] operand, final int operandOffset, final double p,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+        // [x^p, px^(p-1), p(p-1)x^(p-2), ... ]
+<span class="fc" id="L842">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L843">        double xk = FastMath.pow(operand[operandOffset], p - order);</span>
+<span class="fc bfc" id="L844" title="All 2 branches covered.">        for (int i = order; i &gt; 0; --i) {</span>
+<span class="fc" id="L845">            function[i] = xk;</span>
+<span class="fc" id="L846">            xk *= operand[operandOffset];</span>
+        }
+<span class="fc" id="L848">        function[0] = xk;</span>
+<span class="fc" id="L849">        double coefficient = p;</span>
+<span class="fc bfc" id="L850" title="All 2 branches covered.">        for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L851">            function[i] *= coefficient;</span>
+<span class="fc" id="L852">            coefficient *= p - i;</span>
+        }
+
+        // apply function composition
+<span class="fc" id="L856">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L858">    }</span>
+
+    /** Compute integer power of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param n power to apply
+     * @param result array where result must be stored (for
+     * power the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void pow(final double[] operand, final int operandOffset, final int n,
+                    final double[] result, final int resultOffset) {
+
+<span class="fc bfc" id="L872" title="All 2 branches covered.">        if (n == 0) {</span>
+            // special case, x^0 = 1 for all x
+<span class="fc" id="L874">            result[resultOffset] = 1.0;</span>
+<span class="fc" id="L875">            Arrays.fill(result, resultOffset + 1, resultOffset + getSize(), 0);</span>
+<span class="fc" id="L876">            return;</span>
+        }
+
+        // create the power function value and derivatives
+        // [x^n, nx^(n-1), n(n-1)x^(n-2), ... ]
+<span class="fc" id="L881">        double[] function = new double[1 + order];</span>
+
+<span class="fc bfc" id="L883" title="All 2 branches covered.">        if (n &gt; 0) {</span>
+            // strictly positive power
+<span class="fc" id="L885">            final int maxOrder = FastMath.min(order, n);</span>
+<span class="fc" id="L886">            double xk = FastMath.pow(operand[operandOffset], n - maxOrder);</span>
+<span class="fc bfc" id="L887" title="All 2 branches covered.">            for (int i = maxOrder; i &gt; 0; --i) {</span>
+<span class="fc" id="L888">                function[i] = xk;</span>
+<span class="fc" id="L889">                xk *= operand[operandOffset];</span>
+            }
+<span class="fc" id="L891">            function[0] = xk;</span>
+<span class="fc" id="L892">        } else {</span>
+            // strictly negative power
+<span class="fc" id="L894">            final double inv = 1.0 / operand[operandOffset];</span>
+<span class="fc" id="L895">            double xk = FastMath.pow(inv, -n);</span>
+<span class="fc bfc" id="L896" title="All 2 branches covered.">            for (int i = 0; i &lt;= order; ++i) {</span>
+<span class="fc" id="L897">                function[i] = xk;</span>
+<span class="fc" id="L898">                xk *= inv;</span>
+            }
+        }
+
+<span class="fc" id="L902">        double coefficient = n;</span>
+<span class="fc bfc" id="L903" title="All 2 branches covered.">        for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L904">            function[i] *= coefficient;</span>
+<span class="fc" id="L905">            coefficient *= n - i;</span>
+        }
+
+        // apply function composition
+<span class="fc" id="L909">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L911">    }</span>
+
+    /** Compute power of a derivative structure.
+     * @param x array holding the base
+     * @param xOffset offset of the base in its array
+     * @param y array holding the exponent
+     * @param yOffset offset of the exponent in its array
+     * @param result array where result must be stored (for
+     * power the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void pow(final double[] x, final int xOffset,
+                    final double[] y, final int yOffset,
+                    final double[] result, final int resultOffset) {
+<span class="fc" id="L926">        final double[] logX = new double[getSize()];</span>
+<span class="fc" id="L927">        log(x, xOffset, logX, 0);</span>
+<span class="fc" id="L928">        final double[] yLogX = new double[getSize()];</span>
+<span class="fc" id="L929">        multiply(logX, 0, y, yOffset, yLogX, 0);</span>
+<span class="fc" id="L930">        exp(yLogX, 0, result, resultOffset);</span>
+<span class="fc" id="L931">    }</span>
+
+    /** Compute n&lt;sup&gt;th&lt;/sup&gt; root of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param n order of the root
+     * @param result array where result must be stored (for
+     * n&lt;sup&gt;th&lt;/sup&gt; root the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void rootN(final double[] operand, final int operandOffset, final int n,
+                      final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+        // [x^(1/n), (1/n)x^((1/n)-1), (1-n)/n^2x^((1/n)-2), ... ]
+<span class="fc" id="L947">        double[] function = new double[1 + order];</span>
+        double xk;
+<span class="fc bfc" id="L949" title="All 2 branches covered.">        if (n == 2) {</span>
+<span class="fc" id="L950">            function[0] = FastMath.sqrt(operand[operandOffset]);</span>
+<span class="fc" id="L951">            xk          = 0.5 / function[0];</span>
+<span class="fc bfc" id="L952" title="All 2 branches covered.">        } else if (n == 3) {</span>
+<span class="fc" id="L953">            function[0] = FastMath.cbrt(operand[operandOffset]);</span>
+<span class="fc" id="L954">            xk          = 1.0 / (3.0 * function[0] * function[0]);</span>
+        } else {
+<span class="fc" id="L956">            function[0] = FastMath.pow(operand[operandOffset], 1.0 / n);</span>
+<span class="fc" id="L957">            xk          = 1.0 / (n * FastMath.pow(function[0], n - 1));</span>
+        }
+<span class="fc" id="L959">        final double nReciprocal = 1.0 / n;</span>
+<span class="fc" id="L960">        final double xReciprocal = 1.0 / operand[operandOffset];</span>
+<span class="fc bfc" id="L961" title="All 2 branches covered.">        for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L962">            function[i] = xk;</span>
+<span class="fc" id="L963">            xk *= xReciprocal * (nReciprocal - i);</span>
+        }
+
+        // apply function composition
+<span class="fc" id="L967">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L969">    }</span>
+
+    /** Compute exponential of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * exponential the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void exp(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L983">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L984">        Arrays.fill(function, FastMath.exp(operand[operandOffset]));</span>
+
+        // apply function composition
+<span class="fc" id="L987">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L989">    }</span>
+
+    /** Compute exp(x) - 1 of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * exponential the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void expm1(final double[] operand, final int operandOffset,
+                      final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1003">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1004">        function[0] = FastMath.expm1(operand[operandOffset]);</span>
+<span class="fc" id="L1005">        Arrays.fill(function, 1, 1 + order, FastMath.exp(operand[operandOffset]));</span>
+
+        // apply function composition
+<span class="fc" id="L1008">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1010">    }</span>
+
+    /** Compute natural logarithm of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * logarithm the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void log(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1024">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1025">        function[0] = FastMath.log(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1026" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1027">            double inv = 1.0 / operand[operandOffset];</span>
+<span class="fc" id="L1028">            double xk  = inv;</span>
+<span class="fc bfc" id="L1029" title="All 2 branches covered.">            for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1030">                function[i] = xk;</span>
+<span class="fc" id="L1031">                xk *= -i * inv;</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1036">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1038">    }</span>
+
+    /** Computes shifted logarithm of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * shifted logarithm the result array &lt;em&gt;cannot&lt;/em&gt; be the input array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void log1p(final double[] operand, final int operandOffset,
+                      final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1051">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1052">        function[0] = FastMath.log1p(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1053" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1054">            double inv = 1.0 / (1.0 + operand[operandOffset]);</span>
+<span class="fc" id="L1055">            double xk  = inv;</span>
+<span class="fc bfc" id="L1056" title="All 2 branches covered.">            for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1057">                function[i] = xk;</span>
+<span class="fc" id="L1058">                xk *= -i * inv;</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1063">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1065">    }</span>
+
+    /** Computes base 10 logarithm of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * base 10 logarithm the result array &lt;em&gt;cannot&lt;/em&gt; be the input array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void log10(final double[] operand, final int operandOffset,
+                      final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1078">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1079">        function[0] = FastMath.log10(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1080" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1081">            double inv = 1.0 / operand[operandOffset];</span>
+<span class="fc" id="L1082">            double xk  = inv / FastMath.log(10.0);</span>
+<span class="fc bfc" id="L1083" title="All 2 branches covered.">            for (int i = 1; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1084">                function[i] = xk;</span>
+<span class="fc" id="L1085">                xk *= -i * inv;</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1090">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1092">    }</span>
+
+    /** Compute cosine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * cosine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void cos(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1106">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1107">        function[0] = FastMath.cos(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1108" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1109">            function[1] = -FastMath.sin(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1110" title="All 2 branches covered.">            for (int i = 2; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1111">                function[i] = -function[i - 2];</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1116">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1118">    }</span>
+
+    /** Compute sine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * sine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void sin(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1132">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1133">        function[0] = FastMath.sin(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1134" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1135">            function[1] = FastMath.cos(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1136" title="All 2 branches covered.">            for (int i = 2; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1137">                function[i] = -function[i - 2];</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1142">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1144">    }</span>
+
+    /** Compute tangent of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * tangent the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void tan(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1158">        final double[] function = new double[1 + order];</span>
+<span class="fc" id="L1159">        final double t = FastMath.tan(operand[operandOffset]);</span>
+<span class="fc" id="L1160">        function[0] = t;</span>
+
+<span class="fc bfc" id="L1162" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+
+            // the nth order derivative of tan has the form:
+            // dn(tan(x)/dxn = P_n(tan(x))
+            // where P_n(t) is a degree n+1 polynomial with same parity as n+1
+            // P_0(t) = t, P_1(t) = 1 + t^2, P_2(t) = 2 t (1 + t^2) ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (1+t^2) P_(n-1)'(t)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1171">            final double[] p = new double[order + 2];</span>
+<span class="fc" id="L1172">            p[1] = 1;</span>
+<span class="fc" id="L1173">            final double t2 = t * t;</span>
+<span class="fc bfc" id="L1174" title="All 2 branches covered.">            for (int n = 1; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(t)
+<span class="fc" id="L1177">                double v = 0;</span>
+<span class="fc" id="L1178">                p[n + 1] = n * p[n];</span>
+<span class="fc bfc" id="L1179" title="All 2 branches covered.">                for (int k = n + 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1180">                    v = v * t2 + p[k];</span>
+<span class="fc bfc" id="L1181" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1182">                        p[k - 2] = (k - 1) * p[k - 1] + (k - 3) * p[k - 3];</span>
+<span class="fc bfc" id="L1183" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1184">                        p[0] = p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1187" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1188">                    v *= t;</span>
+                }
+
+<span class="fc" id="L1191">                function[n] = v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1197">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1199">    }</span>
+
+    /** Compute arc cosine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * arc cosine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void acos(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1213">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1214">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1215">        function[0] = FastMath.acos(x);</span>
+<span class="fc bfc" id="L1216" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of acos has the form:
+            // dn(acos(x)/dxn = P_n(x) / [1 - x^2]^((2n-1)/2)
+            // where P_n(x) is a degree n-1 polynomial with same parity as n-1
+            // P_1(x) = -1, P_2(x) = -x, P_3(x) = -2x^2 - 1 ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (1-x^2) P_(n-1)'(x) + (2n-3) x P_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1224">            final double[] p = new double[order];</span>
+<span class="fc" id="L1225">            p[0] = -1;</span>
+<span class="fc" id="L1226">            final double x2    = x * x;</span>
+<span class="fc" id="L1227">            final double f     = 1.0 / (1 - x2);</span>
+<span class="fc" id="L1228">            double coeff = FastMath.sqrt(f);</span>
+<span class="fc" id="L1229">            function[1] = coeff * p[0];</span>
+<span class="fc bfc" id="L1230" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(x)
+<span class="fc" id="L1233">                double v = 0;</span>
+<span class="fc" id="L1234">                p[n - 1] = (n - 1) * p[n - 2];</span>
+<span class="fc bfc" id="L1235" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1236">                    v = v * x2 + p[k];</span>
+<span class="fc bfc" id="L1237" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1238">                        p[k - 2] = (k - 1) * p[k - 1] + (2 * n - k) * p[k - 3];</span>
+<span class="fc bfc" id="L1239" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1240">                        p[0] = p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1243" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1244">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1247">                coeff *= f;</span>
+<span class="fc" id="L1248">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1254">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1256">    }</span>
+
+    /** Compute arc sine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * arc sine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void asin(final double[] operand, final int operandOffset,
+                    final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1270">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1271">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1272">        function[0] = FastMath.asin(x);</span>
+<span class="fc bfc" id="L1273" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of asin has the form:
+            // dn(asin(x)/dxn = P_n(x) / [1 - x^2]^((2n-1)/2)
+            // where P_n(x) is a degree n-1 polynomial with same parity as n-1
+            // P_1(x) = 1, P_2(x) = x, P_3(x) = 2x^2 + 1 ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (1-x^2) P_(n-1)'(x) + (2n-3) x P_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1281">            final double[] p = new double[order];</span>
+<span class="fc" id="L1282">            p[0] = 1;</span>
+<span class="fc" id="L1283">            final double x2    = x * x;</span>
+<span class="fc" id="L1284">            final double f     = 1.0 / (1 - x2);</span>
+<span class="fc" id="L1285">            double coeff = FastMath.sqrt(f);</span>
+<span class="fc" id="L1286">            function[1] = coeff * p[0];</span>
+<span class="fc bfc" id="L1287" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(x)
+<span class="fc" id="L1290">                double v = 0;</span>
+<span class="fc" id="L1291">                p[n - 1] = (n - 1) * p[n - 2];</span>
+<span class="fc bfc" id="L1292" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1293">                    v = v * x2 + p[k];</span>
+<span class="fc bfc" id="L1294" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1295">                        p[k - 2] = (k - 1) * p[k - 1] + (2 * n - k) * p[k - 3];</span>
+<span class="fc bfc" id="L1296" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1297">                        p[0] = p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1300" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1301">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1304">                coeff *= f;</span>
+<span class="fc" id="L1305">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1311">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1313">    }</span>
+
+    /** Compute arc tangent of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * arc tangent the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void atan(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1327">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1328">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1329">        function[0] = FastMath.atan(x);</span>
+<span class="fc bfc" id="L1330" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of atan has the form:
+            // dn(atan(x)/dxn = Q_n(x) / (1 + x^2)^n
+            // where Q_n(x) is a degree n-1 polynomial with same parity as n-1
+            // Q_1(x) = 1, Q_2(x) = -2x, Q_3(x) = 6x^2 - 2 ...
+            // the general recurrence relation for Q_n is:
+            // Q_n(x) = (1+x^2) Q_(n-1)'(x) - 2(n-1) x Q_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both Q_(n-1) and Q_n in the same array
+<span class="fc" id="L1338">            final double[] q = new double[order];</span>
+<span class="fc" id="L1339">            q[0] = 1;</span>
+<span class="fc" id="L1340">            final double x2    = x * x;</span>
+<span class="fc" id="L1341">            final double f     = 1.0 / (1 + x2);</span>
+<span class="fc" id="L1342">            double coeff = f;</span>
+<span class="fc" id="L1343">            function[1] = coeff * q[0];</span>
+<span class="fc bfc" id="L1344" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial Q_n(x)
+<span class="fc" id="L1347">                double v = 0;</span>
+<span class="fc" id="L1348">                q[n - 1] = -n * q[n - 2];</span>
+<span class="fc bfc" id="L1349" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1350">                    v = v * x2 + q[k];</span>
+<span class="fc bfc" id="L1351" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1352">                        q[k - 2] = (k - 1) * q[k - 1] + (k - 1 - 2 * n) * q[k - 3];</span>
+<span class="fc bfc" id="L1353" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1354">                        q[0] = q[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1357" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1358">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1361">                coeff *= f;</span>
+<span class="fc" id="L1362">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1368">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1370">    }</span>
+
+    /** Compute two arguments arc tangent of a derivative structure.
+     * @param y array holding the first operand
+     * @param yOffset offset of the first operand in its array
+     * @param x array holding the second operand
+     * @param xOffset offset of the second operand in its array
+     * @param result array where result must be stored (for
+     * two arguments arc tangent the result array &lt;em&gt;cannot&lt;/em&gt;
+     * be the input array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void atan2(final double[] y, final int yOffset,
+                      final double[] x, final int xOffset,
+                      final double[] result, final int resultOffset) {
+
+        // compute r = sqrt(x^2+y^2)
+<span class="fc" id="L1387">        double[] tmp1 = new double[getSize()];</span>
+<span class="fc" id="L1388">        multiply(x, xOffset, x, xOffset, tmp1, 0);      // x^2</span>
+<span class="fc" id="L1389">        double[] tmp2 = new double[getSize()];</span>
+<span class="fc" id="L1390">        multiply(y, yOffset, y, yOffset, tmp2, 0);      // y^2</span>
+<span class="fc" id="L1391">        add(tmp1, 0, tmp2, 0, tmp2, 0);                 // x^2 + y^2</span>
+<span class="fc" id="L1392">        rootN(tmp2, 0, 2, tmp1, 0);                     // r = sqrt(x^2 + y^2)</span>
+
+<span class="fc bfc" id="L1394" title="All 2 branches covered.">        if (x[xOffset] &gt;= 0) {</span>
+
+            // compute atan2(y, x) = 2 atan(y / (r + x))
+<span class="fc" id="L1397">            add(tmp1, 0, x, xOffset, tmp2, 0);          // r + x</span>
+<span class="fc" id="L1398">            divide(y, yOffset, tmp2, 0, tmp1, 0);       // y /(r + x)</span>
+<span class="fc" id="L1399">            atan(tmp1, 0, tmp2, 0);                     // atan(y / (r + x))</span>
+<span class="fc bfc" id="L1400" title="All 2 branches covered.">            for (int i = 0; i &lt; tmp2.length; ++i) {</span>
+<span class="fc" id="L1401">                result[resultOffset + i] = 2 * tmp2[i]; // 2 * atan(y / (r + x))</span>
+            }
+
+        } else {
+
+            // compute atan2(y, x) = +/- pi - 2 atan(y / (r - x))
+<span class="fc" id="L1407">            subtract(tmp1, 0, x, xOffset, tmp2, 0);     // r - x</span>
+<span class="fc" id="L1408">            divide(y, yOffset, tmp2, 0, tmp1, 0);       // y /(r - x)</span>
+<span class="fc" id="L1409">            atan(tmp1, 0, tmp2, 0);                     // atan(y / (r - x))</span>
+<span class="fc bfc" id="L1410" title="All 2 branches covered.">            result[resultOffset] =</span>
+                    ((tmp2[0] &lt;= 0) ? -FastMath.PI : FastMath.PI) - 2 * tmp2[0]; // +/-pi - 2 * atan(y / (r - x))
+<span class="fc bfc" id="L1412" title="All 2 branches covered.">            for (int i = 1; i &lt; tmp2.length; ++i) {</span>
+<span class="fc" id="L1413">                result[resultOffset + i] = -2 * tmp2[i]; // +/-pi - 2 * atan(y / (r - x))</span>
+            }
+
+        }
+
+<span class="fc" id="L1418">    }</span>
+
+    /** Compute hyperbolic cosine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * hyperbolic cosine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void cosh(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1432">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1433">        function[0] = FastMath.cosh(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1434" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1435">            function[1] = FastMath.sinh(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1436" title="All 2 branches covered.">            for (int i = 2; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1437">                function[i] = function[i - 2];</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1442">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1444">    }</span>
+
+    /** Compute hyperbolic sine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * hyperbolic sine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void sinh(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1458">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1459">        function[0] = FastMath.sinh(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1460" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+<span class="fc" id="L1461">            function[1] = FastMath.cosh(operand[operandOffset]);</span>
+<span class="fc bfc" id="L1462" title="All 2 branches covered.">            for (int i = 2; i &lt;= order; ++i) {</span>
+<span class="fc" id="L1463">                function[i] = function[i - 2];</span>
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1468">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1470">    }</span>
+
+    /** Compute hyperbolic tangent of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * hyperbolic tangent the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void tanh(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1484">        final double[] function = new double[1 + order];</span>
+<span class="fc" id="L1485">        final double t = FastMath.tanh(operand[operandOffset]);</span>
+<span class="fc" id="L1486">        function[0] = t;</span>
+
+<span class="fc bfc" id="L1488" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+
+            // the nth order derivative of tanh has the form:
+            // dn(tanh(x)/dxn = P_n(tanh(x))
+            // where P_n(t) is a degree n+1 polynomial with same parity as n+1
+            // P_0(t) = t, P_1(t) = 1 - t^2, P_2(t) = -2 t (1 - t^2) ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (1-t^2) P_(n-1)'(t)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1497">            final double[] p = new double[order + 2];</span>
+<span class="fc" id="L1498">            p[1] = 1;</span>
+<span class="fc" id="L1499">            final double t2 = t * t;</span>
+<span class="fc bfc" id="L1500" title="All 2 branches covered.">            for (int n = 1; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(t)
+<span class="fc" id="L1503">                double v = 0;</span>
+<span class="fc" id="L1504">                p[n + 1] = -n * p[n];</span>
+<span class="fc bfc" id="L1505" title="All 2 branches covered.">                for (int k = n + 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1506">                    v = v * t2 + p[k];</span>
+<span class="fc bfc" id="L1507" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1508">                        p[k - 2] = (k - 1) * p[k - 1] - (k - 3) * p[k - 3];</span>
+<span class="fc bfc" id="L1509" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1510">                        p[0] = p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1513" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1514">                    v *= t;</span>
+                }
+
+<span class="fc" id="L1517">                function[n] = v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1523">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1525">    }</span>
+
+    /** Compute inverse hyperbolic cosine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * inverse hyperbolic cosine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void acosh(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1539">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1540">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1541">        function[0] = FastMath.acosh(x);</span>
+<span class="fc bfc" id="L1542" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of acosh has the form:
+            // dn(acosh(x)/dxn = P_n(x) / [x^2 - 1]^((2n-1)/2)
+            // where P_n(x) is a degree n-1 polynomial with same parity as n-1
+            // P_1(x) = 1, P_2(x) = -x, P_3(x) = 2x^2 + 1 ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (x^2-1) P_(n-1)'(x) - (2n-3) x P_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1550">            final double[] p = new double[order];</span>
+<span class="fc" id="L1551">            p[0] = 1;</span>
+<span class="fc" id="L1552">            final double x2  = x * x;</span>
+<span class="fc" id="L1553">            final double f   = 1.0 / (x2 - 1);</span>
+<span class="fc" id="L1554">            double coeff = FastMath.sqrt(f);</span>
+<span class="fc" id="L1555">            function[1] = coeff * p[0];</span>
+<span class="fc bfc" id="L1556" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(x)
+<span class="fc" id="L1559">                double v = 0;</span>
+<span class="fc" id="L1560">                p[n - 1] = (1 - n) * p[n - 2];</span>
+<span class="fc bfc" id="L1561" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1562">                    v = v * x2 + p[k];</span>
+<span class="fc bfc" id="L1563" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1564">                        p[k - 2] = (1 - k) * p[k - 1] + (k - 2 * n) * p[k - 3];</span>
+<span class="fc bfc" id="L1565" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1566">                        p[0] = -p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1569" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1570">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1573">                coeff *= f;</span>
+<span class="fc" id="L1574">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1580">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1582">    }</span>
+
+    /** Compute inverse hyperbolic sine of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * inverse hyperbolic sine the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void asinh(final double[] operand, final int operandOffset,
+                     final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1596">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1597">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1598">        function[0] = FastMath.asinh(x);</span>
+<span class="fc bfc" id="L1599" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of asinh has the form:
+            // dn(asinh(x)/dxn = P_n(x) / [x^2 + 1]^((2n-1)/2)
+            // where P_n(x) is a degree n-1 polynomial with same parity as n-1
+            // P_1(x) = 1, P_2(x) = -x, P_3(x) = 2x^2 - 1 ...
+            // the general recurrence relation for P_n is:
+            // P_n(x) = (x^2+1) P_(n-1)'(x) - (2n-3) x P_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both P_(n-1) and P_n in the same array
+<span class="fc" id="L1607">            final double[] p = new double[order];</span>
+<span class="fc" id="L1608">            p[0] = 1;</span>
+<span class="fc" id="L1609">            final double x2    = x * x;</span>
+<span class="fc" id="L1610">            final double f     = 1.0 / (1 + x2);</span>
+<span class="fc" id="L1611">            double coeff = FastMath.sqrt(f);</span>
+<span class="fc" id="L1612">            function[1] = coeff * p[0];</span>
+<span class="fc bfc" id="L1613" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial P_n(x)
+<span class="fc" id="L1616">                double v = 0;</span>
+<span class="fc" id="L1617">                p[n - 1] = (1 - n) * p[n - 2];</span>
+<span class="fc bfc" id="L1618" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1619">                    v = v * x2 + p[k];</span>
+<span class="fc bfc" id="L1620" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1621">                        p[k - 2] = (k - 1) * p[k - 1] + (k - 2 * n) * p[k - 3];</span>
+<span class="fc bfc" id="L1622" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1623">                        p[0] = p[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1626" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1627">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1630">                coeff *= f;</span>
+<span class="fc" id="L1631">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1637">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1639">    }</span>
+
+    /** Compute inverse hyperbolic tangent of a derivative structure.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param result array where result must be stored (for
+     * inverse hyperbolic tangent the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void atanh(final double[] operand, final int operandOffset,
+                      final double[] result, final int resultOffset) {
+
+        // create the function value and derivatives
+<span class="fc" id="L1653">        double[] function = new double[1 + order];</span>
+<span class="fc" id="L1654">        final double x = operand[operandOffset];</span>
+<span class="fc" id="L1655">        function[0] = FastMath.atanh(x);</span>
+<span class="fc bfc" id="L1656" title="All 2 branches covered.">        if (order &gt; 0) {</span>
+            // the nth order derivative of atanh has the form:
+            // dn(atanh(x)/dxn = Q_n(x) / (1 - x^2)^n
+            // where Q_n(x) is a degree n-1 polynomial with same parity as n-1
+            // Q_1(x) = 1, Q_2(x) = 2x, Q_3(x) = 6x^2 + 2 ...
+            // the general recurrence relation for Q_n is:
+            // Q_n(x) = (1-x^2) Q_(n-1)'(x) + 2(n-1) x Q_(n-1)(x)
+            // as per polynomial parity, we can store coefficients of both Q_(n-1) and Q_n in the same array
+<span class="fc" id="L1664">            final double[] q = new double[order];</span>
+<span class="fc" id="L1665">            q[0] = 1;</span>
+<span class="fc" id="L1666">            final double x2 = x * x;</span>
+<span class="fc" id="L1667">            final double f  = 1.0 / (1 - x2);</span>
+<span class="fc" id="L1668">            double coeff = f;</span>
+<span class="fc" id="L1669">            function[1] = coeff * q[0];</span>
+<span class="fc bfc" id="L1670" title="All 2 branches covered.">            for (int n = 2; n &lt;= order; ++n) {</span>
+
+                // update and evaluate polynomial Q_n(x)
+<span class="fc" id="L1673">                double v = 0;</span>
+<span class="fc" id="L1674">                q[n - 1] = n * q[n - 2];</span>
+<span class="fc bfc" id="L1675" title="All 2 branches covered.">                for (int k = n - 1; k &gt;= 0; k -= 2) {</span>
+<span class="fc" id="L1676">                    v = v * x2 + q[k];</span>
+<span class="fc bfc" id="L1677" title="All 2 branches covered.">                    if (k &gt; 2) {</span>
+<span class="fc" id="L1678">                        q[k - 2] = (k - 1) * q[k - 1] + (2 * n - k + 1) * q[k - 3];</span>
+<span class="fc bfc" id="L1679" title="All 2 branches covered.">                    } else if (k == 2) {</span>
+<span class="fc" id="L1680">                        q[0] = q[1];</span>
+                    }
+                }
+<span class="fc bfc" id="L1683" title="All 2 branches covered.">                if ((n &amp; 0x1) == 0) {</span>
+<span class="fc" id="L1684">                    v *= x;</span>
+                }
+
+<span class="fc" id="L1687">                coeff *= f;</span>
+<span class="fc" id="L1688">                function[n] = coeff * v;</span>
+
+            }
+        }
+
+        // apply function composition
+<span class="fc" id="L1694">        compose(operand, operandOffset, function, result, resultOffset);</span>
+
+<span class="fc" id="L1696">    }</span>
+
+    /** Compute composition of a derivative structure by a function.
+     * @param operand array holding the operand
+     * @param operandOffset offset of the operand in its array
+     * @param f array of value and derivatives of the function at
+     * the current point (i.e. at {@code operand[operandOffset]}).
+     * @param result array where result must be stored (for
+     * composition the result array &lt;em&gt;cannot&lt;/em&gt; be the input
+     * array)
+     * @param resultOffset offset of the result in its array
+     */
+    public void compose(final double[] operand, final int operandOffset, final double[] f,
+                        final double[] result, final int resultOffset) {
+<span class="fc bfc" id="L1710" title="All 2 branches covered.">        for (int i = 0; i &lt; compIndirection.length; ++i) {</span>
+<span class="fc" id="L1711">            final int[][] mappingI = compIndirection[i];</span>
+<span class="fc" id="L1712">            double r = 0;</span>
+<span class="fc bfc" id="L1713" title="All 2 branches covered.">            for (int j = 0; j &lt; mappingI.length; ++j) {</span>
+<span class="fc" id="L1714">                final int[] mappingIJ = mappingI[j];</span>
+<span class="fc" id="L1715">                double product = mappingIJ[0] * f[mappingIJ[1]];</span>
+<span class="fc bfc" id="L1716" title="All 2 branches covered.">                for (int k = 2; k &lt; mappingIJ.length; ++k) {</span>
+<span class="fc" id="L1717">                    product *= operand[operandOffset + mappingIJ[k]];</span>
+                }
+<span class="fc" id="L1719">                r += product;</span>
+            }
+<span class="fc" id="L1721">            result[resultOffset + i] = r;</span>
+        }
+<span class="fc" id="L1723">    }</span>
+
+    /** Evaluate Taylor expansion of a derivative structure.
+     * @param ds array holding the derivative structure
+     * @param dsOffset offset of the derivative structure in its array
+     * @param delta parameters offsets (&amp;Delta;x, &amp;Delta;y, ...)
+     * @return value of the Taylor expansion at x + &amp;Delta;x, y + &amp;Delta;y, ...
+     */
+    public double taylor(final double[] ds, final int dsOffset, final double ... delta) {
+<span class="fc" id="L1732">        double value = 0;</span>
+<span class="fc bfc" id="L1733" title="All 2 branches covered.">        for (int i = getSize() - 1; i &gt;= 0; --i) {</span>
+<span class="fc" id="L1734">            final int[] orders = getPartialDerivativeOrders(i);</span>
+<span class="fc" id="L1735">            double term = ds[dsOffset + i];</span>
+<span class="fc bfc" id="L1736" title="All 2 branches covered.">            for (int k = 0; k &lt; orders.length; ++k) {</span>
+<span class="fc bfc" id="L1737" title="All 2 branches covered.">                if (orders[k] &gt; 0) {</span>
+<span class="fc" id="L1738">                    term *= FastMath.pow(delta[k], orders[k]) / ArithmeticUtils.factorial(orders[k]);</span>
+                }
+            }
+<span class="fc" id="L1741">            value += term;</span>
+        }
+<span class="fc" id="L1743">        return value;</span>
+    }
+
+    /** Check rules set compatibility.
+     * @param compiler other compiler to check against instance
+     * @exception DimensionMismatchException if number of free parameters or orders are inconsistent
+     */
+    public void checkCompatibility(final DSCompiler compiler)
+            throws DimensionMismatchException {
+<span class="fc bfc" id="L1752" title="All 2 branches covered.">        if (parameters != compiler.parameters) {</span>
+<span class="fc" id="L1753">            throw new DimensionMismatchException(parameters, compiler.parameters);</span>
+        }
+<span class="fc bfc" id="L1755" title="All 2 branches covered.">        if (order != compiler.order) {</span>
+<span class="fc" id="L1756">            throw new DimensionMismatchException(order, compiler.order);</span>
+        }
+<span class="fc" id="L1758">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
