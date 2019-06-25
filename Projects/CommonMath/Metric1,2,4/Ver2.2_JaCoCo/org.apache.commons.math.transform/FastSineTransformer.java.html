@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>FastSineTransformer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.transform</a> &gt; <span class="el_source">FastSineTransformer.java</span></div><h1>FastSineTransformer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.transform;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.complex.Complex;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements the &lt;a href=&quot;http://documents.wolfram.com/v5/Add-onsLinks/
+ * StandardPackages/LinearAlgebra/FourierTrig.html&quot;&gt;Fast Sine Transform&lt;/a&gt;
+ * for transformation of one-dimensional data sets. For reference, see
+ * &lt;b&gt;Fast Fourier Transforms&lt;/b&gt;, ISBN 0849371635, chapter 3.
+ * &lt;p&gt;
+ * FST is its own inverse, up to a multiplier depending on conventions.
+ * The equations are listed in the comments of the corresponding methods.&lt;/p&gt;
+ * &lt;p&gt;
+ * Similar to FFT, we also require the length of data set to be power of 2.
+ * In addition, the first element must be 0 and it's enforced in function
+ * transformation after sampling.&lt;/p&gt;
+ * &lt;p&gt;As of version 2.0 this no longer implements Serializable&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class FastSineTransformer implements RealTransformer {
+
+    /**
+     * Construct a default transformer.
+     */
+    public FastSineTransformer() {
+<span class="fc" id="L49">        super();</span>
+<span class="fc" id="L50">    }</span>
+
+    /**
+     * Transform the given real data set.
+     * &lt;p&gt;
+     * The formula is F&lt;sub&gt;n&lt;/sub&gt; = &amp;sum;&lt;sub&gt;k=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; f&lt;sub&gt;k&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the real data array to be transformed
+     * @return the real transformed array
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] transform(double f[])
+        throws IllegalArgumentException {
+<span class="fc" id="L64">        return fst(f);</span>
+    }
+
+    /**
+     * Transform the given real function, sampled on the given interval.
+     * &lt;p&gt;
+     * The formula is F&lt;sub&gt;n&lt;/sub&gt; = &amp;sum;&lt;sub&gt;k=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; f&lt;sub&gt;k&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the function to be sampled and transformed
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param n the number of sample points
+     * @return the real transformed array
+     * @throws FunctionEvaluationException if function cannot be evaluated
+     * at some point
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] transform(UnivariateRealFunction f,
+                              double min, double max, int n)
+        throws FunctionEvaluationException, IllegalArgumentException {
+
+<span class="fc" id="L86">        double data[] = FastFourierTransformer.sample(f, min, max, n);</span>
+<span class="fc" id="L87">        data[0] = 0.0;</span>
+<span class="fc" id="L88">        return fst(data);</span>
+    }
+
+    /**
+     * Transform the given real data set.
+     * &lt;p&gt;
+     * The formula is F&lt;sub&gt;n&lt;/sub&gt; = &amp;radic;(2/N) &amp;sum;&lt;sub&gt;k=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; f&lt;sub&gt;k&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the real data array to be transformed
+     * @return the real transformed array
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] transform2(double f[]) throws IllegalArgumentException {
+
+<span class="fc" id="L103">        double scaling_coefficient = FastMath.sqrt(2.0 / f.length);</span>
+<span class="fc" id="L104">        return FastFourierTransformer.scaleArray(fst(f), scaling_coefficient);</span>
+    }
+
+    /**
+     * Transform the given real function, sampled on the given interval.
+     * &lt;p&gt;
+     * The formula is F&lt;sub&gt;n&lt;/sub&gt; = &amp;radic;(2/N) &amp;sum;&lt;sub&gt;k=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; f&lt;sub&gt;k&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the function to be sampled and transformed
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param n the number of sample points
+     * @return the real transformed array
+     * @throws FunctionEvaluationException if function cannot be evaluated
+     * at some point
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] transform2(
+        UnivariateRealFunction f, double min, double max, int n)
+        throws FunctionEvaluationException, IllegalArgumentException {
+
+<span class="nc" id="L126">        double data[] = FastFourierTransformer.sample(f, min, max, n);</span>
+<span class="nc" id="L127">        data[0] = 0.0;</span>
+<span class="nc" id="L128">        double scaling_coefficient = FastMath.sqrt(2.0 / n);</span>
+<span class="nc" id="L129">        return FastFourierTransformer.scaleArray(fst(data), scaling_coefficient);</span>
+    }
+
+    /**
+     * Inversely transform the given real data set.
+     * &lt;p&gt;
+     * The formula is f&lt;sub&gt;k&lt;/sub&gt; = (2/N) &amp;sum;&lt;sub&gt;n=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; F&lt;sub&gt;n&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the real data array to be inversely transformed
+     * @return the real inversely transformed array
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] inversetransform(double f[]) throws IllegalArgumentException {
+
+<span class="fc" id="L144">        double scaling_coefficient = 2.0 / f.length;</span>
+<span class="fc" id="L145">        return FastFourierTransformer.scaleArray(fst(f), scaling_coefficient);</span>
+    }
+
+    /**
+     * Inversely transform the given real function, sampled on the given interval.
+     * &lt;p&gt;
+     * The formula is f&lt;sub&gt;k&lt;/sub&gt; = (2/N) &amp;sum;&lt;sub&gt;n=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; F&lt;sub&gt;n&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the function to be sampled and inversely transformed
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param n the number of sample points
+     * @return the real inversely transformed array
+     * @throws FunctionEvaluationException if function cannot be evaluated at some point
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] inversetransform(UnivariateRealFunction f, double min, double max, int n)
+        throws FunctionEvaluationException, IllegalArgumentException {
+
+<span class="nc" id="L165">        double data[] = FastFourierTransformer.sample(f, min, max, n);</span>
+<span class="nc" id="L166">        data[0] = 0.0;</span>
+<span class="nc" id="L167">        double scaling_coefficient = 2.0 / n;</span>
+<span class="nc" id="L168">        return FastFourierTransformer.scaleArray(fst(data), scaling_coefficient);</span>
+    }
+
+    /**
+     * Inversely transform the given real data set.
+     * &lt;p&gt;
+     * The formula is f&lt;sub&gt;k&lt;/sub&gt; = &amp;radic;(2/N) &amp;sum;&lt;sub&gt;n=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; F&lt;sub&gt;n&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the real data array to be inversely transformed
+     * @return the real inversely transformed array
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] inversetransform2(double f[]) throws IllegalArgumentException {
+
+<span class="fc" id="L183">        return transform2(f);</span>
+    }
+
+    /**
+     * Inversely transform the given real function, sampled on the given interval.
+     * &lt;p&gt;
+     * The formula is f&lt;sub&gt;k&lt;/sub&gt; = &amp;radic;(2/N) &amp;sum;&lt;sub&gt;n=0&lt;/sub&gt;&lt;sup&gt;N-1&lt;/sup&gt; F&lt;sub&gt;n&lt;/sub&gt; sin(&amp;pi; nk/N)
+     * &lt;/p&gt;
+     *
+     * @param f the function to be sampled and inversely transformed
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param n the number of sample points
+     * @return the real inversely transformed array
+     * @throws FunctionEvaluationException if function cannot be evaluated at some point
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    public double[] inversetransform2(UnivariateRealFunction f, double min, double max, int n)
+        throws FunctionEvaluationException, IllegalArgumentException {
+
+<span class="nc" id="L203">        return transform2(f, min, max, n);</span>
+    }
+
+    /**
+     * Perform the FST algorithm (including inverse).
+     *
+     * @param f the real data array to be transformed
+     * @return the real transformed array
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    protected double[] fst(double f[]) throws IllegalArgumentException {
+
+<span class="fc" id="L215">        final double transformed[] = new double[f.length];</span>
+
+<span class="fc" id="L217">        FastFourierTransformer.verifyDataSet(f);</span>
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (f[0] != 0.0) {</span>
+<span class="nc" id="L219">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.FIRST_ELEMENT_NOT_ZERO,
+<span class="nc" id="L221">                    f[0]);</span>
+        }
+<span class="fc" id="L223">        final int n = f.length;</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">        if (n == 1) {       // trivial case</span>
+<span class="nc" id="L225">            transformed[0] = 0.0;</span>
+<span class="nc" id="L226">            return transformed;</span>
+        }
+
+        // construct a new array and perform FFT on it
+<span class="fc" id="L230">        final double[] x = new double[n];</span>
+<span class="fc" id="L231">        x[0] = 0.0;</span>
+<span class="fc" id="L232">        x[n &gt;&gt; 1] = 2.0 * f[n &gt;&gt; 1];</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        for (int i = 1; i &lt; (n &gt;&gt; 1); i++) {</span>
+<span class="fc" id="L234">            final double a = FastMath.sin(i * FastMath.PI / n) * (f[i] + f[n-i]);</span>
+<span class="fc" id="L235">            final double b = 0.5 * (f[i] - f[n-i]);</span>
+<span class="fc" id="L236">            x[i]     = a + b;</span>
+<span class="fc" id="L237">            x[n - i] = a - b;</span>
+        }
+<span class="fc" id="L239">        FastFourierTransformer transformer = new FastFourierTransformer();</span>
+<span class="fc" id="L240">        Complex y[] = transformer.transform(x);</span>
+
+        // reconstruct the FST result for the original array
+<span class="fc" id="L243">        transformed[0] = 0.0;</span>
+<span class="fc" id="L244">        transformed[1] = 0.5 * y[0].getReal();</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">        for (int i = 1; i &lt; (n &gt;&gt; 1); i++) {</span>
+<span class="fc" id="L246">            transformed[2 * i]     = -y[i].getImaginary();</span>
+<span class="fc" id="L247">            transformed[2 * i + 1] = y[i].getReal() + transformed[2 * i - 1];</span>
+        }
+
+<span class="fc" id="L250">        return transformed;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

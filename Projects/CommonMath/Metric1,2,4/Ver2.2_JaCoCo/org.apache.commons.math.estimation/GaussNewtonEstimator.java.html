@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>GaussNewtonEstimator.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.estimation</a> &gt; <span class="el_source">GaussNewtonEstimator.java</span></div><h1>GaussNewtonEstimator.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.estimation;
+
+import java.io.Serializable;
+
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.linear.InvalidMatrixException;
+import org.apache.commons.math.linear.LUDecompositionImpl;
+import org.apache.commons.math.linear.MatrixUtils;
+import org.apache.commons.math.linear.RealMatrix;
+import org.apache.commons.math.linear.RealVector;
+import org.apache.commons.math.linear.ArrayRealVector;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * This class implements a solver for estimation problems.
+ *
+ * &lt;p&gt;This class solves estimation problems using a weighted least
+ * squares criterion on the measurement residuals. It uses a
+ * Gauss-Newton algorithm.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ * @deprecated as of 2.0, everything in package org.apache.commons.math.estimation has
+ * been deprecated and replaced by package org.apache.commons.math.optimization.general
+ *
+ */
+@Deprecated
+public class GaussNewtonEstimator extends AbstractEstimator implements Serializable {
+
+    /** Serializable version identifier */
+    private static final long serialVersionUID = 5485001826076289109L;
+
+    /** Default threshold for cost steady state detection. */
+    private static final double DEFAULT_STEADY_STATE_THRESHOLD = 1.0e-6;
+
+    /** Default threshold for cost convergence. */
+    private static final double DEFAULT_CONVERGENCE = 1.0e-6;
+
+    /** Threshold for cost steady state detection. */
+    private double steadyStateThreshold;
+
+    /** Threshold for cost convergence. */
+    private double convergence;
+
+    /** Simple constructor with default settings.
+     * &lt;p&gt;
+     * The estimator is built with default values for all settings.
+     * &lt;/p&gt;
+     * @see #DEFAULT_STEADY_STATE_THRESHOLD
+     * @see #DEFAULT_CONVERGENCE
+     * @see AbstractEstimator#DEFAULT_MAX_COST_EVALUATIONS
+     */
+<span class="nc" id="L70">    public GaussNewtonEstimator() {</span>
+<span class="nc" id="L71">        this.steadyStateThreshold = DEFAULT_STEADY_STATE_THRESHOLD;</span>
+<span class="nc" id="L72">        this.convergence          = DEFAULT_CONVERGENCE;</span>
+<span class="nc" id="L73">    }</span>
+
+    /**
+     * Simple constructor.
+     *
+     * &lt;p&gt;This constructor builds an estimator and stores its convergence
+     * characteristics.&lt;/p&gt;
+     *
+     * &lt;p&gt;An estimator is considered to have converged whenever either
+     * the criterion goes below a physical threshold under which
+     * improvements are considered useless or when the algorithm is
+     * unable to improve it (even if it is still high). The first
+     * condition that is met stops the iterations.&lt;/p&gt;
+     *
+     * &lt;p&gt;The fact an estimator has converged does not mean that the
+     * model accurately fits the measurements. It only means no better
+     * solution can be found, it does not mean this one is good. Such an
+     * analysis is left to the caller.&lt;/p&gt;
+     *
+     * &lt;p&gt;If neither conditions are fulfilled before a given number of
+     * iterations, the algorithm is considered to have failed and an
+     * {@link EstimationException} is thrown.&lt;/p&gt;
+     *
+     * @param maxCostEval maximal number of cost evaluations allowed
+     * @param convergence criterion threshold below which we do not need
+     * to improve the criterion anymore
+     * @param steadyStateThreshold steady state detection threshold, the
+     * problem has converged has reached a steady state if
+     * &lt;code&gt;FastMath.abs(J&lt;sub&gt;n&lt;/sub&gt; - J&lt;sub&gt;n-1&lt;/sub&gt;) &amp;lt;
+     * J&lt;sub&gt;n&lt;/sub&gt; &amp;times convergence&lt;/code&gt;, where &lt;code&gt;J&lt;sub&gt;n&lt;/sub&gt;&lt;/code&gt;
+     * and &lt;code&gt;J&lt;sub&gt;n-1&lt;/sub&gt;&lt;/code&gt; are the current and preceding criterion
+     * values (square sum of the weighted residuals of considered measurements).
+     */
+    public GaussNewtonEstimator(final int maxCostEval, final double convergence,
+<span class="fc" id="L107">                                final double steadyStateThreshold) {</span>
+<span class="fc" id="L108">        setMaxCostEval(maxCostEval);</span>
+<span class="fc" id="L109">        this.steadyStateThreshold = steadyStateThreshold;</span>
+<span class="fc" id="L110">        this.convergence          = convergence;</span>
+<span class="fc" id="L111">    }</span>
+
+    /**
+     * Set the convergence criterion threshold.
+     * @param convergence criterion threshold below which we do not need
+     * to improve the criterion anymore
+     */
+    public void setConvergence(final double convergence) {
+<span class="nc" id="L119">        this.convergence = convergence;</span>
+<span class="nc" id="L120">    }</span>
+
+    /**
+     * Set the steady state detection threshold.
+     * &lt;p&gt;
+     * The problem has converged has reached a steady state if
+     * &lt;code&gt;FastMath.abs(J&lt;sub&gt;n&lt;/sub&gt; - J&lt;sub&gt;n-1&lt;/sub&gt;) &amp;lt;
+     * J&lt;sub&gt;n&lt;/sub&gt; &amp;times convergence&lt;/code&gt;, where &lt;code&gt;J&lt;sub&gt;n&lt;/sub&gt;&lt;/code&gt;
+     * and &lt;code&gt;J&lt;sub&gt;n-1&lt;/sub&gt;&lt;/code&gt; are the current and preceding criterion
+     * values (square sum of the weighted residuals of considered measurements).
+     * &lt;/p&gt;
+     * @param steadyStateThreshold steady state detection threshold
+     */
+    public void setSteadyStateThreshold(final double steadyStateThreshold) {
+<span class="nc" id="L134">        this.steadyStateThreshold = steadyStateThreshold;</span>
+<span class="nc" id="L135">    }</span>
+
+    /**
+     * Solve an estimation problem using a least squares criterion.
+     *
+     * &lt;p&gt;This method set the unbound parameters of the given problem
+     * starting from their current values through several iterations. At
+     * each step, the unbound parameters are changed in order to
+     * minimize a weighted least square criterion based on the
+     * measurements of the problem.&lt;/p&gt;
+     *
+     * &lt;p&gt;The iterations are stopped either when the criterion goes
+     * below a physical threshold under which improvement are considered
+     * useless or when the algorithm is unable to improve it (even if it
+     * is still high). The first condition that is met stops the
+     * iterations. If the convergence it not reached before the maximum
+     * number of iterations, an {@link EstimationException} is
+     * thrown.&lt;/p&gt;
+     *
+     * @param problem estimation problem to solve
+     * @exception EstimationException if the problem cannot be solved
+     *
+     * @see EstimationProblem
+     *
+     */
+    @Override
+    public void estimate(EstimationProblem problem)
+    throws EstimationException {
+
+<span class="fc" id="L164">        initializeEstimate(problem);</span>
+
+        // work matrices
+<span class="fc" id="L167">        double[] grad             = new double[parameters.length];</span>
+<span class="fc" id="L168">        ArrayRealVector bDecrement = new ArrayRealVector(parameters.length);</span>
+<span class="fc" id="L169">        double[] bDecrementData   = bDecrement.getDataRef();</span>
+<span class="fc" id="L170">        RealMatrix wGradGradT     = MatrixUtils.createRealMatrix(parameters.length, parameters.length);</span>
+
+        // iterate until convergence is reached
+<span class="fc" id="L173">        double previous = Double.POSITIVE_INFINITY;</span>
+        do {
+
+            // build the linear problem
+<span class="fc" id="L177">            incrementJacobianEvaluationsCounter();</span>
+<span class="fc" id="L178">            RealVector b = new ArrayRealVector(parameters.length);</span>
+<span class="fc" id="L179">            RealMatrix a = MatrixUtils.createRealMatrix(parameters.length, parameters.length);</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            for (int i = 0; i &lt; measurements.length; ++i) {</span>
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">                if (! measurements [i].isIgnored()) {</span>
+
+<span class="fc" id="L183">                    double weight   = measurements[i].getWeight();</span>
+<span class="fc" id="L184">                    double residual = measurements[i].getResidual();</span>
+
+                    // compute the normal equation
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                    for (int j = 0; j &lt; parameters.length; ++j) {</span>
+<span class="fc" id="L188">                        grad[j] = measurements[i].getPartial(parameters[j]);</span>
+<span class="fc" id="L189">                        bDecrementData[j] = weight * residual * grad[j];</span>
+                    }
+
+                    // build the contribution matrix for measurement i
+<span class="fc bfc" id="L193" title="All 2 branches covered.">                    for (int k = 0; k &lt; parameters.length; ++k) {</span>
+<span class="fc" id="L194">                        double gk = grad[k];</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">                        for (int l = 0; l &lt; parameters.length; ++l) {</span>
+<span class="fc" id="L196">                            wGradGradT.setEntry(k, l, weight * gk * grad[l]);</span>
+                        }
+                    }
+
+                    // update the matrices
+<span class="fc" id="L201">                    a = a.add(wGradGradT);</span>
+<span class="fc" id="L202">                    b = b.add(bDecrement);</span>
+
+                }
+            }
+
+            try {
+
+                // solve the linearized least squares problem
+<span class="fc" id="L210">                RealVector dX = new LUDecompositionImpl(a).getSolver().solve(b);</span>
+
+                // update the estimated parameters
+<span class="fc bfc" id="L213" title="All 2 branches covered.">                for (int i = 0; i &lt; parameters.length; ++i) {</span>
+<span class="fc" id="L214">                    parameters[i].setEstimate(parameters[i].getEstimate() + dX.getEntry(i));</span>
+                }
+
+<span class="fc" id="L217">            } catch(InvalidMatrixException e) {</span>
+<span class="fc" id="L218">                throw new EstimationException(LocalizedFormats.UNABLE_TO_SOLVE_SINGULAR_PROBLEM);</span>
+<span class="fc" id="L219">            }</span>
+
+
+<span class="fc" id="L222">            previous = cost;</span>
+<span class="fc" id="L223">            updateResidualsAndCost();</span>
+
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        } while ((getCostEvaluations() &lt; 2) ||</span>
+<span class="fc bfc" id="L226" title="All 2 branches covered.">                 (FastMath.abs(previous - cost) &gt; (cost * steadyStateThreshold) &amp;&amp;</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">                  (FastMath.abs(cost) &gt; convergence)));</span>
+
+<span class="fc" id="L229">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

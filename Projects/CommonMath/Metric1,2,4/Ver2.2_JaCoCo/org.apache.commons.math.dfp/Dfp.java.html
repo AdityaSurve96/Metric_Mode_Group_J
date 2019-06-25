@@ -1,0 +1,2400 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>Dfp.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.dfp</a> &gt; <span class="el_source">Dfp.java</span></div><h1>Dfp.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.dfp;
+
+import java.util.Arrays;
+
+import org.apache.commons.math.FieldElement;
+
+/**
+ *  Decimal floating point library for Java
+ *
+ *  &lt;p&gt;Another floating point class.  This one is built using radix 10000
+ *  which is 10&lt;sup&gt;4&lt;/sup&gt;, so its almost decimal.&lt;/p&gt;
+ *
+ *  &lt;p&gt;The design goals here are:
+ *  &lt;ol&gt;
+ *    &lt;li&gt;Decimal math, or close to it&lt;/li&gt;
+ *    &lt;li&gt;Settable precision (but no mix between numbers using different settings)&lt;/li&gt;
+ *    &lt;li&gt;Portability.  Code should be keep as portable as possible.&lt;/li&gt;
+ *    &lt;li&gt;Performance&lt;/li&gt;
+ *    &lt;li&gt;Accuracy  - Results should always be +/- 1 ULP for basic
+ *         algebraic operation&lt;/li&gt;
+ *    &lt;li&gt;Comply with IEEE 854-1987 as much as possible.
+ *         (See IEEE 854-1987 notes below)&lt;/li&gt;
+ *  &lt;/ol&gt;&lt;/p&gt;
+ *
+ *  &lt;p&gt;Trade offs:
+ *  &lt;ol&gt;
+ *    &lt;li&gt;Memory foot print.  I'm using more memory than necessary to
+ *         represent numbers to get better performance.&lt;/li&gt;
+ *    &lt;li&gt;Digits are bigger, so rounding is a greater loss.  So, if you
+ *         really need 12 decimal digits, better use 4 base 10000 digits
+ *         there can be one partially filled.&lt;/li&gt;
+ *  &lt;/ol&gt;&lt;/p&gt;
+ *
+ *  &lt;p&gt;Numbers are represented  in the following form:
+ *  &lt;pre&gt;
+ *  n  =  sign &amp;times; mant &amp;times; (radix)&lt;sup&gt;exp&lt;/sup&gt;;&lt;/p&gt;
+ *  &lt;/pre&gt;
+ *  where sign is &amp;plusmn;1, mantissa represents a fractional number between
+ *  zero and one.  mant[0] is the least significant digit.
+ *  exp is in the range of -32767 to 32768&lt;/p&gt;
+ *
+ *  &lt;p&gt;IEEE 854-1987  Notes and differences&lt;/p&gt;
+ *
+ *  &lt;p&gt;IEEE 854 requires the radix to be either 2 or 10.  The radix here is
+ *  10000, so that requirement is not met, but  it is possible that a
+ *  subclassed can be made to make it behave as a radix 10
+ *  number.  It is my opinion that if it looks and behaves as a radix
+ *  10 number then it is one and that requirement would be met.&lt;/p&gt;
+ *
+ *  &lt;p&gt;The radix of 10000 was chosen because it should be faster to operate
+ *  on 4 decimal digits at once instead of one at a time.  Radix 10 behavior
+ *  can be realized by add an additional rounding step to ensure that
+ *  the number of decimal digits represented is constant.&lt;/p&gt;
+ *
+ *  &lt;p&gt;The IEEE standard specifically leaves out internal data encoding,
+ *  so it is reasonable to conclude that such a subclass of this radix
+ *  10000 system is merely an encoding of a radix 10 system.&lt;/p&gt;
+ *
+ *  &lt;p&gt;IEEE 854 also specifies the existence of &quot;sub-normal&quot; numbers.  This
+ *  class does not contain any such entities.  The most significant radix
+ *  10000 digit is always non-zero.  Instead, we support &quot;gradual underflow&quot;
+ *  by raising the underflow flag for numbers less with exponent less than
+ *  expMin, but don't flush to zero until the exponent reaches MIN_EXP-digits.
+ *  Thus the smallest number we can represent would be:
+ *  1E(-(MIN_EXP-digits-1)*4),  eg, for digits=5, MIN_EXP=-32767, that would
+ *  be 1e-131092.&lt;/p&gt;
+ *
+ *  &lt;p&gt;IEEE 854 defines that the implied radix point lies just to the right
+ *  of the most significant digit and to the left of the remaining digits.
+ *  This implementation puts the implied radix point to the left of all
+ *  digits including the most significant one.  The most significant digit
+ *  here is the one just to the right of the radix point.  This is a fine
+ *  detail and is really only a matter of definition.  Any side effects of
+ *  this can be rendered invisible by a subclass.&lt;/p&gt;
+ * @see DfpField
+ * @version $Revision$ $Date$
+ * @since 2.2
+ */
+public class Dfp implements FieldElement&lt;Dfp&gt; {
+
+    /** The radix, or base of this system.  Set to 10000 */
+    public static final int RADIX = 10000;
+
+    /** The minimum exponent before underflow is signaled.  Flush to zero
+     *  occurs at minExp-DIGITS */
+    public static final int MIN_EXP = -32767;
+
+    /** The maximum exponent before overflow is signaled and results flushed
+     *  to infinity */
+    public static final int MAX_EXP =  32768;
+
+    /** The amount under/overflows are scaled by before going to trap handler */
+    public static final int ERR_SCALE = 32760;
+
+    /** Indicator value for normal finite numbers. */
+    public static final byte FINITE = 0;
+
+    /** Indicator value for Infinity. */
+    public static final byte INFINITE = 1;
+
+    /** Indicator value for signaling NaN. */
+    public static final byte SNAN = 2;
+
+    /** Indicator value for quiet NaN. */
+    public static final byte QNAN = 3;
+
+    /** String for NaN representation. */
+    private static final String NAN_STRING = &quot;NaN&quot;;
+
+    /** String for positive infinity representation. */
+    private static final String POS_INFINITY_STRING = &quot;Infinity&quot;;
+
+    /** String for negative infinity representation. */
+    private static final String NEG_INFINITY_STRING = &quot;-Infinity&quot;;
+
+    /** Name for traps triggered by addition. */
+    private static final String ADD_TRAP = &quot;add&quot;;
+
+    /** Name for traps triggered by multiplication. */
+    private static final String MULTIPLY_TRAP = &quot;multiply&quot;;
+
+    /** Name for traps triggered by division. */
+    private static final String DIVIDE_TRAP = &quot;divide&quot;;
+
+    /** Name for traps triggered by square root. */
+    private static final String SQRT_TRAP = &quot;sqrt&quot;;
+
+    /** Name for traps triggered by alignment. */
+    private static final String ALIGN_TRAP = &quot;align&quot;;
+
+    /** Name for traps triggered by truncation. */
+    private static final String TRUNC_TRAP = &quot;trunc&quot;;
+
+    /** Name for traps triggered by nextAfter. */
+    private static final String NEXT_AFTER_TRAP = &quot;nextAfter&quot;;
+
+    /** Name for traps triggered by lessThan. */
+    private static final String LESS_THAN_TRAP = &quot;lessThan&quot;;
+
+    /** Name for traps triggered by greaterThan. */
+    private static final String GREATER_THAN_TRAP = &quot;greaterThan&quot;;
+
+    /** Name for traps triggered by newInstance. */
+    private static final String NEW_INSTANCE_TRAP = &quot;newInstance&quot;;
+
+    /** Mantissa. */
+    protected int[] mant;
+
+    /** Sign bit: &amp; for positive, -1 for negative. */
+    protected byte sign;
+
+    /** Exponent. */
+    protected int exp;
+
+    /** Indicator for non-finite / non-number values. */
+    protected byte nans;
+
+    /** Factory building similar Dfp's. */
+    private final DfpField field;
+
+    /** Makes an instance with a value of zero.
+     * @param field field to which this instance belongs
+     */
+<span class="fc" id="L181">    protected Dfp(final DfpField field) {</span>
+<span class="fc" id="L182">        mant = new int[field.getRadixDigits()];</span>
+<span class="fc" id="L183">        sign = 1;</span>
+<span class="fc" id="L184">        exp = 0;</span>
+<span class="fc" id="L185">        nans = FINITE;</span>
+<span class="fc" id="L186">        this.field = field;</span>
+<span class="fc" id="L187">    }</span>
+
+    /** Create an instance from a byte value.
+     * @param field field to which this instance belongs
+     * @param x value to convert to an instance
+     */
+    protected Dfp(final DfpField field, byte x) {
+<span class="fc" id="L194">        this(field, (long) x);</span>
+<span class="fc" id="L195">    }</span>
+
+    /** Create an instance from an int value.
+     * @param field field to which this instance belongs
+     * @param x value to convert to an instance
+     */
+    protected Dfp(final DfpField field, int x) {
+<span class="fc" id="L202">        this(field, (long) x);</span>
+<span class="fc" id="L203">    }</span>
+
+    /** Create an instance from a long value.
+     * @param field field to which this instance belongs
+     * @param x value to convert to an instance
+     */
+<span class="fc" id="L209">    protected Dfp(final DfpField field, long x) {</span>
+
+        // initialize as if 0
+<span class="fc" id="L212">        mant = new int[field.getRadixDigits()];</span>
+<span class="fc" id="L213">        nans = FINITE;</span>
+<span class="fc" id="L214">        this.field = field;</span>
+
+<span class="fc" id="L216">        boolean isLongMin = false;</span>
+<span class="fc bfc" id="L217" title="All 2 branches covered.">        if (x == Long.MIN_VALUE) {</span>
+            // special case for Long.MIN_VALUE (-9223372036854775808)
+            // we must shift it before taking its absolute value
+<span class="fc" id="L220">            isLongMin = true;</span>
+<span class="fc" id="L221">            ++x;</span>
+        }
+
+        // set the sign
+<span class="fc bfc" id="L225" title="All 2 branches covered.">        if (x &lt; 0) {</span>
+<span class="fc" id="L226">            sign = -1;</span>
+<span class="fc" id="L227">            x = -x;</span>
+        } else {
+<span class="fc" id="L229">            sign = 1;</span>
+        }
+
+<span class="fc" id="L232">        exp = 0;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        while (x != 0) {</span>
+<span class="fc" id="L234">            System.arraycopy(mant, mant.length - exp, mant, mant.length - 1 - exp, exp);</span>
+<span class="fc" id="L235">            mant[mant.length - 1] = (int) (x % RADIX);</span>
+<span class="fc" id="L236">            x /= RADIX;</span>
+<span class="fc" id="L237">            exp++;</span>
+        }
+
+<span class="fc bfc" id="L240" title="All 2 branches covered.">        if (isLongMin) {</span>
+            // remove the shift added for Long.MIN_VALUE
+            // we know in this case that fixing the last digit is sufficient
+<span class="pc bpc" id="L243" title="1 of 2 branches missed.">            for (int i = 0; i &lt; mant.length - 1; i++) {</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">                if (mant[i] != 0) {</span>
+<span class="fc" id="L245">                    mant[i]++;</span>
+<span class="fc" id="L246">                    break;</span>
+                }
+            }
+        }
+<span class="fc" id="L250">    }</span>
+
+    /** Create an instance from a double value.
+     * @param field field to which this instance belongs
+     * @param x value to convert to an instance
+     */
+<span class="fc" id="L256">    protected Dfp(final DfpField field, double x) {</span>
+
+        // initialize as if 0
+<span class="fc" id="L259">        mant = new int[field.getRadixDigits()];</span>
+<span class="fc" id="L260">        sign = 1;</span>
+<span class="fc" id="L261">        exp = 0;</span>
+<span class="fc" id="L262">        nans = FINITE;</span>
+<span class="fc" id="L263">        this.field = field;</span>
+
+<span class="fc" id="L265">        long bits = Double.doubleToLongBits(x);</span>
+<span class="fc" id="L266">        long mantissa = bits &amp; 0x000fffffffffffffL;</span>
+<span class="fc" id="L267">        int exponent = (int) ((bits &amp; 0x7ff0000000000000L) &gt;&gt; 52) - 1023;</span>
+
+<span class="fc bfc" id="L269" title="All 2 branches covered.">        if (exponent == -1023) {</span>
+            // Zero or sub-normal
+<span class="pc bpc" id="L271" title="1 of 2 branches missed.">            if (x == 0) {</span>
+<span class="nc" id="L272">                return;</span>
+            }
+
+<span class="fc" id="L275">            exponent++;</span>
+
+            // Normalize the subnormal number
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            while ( (mantissa &amp; 0x0010000000000000L) == 0) {</span>
+<span class="fc" id="L279">                exponent--;</span>
+<span class="fc" id="L280">                mantissa &lt;&lt;= 1;</span>
+            }
+<span class="fc" id="L282">            mantissa &amp;= 0x000fffffffffffffL;</span>
+        }
+
+<span class="pc bpc" id="L285" title="1 of 2 branches missed.">        if (exponent == 1024) {</span>
+            // infinity or NAN
+<span class="nc bnc" id="L287" title="All 2 branches missed.">            if (x != x) {</span>
+<span class="nc" id="L288">                sign = (byte) 1;</span>
+<span class="nc" id="L289">                nans = QNAN;</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">            } else if (x &lt; 0) {</span>
+<span class="nc" id="L291">                sign = (byte) -1;</span>
+<span class="nc" id="L292">                nans = INFINITE;</span>
+            } else {
+<span class="nc" id="L294">                sign = (byte) 1;</span>
+<span class="nc" id="L295">                nans = INFINITE;</span>
+            }
+<span class="nc" id="L297">            return;</span>
+        }
+
+<span class="fc" id="L300">        Dfp xdfp = new Dfp(field, mantissa);</span>
+<span class="fc" id="L301">        xdfp = xdfp.divide(new Dfp(field, 4503599627370496l)).add(field.getOne());  // Divide by 2^52, then add one</span>
+<span class="fc" id="L302">        xdfp = xdfp.multiply(DfpMath.pow(field.getTwo(), exponent));</span>
+
+<span class="fc bfc" id="L304" title="All 2 branches covered.">        if ((bits &amp; 0x8000000000000000L) != 0) {</span>
+<span class="fc" id="L305">            xdfp = xdfp.negate();</span>
+        }
+
+<span class="fc" id="L308">        System.arraycopy(xdfp.mant, 0, mant, 0, mant.length);</span>
+<span class="fc" id="L309">        sign = xdfp.sign;</span>
+<span class="fc" id="L310">        exp  = xdfp.exp;</span>
+<span class="fc" id="L311">        nans = xdfp.nans;</span>
+
+<span class="fc" id="L313">    }</span>
+
+    /** Copy constructor.
+     * @param d instance to copy
+     */
+<span class="fc" id="L318">    public Dfp(final Dfp d) {</span>
+<span class="fc" id="L319">        mant  = d.mant.clone();</span>
+<span class="fc" id="L320">        sign  = d.sign;</span>
+<span class="fc" id="L321">        exp   = d.exp;</span>
+<span class="fc" id="L322">        nans  = d.nans;</span>
+<span class="fc" id="L323">        field = d.field;</span>
+<span class="fc" id="L324">    }</span>
+
+    /** Create an instance from a String representation.
+     * @param field field to which this instance belongs
+     * @param s string representation of the instance
+     */
+<span class="fc" id="L330">    protected Dfp(final DfpField field, final String s) {</span>
+
+        // initialize as if 0
+<span class="fc" id="L333">        mant = new int[field.getRadixDigits()];</span>
+<span class="fc" id="L334">        sign = 1;</span>
+<span class="fc" id="L335">        exp = 0;</span>
+<span class="fc" id="L336">        nans = FINITE;</span>
+<span class="fc" id="L337">        this.field = field;</span>
+
+<span class="fc" id="L339">        boolean decimalFound = false;</span>
+<span class="fc" id="L340">        final int rsize = 4;   // size of radix in decimal digits</span>
+<span class="fc" id="L341">        final int offset = 4;  // Starting offset into Striped</span>
+<span class="fc" id="L342">        final char[] striped = new char[getRadixDigits() * rsize + offset * 2];</span>
+
+        // Check some special cases
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">        if (s.equals(POS_INFINITY_STRING)) {</span>
+<span class="nc" id="L346">            sign = (byte) 1;</span>
+<span class="nc" id="L347">            nans = INFINITE;</span>
+<span class="nc" id="L348">            return;</span>
+        }
+
+<span class="pc bpc" id="L351" title="1 of 2 branches missed.">        if (s.equals(NEG_INFINITY_STRING)) {</span>
+<span class="nc" id="L352">            sign = (byte) -1;</span>
+<span class="nc" id="L353">            nans = INFINITE;</span>
+<span class="nc" id="L354">            return;</span>
+        }
+
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">        if (s.equals(NAN_STRING)) {</span>
+<span class="nc" id="L358">            sign = (byte) 1;</span>
+<span class="nc" id="L359">            nans = QNAN;</span>
+<span class="nc" id="L360">            return;</span>
+        }
+
+        // Check for scientific notation
+<span class="fc" id="L364">        int p = s.indexOf(&quot;e&quot;);</span>
+<span class="fc bfc" id="L365" title="All 2 branches covered.">        if (p == -1) { // try upper case?</span>
+<span class="fc" id="L366">            p = s.indexOf(&quot;E&quot;);</span>
+        }
+
+        final String fpdecimal;
+<span class="fc" id="L370">        int sciexp = 0;</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">        if (p != -1) {</span>
+            // scientific notation
+<span class="fc" id="L373">            fpdecimal = s.substring(0, p);</span>
+<span class="fc" id="L374">            String fpexp = s.substring(p+1);</span>
+<span class="fc" id="L375">            boolean negative = false;</span>
+
+<span class="fc bfc" id="L377" title="All 2 branches covered.">            for (int i=0; i&lt;fpexp.length(); i++)</span>
+            {
+<span class="fc bfc" id="L379" title="All 2 branches covered.">                if (fpexp.charAt(i) == '-')</span>
+                {
+<span class="fc" id="L381">                    negative = true;</span>
+<span class="fc" id="L382">                    continue;</span>
+                }
+<span class="pc bpc" id="L384" title="1 of 4 branches missed.">                if (fpexp.charAt(i) &gt;= '0' &amp;&amp; fpexp.charAt(i) &lt;= '9')</span>
+<span class="fc" id="L385">                    sciexp = sciexp * 10 + fpexp.charAt(i) - '0';</span>
+            }
+
+<span class="fc bfc" id="L388" title="All 2 branches covered.">            if (negative) {</span>
+<span class="fc" id="L389">                sciexp = -sciexp;</span>
+            }
+<span class="fc" id="L391">        } else {</span>
+            // normal case
+<span class="fc" id="L393">            fpdecimal = s;</span>
+        }
+
+        // If there is a minus sign in the number then it is negative
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        if (fpdecimal.indexOf(&quot;-&quot;) !=  -1) {</span>
+<span class="fc" id="L398">            sign = -1;</span>
+        }
+
+        // First off, find all of the leading zeros, trailing zeros, and significant digits
+<span class="fc" id="L402">        p = 0;</span>
+
+        // Move p to first significant digit
+<span class="fc" id="L405">        int decimalPos = 0;</span>
+        for (;;) {
+<span class="pc bpc" id="L407" title="1 of 4 branches missed.">            if (fpdecimal.charAt(p) &gt;= '1' &amp;&amp; fpdecimal.charAt(p) &lt;= '9') {</span>
+<span class="fc" id="L408">                break;</span>
+            }
+
+<span class="pc bpc" id="L411" title="1 of 4 branches missed.">            if (decimalFound &amp;&amp; fpdecimal.charAt(p) == '0') {</span>
+<span class="fc" id="L412">                decimalPos--;</span>
+            }
+
+<span class="fc bfc" id="L415" title="All 2 branches covered.">            if (fpdecimal.charAt(p) == '.') {</span>
+<span class="fc" id="L416">                decimalFound = true;</span>
+            }
+
+<span class="fc" id="L419">            p++;</span>
+
+<span class="fc bfc" id="L421" title="All 2 branches covered.">            if (p == fpdecimal.length()) {</span>
+<span class="fc" id="L422">                break;</span>
+            }
+        }
+
+        // Copy the string onto Stripped
+<span class="fc" id="L427">        int q = offset;</span>
+<span class="fc" id="L428">        striped[0] = '0';</span>
+<span class="fc" id="L429">        striped[1] = '0';</span>
+<span class="fc" id="L430">        striped[2] = '0';</span>
+<span class="fc" id="L431">        striped[3] = '0';</span>
+<span class="fc" id="L432">        int significantDigits=0;</span>
+        for(;;) {
+<span class="fc bfc" id="L434" title="All 2 branches covered.">            if (p == (fpdecimal.length())) {</span>
+<span class="fc" id="L435">                break;</span>
+            }
+
+            // Don't want to run pass the end of the array
+<span class="fc bfc" id="L439" title="All 2 branches covered.">            if (q == mant.length*rsize+offset+1) {</span>
+<span class="fc" id="L440">                break;</span>
+            }
+
+<span class="fc bfc" id="L443" title="All 2 branches covered.">            if (fpdecimal.charAt(p) == '.') {</span>
+<span class="fc" id="L444">                decimalFound = true;</span>
+<span class="fc" id="L445">                decimalPos = significantDigits;</span>
+<span class="fc" id="L446">                p++;</span>
+<span class="fc" id="L447">                continue;</span>
+            }
+
+<span class="pc bpc" id="L450" title="2 of 4 branches missed.">            if (fpdecimal.charAt(p) &lt; '0' || fpdecimal.charAt(p) &gt; '9') {</span>
+<span class="nc" id="L451">                p++;</span>
+<span class="nc" id="L452">                continue;</span>
+            }
+
+<span class="fc" id="L455">            striped[q] = fpdecimal.charAt(p);</span>
+<span class="fc" id="L456">            q++;</span>
+<span class="fc" id="L457">            p++;</span>
+<span class="fc" id="L458">            significantDigits++;</span>
+        }
+
+
+        // If the decimal point has been found then get rid of trailing zeros.
+<span class="pc bpc" id="L463" title="1 of 4 branches missed.">        if (decimalFound &amp;&amp; q != offset) {</span>
+            for (;;) {
+<span class="fc" id="L465">                q--;</span>
+<span class="fc bfc" id="L466" title="All 2 branches covered.">                if (q == offset) {</span>
+<span class="fc" id="L467">                    break;</span>
+                }
+<span class="fc bfc" id="L469" title="All 2 branches covered.">                if (striped[q] == '0') {</span>
+<span class="fc" id="L470">                    significantDigits--;</span>
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // special case of numbers like &quot;0.00000&quot;
+<span class="pc bpc" id="L478" title="1 of 4 branches missed.">        if (decimalFound &amp;&amp; significantDigits == 0) {</span>
+<span class="nc" id="L479">            decimalPos = 0;</span>
+        }
+
+        // Implicit decimal point at end of number if not present
+<span class="fc bfc" id="L483" title="All 2 branches covered.">        if (!decimalFound) {</span>
+<span class="fc" id="L484">            decimalPos = q-offset;</span>
+        }
+
+        // Find the number of significant trailing zeros
+<span class="fc" id="L488">        q = offset;  // set q to point to first sig digit</span>
+<span class="fc" id="L489">        p = significantDigits-1+offset;</span>
+
+<span class="fc" id="L491">        int trailingZeros = 0;</span>
+<span class="fc bfc" id="L492" title="All 2 branches covered.">        while (p &gt; q) {</span>
+<span class="fc bfc" id="L493" title="All 2 branches covered.">            if (striped[p] != '0') {</span>
+<span class="fc" id="L494">                break;</span>
+            }
+<span class="fc" id="L496">            trailingZeros++;</span>
+<span class="fc" id="L497">            p--;</span>
+        }
+
+        // Make sure the decimal is on a mod 10000 boundary
+<span class="fc" id="L501">        int i = ((rsize * 100) - decimalPos - sciexp % rsize) % rsize;</span>
+<span class="fc" id="L502">        q -= i;</span>
+<span class="fc" id="L503">        decimalPos += i;</span>
+
+        // Make the mantissa length right by adding zeros at the end if necessary
+<span class="fc bfc" id="L506" title="All 2 branches covered.">        while ((p - q) &lt; (mant.length * rsize)) {</span>
+<span class="fc bfc" id="L507" title="All 2 branches covered.">            for (i = 0; i &lt; rsize; i++) {</span>
+<span class="fc" id="L508">                striped[++p] = '0';</span>
+            }
+        }
+
+        // Ok, now we know how many trailing zeros there are,
+        // and where the least significant digit is
+<span class="fc bfc" id="L514" title="All 2 branches covered.">        for (i = mant.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L515">            mant[i] = (striped[q]   - '0') * 1000 +</span>
+                      (striped[q+1] - '0') * 100  +
+                      (striped[q+2] - '0') * 10   +
+                      (striped[q+3] - '0');
+<span class="fc" id="L519">            q += 4;</span>
+        }
+
+
+<span class="fc" id="L523">        exp = (decimalPos+sciexp) / rsize;</span>
+
+<span class="pc bpc" id="L525" title="1 of 2 branches missed.">        if (q &lt; striped.length) {</span>
+            // Is there possible another digit?
+<span class="fc" id="L527">            round((striped[q] - '0')*1000);</span>
+        }
+
+<span class="fc" id="L530">    }</span>
+
+    /** Creates an instance with a non-finite value.
+     * @param field field to which this instance belongs
+     * @param sign sign of the Dfp to create
+     * @param nans code of the value, must be one of {@link #INFINITE},
+     * {@link #SNAN},  {@link #QNAN}
+     */
+<span class="fc" id="L538">    protected Dfp(final DfpField field, final byte sign, final byte nans) {</span>
+<span class="fc" id="L539">        this.field = field;</span>
+<span class="fc" id="L540">        this.mant    = new int[field.getRadixDigits()];</span>
+<span class="fc" id="L541">        this.sign    = sign;</span>
+<span class="fc" id="L542">        this.exp     = 0;</span>
+<span class="fc" id="L543">        this.nans    = nans;</span>
+<span class="fc" id="L544">    }</span>
+
+    /** Create an instance with a value of 0.
+     * Use this internally in preference to constructors to facilitate subclasses
+     * @return a new instance with a value of 0
+     */
+    public Dfp newInstance() {
+<span class="nc" id="L551">        return new Dfp(getField());</span>
+    }
+
+    /** Create an instance from a byte value.
+     * @param x value to convert to an instance
+     * @return a new instance with value x
+     */
+    public Dfp newInstance(final byte x) {
+<span class="nc" id="L559">        return new Dfp(getField(), x);</span>
+    }
+
+    /** Create an instance from an int value.
+     * @param x value to convert to an instance
+     * @return a new instance with value x
+     */
+    public Dfp newInstance(final int x) {
+<span class="fc" id="L567">        return new Dfp(getField(), x);</span>
+    }
+
+    /** Create an instance from a long value.
+     * @param x value to convert to an instance
+     * @return a new instance with value x
+     */
+    public Dfp newInstance(final long x) {
+<span class="fc" id="L575">        return new Dfp(getField(), x);</span>
+    }
+
+    /** Create an instance from a double value.
+     * @param x value to convert to an instance
+     * @return a new instance with value x
+     */
+    public Dfp newInstance(final double x) {
+<span class="nc" id="L583">        return new Dfp(getField(), x);</span>
+    }
+
+    /** Create an instance by copying an existing one.
+     * Use this internally in preference to constructors to facilitate subclasses.
+     * @param d instance to copy
+     * @return a new instance with the same value as d
+     */
+    public Dfp newInstance(final Dfp d) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L594" title="1 of 2 branches missed.">        if (field.getRadixDigits() != d.field.getRadixDigits()) {</span>
+<span class="nc" id="L595">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L596">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L597">            result.nans = QNAN;</span>
+<span class="nc" id="L598">            return dotrap(DfpField.FLAG_INVALID, NEW_INSTANCE_TRAP, d, result);</span>
+        }
+
+<span class="fc" id="L601">        return new Dfp(d);</span>
+
+    }
+
+    /** Create an instance from a String representation.
+     * Use this internally in preference to constructors to facilitate subclasses.
+     * @param s string representation of the instance
+     * @return a new instance parsed from specified string
+     */
+    public Dfp newInstance(final String s) {
+<span class="fc" id="L611">        return new Dfp(field, s);</span>
+    }
+
+    /** Creates an instance with a non-finite value.
+     * @param sig sign of the Dfp to create
+     * @param code code of the value, must be one of {@link #INFINITE},
+     * {@link #SNAN},  {@link #QNAN}
+     * @return a new instance with a non-finite value
+     */
+    public Dfp newInstance(final byte sig, final byte code) {
+<span class="fc" id="L621">        return field.newDfp(sig, code);</span>
+    }
+
+    /** Get the {@link org.apache.commons.math.Field Field} (really a {@link DfpField}) to which the instance belongs.
+     * &lt;p&gt;
+     * The field is linked to the number of digits and acts as a factory
+     * for {@link Dfp} instances.
+     * &lt;/p&gt;
+     * @return {@link org.apache.commons.math.Field Field} (really a {@link DfpField}) to which the instance belongs
+     */
+    public DfpField getField() {
+<span class="fc" id="L632">        return field;</span>
+    }
+
+    /** Get the number of radix digits of the instance.
+     * @return number of radix digits
+     */
+    public int getRadixDigits() {
+<span class="fc" id="L639">        return field.getRadixDigits();</span>
+    }
+
+    /** Get the constant 0.
+     * @return a Dfp with value zero
+     */
+    public Dfp getZero() {
+<span class="fc" id="L646">        return field.getZero();</span>
+    }
+
+    /** Get the constant 1.
+     * @return a Dfp with value one
+     */
+    public Dfp getOne() {
+<span class="fc" id="L653">        return field.getOne();</span>
+    }
+
+    /** Get the constant 2.
+     * @return a Dfp with value two
+     */
+    public Dfp getTwo() {
+<span class="fc" id="L660">        return field.getTwo();</span>
+    }
+
+    /** Shift the mantissa left, and adjust the exponent to compensate.
+     */
+    protected void shiftLeft() {
+<span class="fc bfc" id="L666" title="All 2 branches covered.">        for (int i = mant.length - 1; i &gt; 0; i--) {</span>
+<span class="fc" id="L667">            mant[i] = mant[i-1];</span>
+        }
+<span class="fc" id="L669">        mant[0] = 0;</span>
+<span class="fc" id="L670">        exp--;</span>
+<span class="fc" id="L671">    }</span>
+
+    /* Note that shiftRight() does not call round() as that round() itself
+     uses shiftRight() */
+    /** Shift the mantissa right, and adjust the exponent to compensate.
+     */
+    protected void shiftRight() {
+<span class="fc bfc" id="L678" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length - 1; i++) {</span>
+<span class="fc" id="L679">            mant[i] = mant[i+1];</span>
+        }
+<span class="fc" id="L681">        mant[mant.length - 1] = 0;</span>
+<span class="fc" id="L682">        exp++;</span>
+<span class="fc" id="L683">    }</span>
+
+    /** Make our exp equal to the supplied one, this may cause rounding.
+     *  Also causes de-normalized numbers.  These numbers are generally
+     *  dangerous because most routines assume normalized numbers.
+     *  Align doesn't round, so it will return the last digit destroyed
+     *  by shifting right.
+     *  @param e desired exponent
+     *  @return last digit destroyed by shifting right
+     */
+    protected int align(int e) {
+<span class="fc" id="L694">        int lostdigit = 0;</span>
+<span class="fc" id="L695">        boolean inexact = false;</span>
+
+<span class="fc" id="L697">        int diff = exp - e;</span>
+
+<span class="fc" id="L699">        int adiff = diff;</span>
+<span class="fc bfc" id="L700" title="All 2 branches covered.">        if (adiff &lt; 0) {</span>
+<span class="fc" id="L701">            adiff = -adiff;</span>
+        }
+
+<span class="fc bfc" id="L704" title="All 2 branches covered.">        if (diff == 0) {</span>
+<span class="fc" id="L705">            return 0;</span>
+        }
+
+<span class="fc bfc" id="L708" title="All 2 branches covered.">        if (adiff &gt; (mant.length + 1)) {</span>
+            // Special case
+<span class="fc" id="L710">            Arrays.fill(mant, 0);</span>
+<span class="fc" id="L711">            exp = e;</span>
+
+<span class="fc" id="L713">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L714">            dotrap(DfpField.FLAG_INEXACT, ALIGN_TRAP, this, this);</span>
+
+<span class="fc" id="L716">            return 0;</span>
+        }
+
+<span class="fc bfc" id="L719" title="All 2 branches covered.">        for (int i = 0; i &lt; adiff; i++) {</span>
+<span class="pc bpc" id="L720" title="1 of 2 branches missed.">            if (diff &lt; 0) {</span>
+                /* Keep track of loss -- only signal inexact after losing 2 digits.
+                 * the first lost digit is returned to add() and may be incorporated
+                 * into the result.
+                 */
+<span class="fc bfc" id="L725" title="All 2 branches covered.">                if (lostdigit != 0) {</span>
+<span class="fc" id="L726">                    inexact = true;</span>
+                }
+
+<span class="fc" id="L729">                lostdigit = mant[0];</span>
+
+<span class="fc" id="L731">                shiftRight();</span>
+            } else {
+<span class="nc" id="L733">                shiftLeft();</span>
+            }
+        }
+
+<span class="fc bfc" id="L737" title="All 2 branches covered.">        if (inexact) {</span>
+<span class="fc" id="L738">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L739">            dotrap(DfpField.FLAG_INEXACT, ALIGN_TRAP, this, this);</span>
+        }
+
+<span class="fc" id="L742">        return lostdigit;</span>
+
+    }
+
+    /** Check if instance is less than x.
+     * @param x number to check instance against
+     * @return true if instance is less than x and neither are NaN, false otherwise
+     */
+    public boolean lessThan(final Dfp x) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L753" title="1 of 2 branches missed.">        if (field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="nc" id="L754">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L755">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L756">            result.nans = QNAN;</span>
+<span class="nc" id="L757">            dotrap(DfpField.FLAG_INVALID, LESS_THAN_TRAP, x, result);</span>
+<span class="nc" id="L758">            return false;</span>
+        }
+
+        /* if a nan is involved, signal invalid and return false */
+<span class="fc bfc" id="L762" title="All 4 branches covered.">        if (isNaN() || x.isNaN()) {</span>
+<span class="fc" id="L763">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L764">            dotrap(DfpField.FLAG_INVALID, LESS_THAN_TRAP, x, newInstance(getZero()));</span>
+<span class="fc" id="L765">            return false;</span>
+        }
+
+<span class="fc bfc" id="L768" title="All 2 branches covered.">        return compare(this, x) &lt; 0;</span>
+    }
+
+    /** Check if instance is greater than x.
+     * @param x number to check instance against
+     * @return true if instance is greater than x and neither are NaN, false otherwise
+     */
+    public boolean greaterThan(final Dfp x) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L778" title="1 of 2 branches missed.">        if (field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="nc" id="L779">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L780">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L781">            result.nans = QNAN;</span>
+<span class="nc" id="L782">            dotrap(DfpField.FLAG_INVALID, GREATER_THAN_TRAP, x, result);</span>
+<span class="nc" id="L783">            return false;</span>
+        }
+
+        /* if a nan is involved, signal invalid and return false */
+<span class="fc bfc" id="L787" title="All 4 branches covered.">        if (isNaN() || x.isNaN()) {</span>
+<span class="fc" id="L788">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L789">            dotrap(DfpField.FLAG_INVALID, GREATER_THAN_TRAP, x, newInstance(getZero()));</span>
+<span class="fc" id="L790">            return false;</span>
+        }
+
+<span class="fc bfc" id="L793" title="All 2 branches covered.">        return compare(this, x) &gt; 0;</span>
+    }
+
+    /** Check if instance is infinite.
+     * @return true if instance is infinite
+     */
+    public boolean isInfinite() {
+<span class="pc bpc" id="L800" title="1 of 2 branches missed.">        return nans == INFINITE;</span>
+    }
+
+    /** Check if instance is not a number.
+     * @return true if instance is not a number
+     */
+    public boolean isNaN() {
+<span class="fc bfc" id="L807" title="All 4 branches covered.">        return (nans == QNAN) || (nans == SNAN);</span>
+    }
+
+    /** Check if instance is equal to x.
+     * @param other object to check instance against
+     * @return true if instance is equal to x and neither are NaN, false otherwise
+     */
+    @Override
+    public boolean equals(final Object other) {
+
+<span class="pc bpc" id="L817" title="1 of 2 branches missed.">        if (other instanceof Dfp) {</span>
+<span class="fc" id="L818">            final Dfp x = (Dfp) other;</span>
+<span class="pc bpc" id="L819" title="1 of 6 branches missed.">            if (isNaN() || x.isNaN() || field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="fc" id="L820">                return false;</span>
+            }
+
+<span class="fc bfc" id="L823" title="All 2 branches covered.">            return compare(this, x) == 0;</span>
+        }
+
+<span class="nc" id="L826">        return false;</span>
+
+    }
+
+    /**
+     * Gets a hashCode for the instance.
+     * @return a hash code value for this object
+     */
+    @Override
+    public int hashCode() {
+<span class="nc" id="L836">        return 17 + (sign &lt;&lt; 8) + (nans &lt;&lt; 16) + exp + Arrays.hashCode(mant);</span>
+    }
+
+    /** Check if instance is not equal to x.
+     * @param x number to check instance against
+     * @return true if instance is not equal to x and neither are NaN, false otherwise
+     */
+    public boolean unequal(final Dfp x) {
+<span class="pc bpc" id="L844" title="1 of 6 branches missed.">        if (isNaN() || x.isNaN() || field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="fc" id="L845">            return false;</span>
+        }
+
+<span class="fc bfc" id="L848" title="All 4 branches covered.">        return greaterThan(x) || lessThan(x);</span>
+    }
+
+    /** Compare two instances.
+     * @param a first instance in comparison
+     * @param b second instance in comparison
+     * @return -1 if a&lt;b, 1 if a&gt;b and 0 if a==b
+     *  Note this method does not properly handle NaNs or numbers with different precision.
+     */
+    private static int compare(final Dfp a, final Dfp b) {
+        // Ignore the sign of zero
+<span class="fc bfc" id="L859" title="All 8 branches covered.">        if (a.mant[a.mant.length - 1] == 0 &amp;&amp; b.mant[b.mant.length - 1] == 0 &amp;&amp;</span>
+            a.nans == FINITE &amp;&amp; b.nans == FINITE) {
+<span class="fc" id="L861">            return 0;</span>
+        }
+
+<span class="fc bfc" id="L864" title="All 2 branches covered.">        if (a.sign != b.sign) {</span>
+<span class="fc bfc" id="L865" title="All 2 branches covered.">            if (a.sign == -1) {</span>
+<span class="fc" id="L866">                return -1;</span>
+            } else {
+<span class="fc" id="L868">                return 1;</span>
+            }
+        }
+
+        // deal with the infinities
+<span class="fc bfc" id="L873" title="All 4 branches covered.">        if (a.nans == INFINITE &amp;&amp; b.nans == FINITE) {</span>
+<span class="fc" id="L874">            return a.sign;</span>
+        }
+
+<span class="fc bfc" id="L877" title="All 4 branches covered.">        if (a.nans == FINITE &amp;&amp; b.nans == INFINITE) {</span>
+<span class="fc" id="L878">            return -b.sign;</span>
+        }
+
+<span class="pc bpc" id="L881" title="1 of 4 branches missed.">        if (a.nans == INFINITE &amp;&amp; b.nans == INFINITE) {</span>
+<span class="fc" id="L882">            return 0;</span>
+        }
+
+        // Handle special case when a or b is zero, by ignoring the exponents
+<span class="fc bfc" id="L886" title="All 4 branches covered.">        if (b.mant[b.mant.length-1] != 0 &amp;&amp; a.mant[b.mant.length-1] != 0) {</span>
+<span class="fc bfc" id="L887" title="All 2 branches covered.">            if (a.exp &lt; b.exp) {</span>
+<span class="fc" id="L888">                return -a.sign;</span>
+            }
+
+<span class="fc bfc" id="L891" title="All 2 branches covered.">            if (a.exp &gt; b.exp) {</span>
+<span class="fc" id="L892">                return a.sign;</span>
+            }
+        }
+
+        // compare the mantissas
+<span class="fc bfc" id="L897" title="All 2 branches covered.">        for (int i = a.mant.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc bfc" id="L898" title="All 2 branches covered.">            if (a.mant[i] &gt; b.mant[i]) {</span>
+<span class="fc" id="L899">                return a.sign;</span>
+            }
+
+<span class="fc bfc" id="L902" title="All 2 branches covered.">            if (a.mant[i] &lt; b.mant[i]) {</span>
+<span class="fc" id="L903">                return -a.sign;</span>
+            }
+        }
+
+<span class="fc" id="L907">        return 0;</span>
+
+    }
+
+    /** Round to nearest integer using the round-half-even method.
+     *  That is round to nearest integer unless both are equidistant.
+     *  In which case round to the even one.
+     *  @return rounded value
+     */
+    public Dfp rint() {
+<span class="fc" id="L917">        return trunc(DfpField.RoundingMode.ROUND_HALF_EVEN);</span>
+    }
+
+    /** Round to an integer using the round floor mode.
+     * That is, round toward -Infinity
+     *  @return rounded value
+     */
+    public Dfp floor() {
+<span class="fc" id="L925">        return trunc(DfpField.RoundingMode.ROUND_FLOOR);</span>
+    }
+
+    /** Round to an integer using the round ceil mode.
+     * That is, round toward +Infinity
+     *  @return rounded value
+     */
+    public Dfp ceil() {
+<span class="fc" id="L933">        return trunc(DfpField.RoundingMode.ROUND_CEIL);</span>
+    }
+
+    /** Returns the IEEE remainder.
+     * @param d divisor
+     * @return this less n &amp;times; d, where n is the integer closest to this/d
+     */
+    public Dfp remainder(final Dfp d) {
+
+<span class="fc" id="L942">        final Dfp result = this.subtract(this.divide(d).rint().multiply(d));</span>
+
+        // IEEE 854-1987 says that if the result is zero, then it carries the sign of this
+<span class="fc bfc" id="L945" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L946">            result.sign = sign;</span>
+        }
+
+<span class="fc" id="L949">        return result;</span>
+
+    }
+
+    /** Does the integer conversions with the specified rounding.
+     * @param rmode rounding mode to use
+     * @return truncated value
+     */
+    protected Dfp trunc(final DfpField.RoundingMode rmode) {
+<span class="fc" id="L958">        boolean changed = false;</span>
+
+<span class="fc bfc" id="L960" title="All 2 branches covered.">        if (isNaN()) {</span>
+<span class="fc" id="L961">            return newInstance(this);</span>
+        }
+
+<span class="fc bfc" id="L964" title="All 2 branches covered.">        if (nans == INFINITE) {</span>
+<span class="fc" id="L965">            return newInstance(this);</span>
+        }
+
+<span class="fc bfc" id="L968" title="All 2 branches covered.">        if (mant[mant.length-1] == 0) {</span>
+            // a is zero
+<span class="fc" id="L970">            return newInstance(this);</span>
+        }
+
+        /* If the exponent is less than zero then we can certainly
+         * return zero */
+<span class="fc bfc" id="L975" title="All 2 branches covered.">        if (exp &lt; 0) {</span>
+<span class="fc" id="L976">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L977">            Dfp result = newInstance(getZero());</span>
+<span class="fc" id="L978">            result = dotrap(DfpField.FLAG_INEXACT, TRUNC_TRAP, this, result);</span>
+<span class="fc" id="L979">            return result;</span>
+        }
+
+        /* If the exponent is greater than or equal to digits, then it
+         * must already be an integer since there is no precision left
+         * for any fractional part */
+
+<span class="fc bfc" id="L986" title="All 2 branches covered.">        if (exp &gt;= mant.length) {</span>
+<span class="fc" id="L987">            return newInstance(this);</span>
+        }
+
+        /* General case:  create another dfp, result, that contains the
+         * a with the fractional part lopped off.  */
+
+<span class="fc" id="L993">        Dfp result = newInstance(this);</span>
+<span class="fc bfc" id="L994" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length-result.exp; i++) {</span>
+<span class="fc bfc" id="L995" title="All 2 branches covered.">            changed |= result.mant[i] != 0;</span>
+<span class="fc" id="L996">            result.mant[i] = 0;</span>
+        }
+
+<span class="fc bfc" id="L999" title="All 2 branches covered.">        if (changed) {</span>
+<span class="pc bfc" id="L1000" title="All 3 branches covered.">            switch (rmode) {</span>
+                case ROUND_FLOOR:
+<span class="pc bpc" id="L1002" title="1 of 2 branches missed.">                    if (result.sign == -1) {</span>
+                        // then we must increment the mantissa by one
+<span class="nc" id="L1004">                        result = result.add(newInstance(-1));</span>
+                    }
+                    break;
+
+                case ROUND_CEIL:
+<span class="pc bpc" id="L1009" title="1 of 2 branches missed.">                    if (result.sign == 1) {</span>
+                        // then we must increment the mantissa by one
+<span class="fc" id="L1011">                        result = result.add(getOne());</span>
+                    }
+                    break;
+
+                case ROUND_HALF_EVEN:
+                default:
+<span class="fc" id="L1017">                    final Dfp half = newInstance(&quot;0.5&quot;);</span>
+<span class="fc" id="L1018">                    Dfp a = subtract(result);  // difference between this and result</span>
+<span class="fc" id="L1019">                    a.sign = 1;            // force positive (take abs)</span>
+<span class="fc bfc" id="L1020" title="All 2 branches covered.">                    if (a.greaterThan(half)) {</span>
+<span class="fc" id="L1021">                        a = newInstance(getOne());</span>
+<span class="fc" id="L1022">                        a.sign = sign;</span>
+<span class="fc" id="L1023">                        result = result.add(a);</span>
+                    }
+
+                    /** If exactly equal to 1/2 and odd then increment */
+<span class="fc bfc" id="L1027" title="All 6 branches covered.">                    if (a.equals(half) &amp;&amp; result.exp &gt; 0 &amp;&amp; (result.mant[mant.length-result.exp]&amp;1) != 0) {</span>
+<span class="fc" id="L1028">                        a = newInstance(getOne());</span>
+<span class="fc" id="L1029">                        a.sign = sign;</span>
+<span class="fc" id="L1030">                        result = result.add(a);</span>
+                    }
+                    break;
+            }
+
+<span class="fc" id="L1035">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);  // signal inexact</span>
+<span class="fc" id="L1036">            result = dotrap(DfpField.FLAG_INEXACT, TRUNC_TRAP, this, result);</span>
+<span class="fc" id="L1037">            return result;</span>
+        }
+
+<span class="fc" id="L1040">        return result;</span>
+    }
+
+    /** Convert this to an integer.
+     * If greater than 2147483647, it returns 2147483647. If less than -2147483648 it returns -2147483648.
+     * @return converted number
+     */
+    public int intValue() {
+        Dfp rounded;
+<span class="fc" id="L1049">        int result = 0;</span>
+
+<span class="fc" id="L1051">        rounded = rint();</span>
+
+<span class="fc bfc" id="L1053" title="All 2 branches covered.">        if (rounded.greaterThan(newInstance(2147483647))) {</span>
+<span class="fc" id="L1054">            return 2147483647;</span>
+        }
+
+<span class="fc bfc" id="L1057" title="All 2 branches covered.">        if (rounded.lessThan(newInstance(-2147483648))) {</span>
+<span class="fc" id="L1058">            return -2147483648;</span>
+        }
+
+<span class="fc bfc" id="L1061" title="All 2 branches covered.">        for (int i = mant.length - 1; i &gt;= mant.length - rounded.exp; i--) {</span>
+<span class="fc" id="L1062">            result = result * RADIX + rounded.mant[i];</span>
+        }
+
+<span class="fc bfc" id="L1065" title="All 2 branches covered.">        if (rounded.sign == -1) {</span>
+<span class="fc" id="L1066">            result = -result;</span>
+        }
+
+<span class="fc" id="L1069">        return result;</span>
+    }
+
+    /** Get the exponent of the greatest power of 10000 that is
+     *  less than or equal to the absolute value of this.  I.E.  if
+     *  this is 10&lt;sup&gt;6&lt;/sup&gt; then log10K would return 1.
+     *  @return integer base 10000 logarithm
+     */
+    public int log10K() {
+<span class="fc" id="L1078">        return exp - 1;</span>
+    }
+
+    /** Get the specified  power of 10000.
+     * @param e desired power
+     * @return 10000&lt;sup&gt;e&lt;/sup&gt;
+     */
+    public Dfp power10K(final int e) {
+<span class="fc" id="L1086">        Dfp d = newInstance(getOne());</span>
+<span class="fc" id="L1087">        d.exp = e + 1;</span>
+<span class="fc" id="L1088">        return d;</span>
+    }
+
+    /** Get the exponent of the greatest power of 10 that is less than or equal to abs(this).
+     *  @return integer base 10 logarithm
+     */
+    public int log10()  {
+<span class="fc bfc" id="L1095" title="All 2 branches covered.">        if (mant[mant.length-1] &gt; 1000) {</span>
+<span class="fc" id="L1096">            return exp * 4 - 1;</span>
+        }
+<span class="fc bfc" id="L1098" title="All 2 branches covered.">        if (mant[mant.length-1] &gt; 100) {</span>
+<span class="fc" id="L1099">            return exp * 4 - 2;</span>
+        }
+<span class="fc bfc" id="L1101" title="All 2 branches covered.">        if (mant[mant.length-1] &gt; 10) {</span>
+<span class="fc" id="L1102">            return exp * 4 - 3;</span>
+        }
+<span class="fc" id="L1104">        return exp * 4 - 4;</span>
+    }
+
+    /** Return the specified  power of 10.
+     * @param e desired power
+     * @return 10&lt;sup&gt;e&lt;/sup&gt;
+     */
+    public Dfp power10(final int e) {
+<span class="fc" id="L1112">        Dfp d = newInstance(getOne());</span>
+
+<span class="fc bfc" id="L1114" title="All 2 branches covered.">        if (e &gt;= 0) {</span>
+<span class="fc" id="L1115">            d.exp = e / 4 + 1;</span>
+        } else {
+<span class="fc" id="L1117">            d.exp = (e + 1) / 4;</span>
+        }
+
+<span class="fc bfc" id="L1120" title="All 4 branches covered.">        switch ((e % 4 + 4) % 4) {</span>
+            case 0:
+<span class="fc" id="L1122">                break;</span>
+            case 1:
+<span class="fc" id="L1124">                d = d.multiply(10);</span>
+<span class="fc" id="L1125">                break;</span>
+            case 2:
+<span class="fc" id="L1127">                d = d.multiply(100);</span>
+<span class="fc" id="L1128">                break;</span>
+            default:
+<span class="fc" id="L1130">                d = d.multiply(1000);</span>
+        }
+
+<span class="fc" id="L1133">        return d;</span>
+    }
+
+    /** Negate the mantissa of this by computing the complement.
+     *  Leaves the sign bit unchanged, used internally by add.
+     *  Denormalized numbers are handled properly here.
+     *  @param extra ???
+     *  @return ???
+     */
+    protected int complement(int extra) {
+
+<span class="fc" id="L1144">        extra = RADIX-extra;</span>
+<span class="fc bfc" id="L1145" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1146">            mant[i] = RADIX-mant[i]-1;</span>
+        }
+
+<span class="fc" id="L1149">        int rh = extra / RADIX;</span>
+<span class="fc" id="L1150">        extra = extra - rh * RADIX;</span>
+<span class="fc bfc" id="L1151" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1152">            final int r = mant[i] + rh;</span>
+<span class="fc" id="L1153">            rh = r / RADIX;</span>
+<span class="fc" id="L1154">            mant[i] = r - rh * RADIX;</span>
+        }
+
+<span class="fc" id="L1157">        return extra;</span>
+    }
+
+    /** Add x to this.
+     * @param x number to add
+     * @return sum of this and x
+     */
+    public Dfp add(final Dfp x) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L1167" title="1 of 2 branches missed.">        if (field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="nc" id="L1168">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L1169">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L1170">            result.nans = QNAN;</span>
+<span class="nc" id="L1171">            return dotrap(DfpField.FLAG_INVALID, ADD_TRAP, x, result);</span>
+        }
+
+        /* handle special cases */
+<span class="fc bfc" id="L1175" title="All 4 branches covered.">        if (nans != FINITE || x.nans != FINITE) {</span>
+<span class="fc bfc" id="L1176" title="All 2 branches covered.">            if (isNaN()) {</span>
+<span class="fc" id="L1177">                return this;</span>
+            }
+
+<span class="fc bfc" id="L1180" title="All 2 branches covered.">            if (x.isNaN()) {</span>
+<span class="fc" id="L1181">                return x;</span>
+            }
+
+<span class="fc bfc" id="L1184" title="All 4 branches covered.">            if (nans == INFINITE &amp;&amp; x.nans == FINITE) {</span>
+<span class="fc" id="L1185">                return this;</span>
+            }
+
+<span class="pc bpc" id="L1188" title="1 of 4 branches missed.">            if (x.nans == INFINITE &amp;&amp; nans == FINITE) {</span>
+<span class="fc" id="L1189">                return x;</span>
+            }
+
+<span class="pc bpc" id="L1192" title="2 of 6 branches missed.">            if (x.nans == INFINITE &amp;&amp; nans == INFINITE &amp;&amp; sign == x.sign) {</span>
+<span class="fc" id="L1193">                return x;</span>
+            }
+
+<span class="pc bpc" id="L1196" title="3 of 6 branches missed.">            if (x.nans == INFINITE &amp;&amp; nans == INFINITE &amp;&amp; sign != x.sign) {</span>
+<span class="fc" id="L1197">                field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1198">                Dfp result = newInstance(getZero());</span>
+<span class="fc" id="L1199">                result.nans = QNAN;</span>
+<span class="fc" id="L1200">                result = dotrap(DfpField.FLAG_INVALID, ADD_TRAP, x, result);</span>
+<span class="fc" id="L1201">                return result;</span>
+            }
+        }
+
+        /* copy this and the arg */
+<span class="fc" id="L1206">        Dfp a = newInstance(this);</span>
+<span class="fc" id="L1207">        Dfp b = newInstance(x);</span>
+
+        /* initialize the result object */
+<span class="fc" id="L1210">        Dfp result = newInstance(getZero());</span>
+
+        /* Make all numbers positive, but remember their sign */
+<span class="fc" id="L1213">        final byte asign = a.sign;</span>
+<span class="fc" id="L1214">        final byte bsign = b.sign;</span>
+
+<span class="fc" id="L1216">        a.sign = 1;</span>
+<span class="fc" id="L1217">        b.sign = 1;</span>
+
+        /* The result will be signed like the arg with greatest magnitude */
+<span class="fc" id="L1220">        byte rsign = bsign;</span>
+<span class="fc bfc" id="L1221" title="All 2 branches covered.">        if (compare(a, b) &gt; 0) {</span>
+<span class="fc" id="L1222">            rsign = asign;</span>
+        }
+
+        /* Handle special case when a or b is zero, by setting the exponent
+       of the zero number equal to the other one.  This avoids an alignment
+       which would cause catastropic loss of precision */
+<span class="fc bfc" id="L1228" title="All 2 branches covered.">        if (b.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L1229">            b.exp = a.exp;</span>
+        }
+
+<span class="fc bfc" id="L1232" title="All 2 branches covered.">        if (a.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L1233">            a.exp = b.exp;</span>
+        }
+
+        /* align number with the smaller exponent */
+<span class="fc" id="L1237">        int aextradigit = 0;</span>
+<span class="fc" id="L1238">        int bextradigit = 0;</span>
+<span class="fc bfc" id="L1239" title="All 2 branches covered.">        if (a.exp &lt; b.exp) {</span>
+<span class="fc" id="L1240">            aextradigit = a.align(b.exp);</span>
+        } else {
+<span class="fc" id="L1242">            bextradigit = b.align(a.exp);</span>
+        }
+
+        /* complement the smaller of the two if the signs are different */
+<span class="fc bfc" id="L1246" title="All 2 branches covered.">        if (asign != bsign) {</span>
+<span class="fc bfc" id="L1247" title="All 2 branches covered.">            if (asign == rsign) {</span>
+<span class="fc" id="L1248">                bextradigit = b.complement(bextradigit);</span>
+            } else {
+<span class="fc" id="L1250">                aextradigit = a.complement(aextradigit);</span>
+            }
+        }
+
+        /* add the mantissas */
+<span class="fc" id="L1255">        int rh = 0; /* acts as a carry */</span>
+<span class="fc bfc" id="L1256" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1257">            final int r = a.mant[i]+b.mant[i]+rh;</span>
+<span class="fc" id="L1258">            rh = r / RADIX;</span>
+<span class="fc" id="L1259">            result.mant[i] = r - rh * RADIX;</span>
+        }
+<span class="fc" id="L1261">        result.exp = a.exp;</span>
+<span class="fc" id="L1262">        result.sign = rsign;</span>
+
+        /* handle overflow -- note, when asign!=bsign an overflow is
+         * normal and should be ignored.  */
+
+<span class="fc bfc" id="L1267" title="All 4 branches covered.">        if (rh != 0 &amp;&amp; (asign == bsign)) {</span>
+<span class="fc" id="L1268">            final int lostdigit = result.mant[0];</span>
+<span class="fc" id="L1269">            result.shiftRight();</span>
+<span class="fc" id="L1270">            result.mant[mant.length-1] = rh;</span>
+<span class="fc" id="L1271">            final int excp = result.round(lostdigit);</span>
+<span class="fc bfc" id="L1272" title="All 2 branches covered.">            if (excp != 0) {</span>
+<span class="fc" id="L1273">                result = dotrap(excp, ADD_TRAP, x, result);</span>
+            }
+        }
+
+        /* normalize the result */
+<span class="fc bfc" id="L1278" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc bfc" id="L1279" title="All 2 branches covered.">            if (result.mant[mant.length-1] != 0) {</span>
+<span class="fc" id="L1280">                break;</span>
+            }
+<span class="fc" id="L1282">            result.shiftLeft();</span>
+<span class="fc bfc" id="L1283" title="All 2 branches covered.">            if (i == 0) {</span>
+<span class="fc" id="L1284">                result.mant[0] = aextradigit+bextradigit;</span>
+<span class="fc" id="L1285">                aextradigit = 0;</span>
+<span class="fc" id="L1286">                bextradigit = 0;</span>
+            }
+        }
+
+        /* result is zero if after normalization the most sig. digit is zero */
+<span class="fc bfc" id="L1291" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L1292">            result.exp = 0;</span>
+
+<span class="fc bfc" id="L1294" title="All 2 branches covered.">            if (asign != bsign) {</span>
+                // Unless adding 2 negative zeros, sign is positive
+<span class="fc" id="L1296">                result.sign = 1;  // Per IEEE 854-1987 Section 6.3</span>
+            }
+        }
+
+        /* Call round to test for over/under flows */
+<span class="fc" id="L1301">        final int excp = result.round(aextradigit + bextradigit);</span>
+<span class="fc bfc" id="L1302" title="All 2 branches covered.">        if (excp != 0) {</span>
+<span class="fc" id="L1303">            result = dotrap(excp, ADD_TRAP, x, result);</span>
+        }
+
+<span class="fc" id="L1306">        return result;</span>
+    }
+
+    /** Returns a number that is this number with the sign bit reversed.
+     * @return the opposite of this
+     */
+    public Dfp negate() {
+<span class="fc" id="L1313">        Dfp result = newInstance(this);</span>
+<span class="fc" id="L1314">        result.sign = (byte) - result.sign;</span>
+<span class="fc" id="L1315">        return result;</span>
+    }
+
+    /** Subtract x from this.
+     * @param x number to subtract
+     * @return difference of this and a
+     */
+    public Dfp subtract(final Dfp x) {
+<span class="fc" id="L1323">        return add(x.negate());</span>
+    }
+
+    /** Round this given the next digit n using the current rounding mode.
+     * @param n ???
+     * @return the IEEE flag if an exception occurred
+     */
+    protected int round(int n) {
+<span class="fc" id="L1331">        boolean inc = false;</span>
+<span class="fc bfc" id="L1332" title="All 8 branches covered.">        switch (field.getRoundingMode()) {</span>
+            case ROUND_DOWN:
+<span class="fc" id="L1334">                inc = false;</span>
+<span class="fc" id="L1335">                break;</span>
+
+            case ROUND_UP:
+<span class="fc bfc" id="L1338" title="All 2 branches covered.">                inc = n != 0;       // round up if n!=0</span>
+<span class="fc" id="L1339">                break;</span>
+
+            case ROUND_HALF_UP:
+<span class="fc bfc" id="L1342" title="All 2 branches covered.">                inc = n &gt;= 5000;  // round half up</span>
+<span class="fc" id="L1343">                break;</span>
+
+            case ROUND_HALF_DOWN:
+<span class="fc bfc" id="L1346" title="All 2 branches covered.">                inc = n &gt; 5000;  // round half down</span>
+<span class="fc" id="L1347">                break;</span>
+
+            case ROUND_HALF_EVEN:
+<span class="fc bfc" id="L1350" title="All 6 branches covered.">                inc = n &gt; 5000 || (n == 5000 &amp;&amp; (mant[0] &amp; 1) == 1);  // round half-even</span>
+<span class="fc" id="L1351">                break;</span>
+
+            case ROUND_HALF_ODD:
+<span class="pc bpc" id="L1354" title="1 of 6 branches missed.">                inc = n &gt; 5000 || (n == 5000 &amp;&amp; (mant[0] &amp; 1) == 0);  // round half-odd</span>
+<span class="fc" id="L1355">                break;</span>
+
+            case ROUND_CEIL:
+<span class="fc bfc" id="L1358" title="All 4 branches covered.">                inc = sign == 1 &amp;&amp; n != 0;  // round ceil</span>
+<span class="fc" id="L1359">                break;</span>
+
+            case ROUND_FLOOR:
+            default:
+<span class="fc bfc" id="L1363" title="All 4 branches covered.">                inc = sign == -1 &amp;&amp; n != 0;  // round floor</span>
+                break;
+        }
+
+<span class="fc bfc" id="L1367" title="All 2 branches covered.">        if (inc) {</span>
+            // increment if necessary
+<span class="fc" id="L1369">            int rh = 1;</span>
+<span class="fc bfc" id="L1370" title="All 2 branches covered.">            for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1371">                final int r = mant[i] + rh;</span>
+<span class="fc" id="L1372">                rh = r / RADIX;</span>
+<span class="fc" id="L1373">                mant[i] = r - rh * RADIX;</span>
+            }
+
+<span class="fc bfc" id="L1376" title="All 2 branches covered.">            if (rh != 0) {</span>
+<span class="fc" id="L1377">                shiftRight();</span>
+<span class="fc" id="L1378">                mant[mant.length-1] = rh;</span>
+            }
+        }
+
+        // check for exceptional cases and raise signals if necessary
+<span class="fc bfc" id="L1383" title="All 2 branches covered.">        if (exp &lt; MIN_EXP) {</span>
+            // Gradual Underflow
+<span class="fc" id="L1385">            field.setIEEEFlagsBits(DfpField.FLAG_UNDERFLOW);</span>
+<span class="fc" id="L1386">            return DfpField.FLAG_UNDERFLOW;</span>
+        }
+
+<span class="fc bfc" id="L1389" title="All 2 branches covered.">        if (exp &gt; MAX_EXP) {</span>
+            // Overflow
+<span class="fc" id="L1391">            field.setIEEEFlagsBits(DfpField.FLAG_OVERFLOW);</span>
+<span class="fc" id="L1392">            return DfpField.FLAG_OVERFLOW;</span>
+        }
+
+<span class="fc bfc" id="L1395" title="All 2 branches covered.">        if (n != 0) {</span>
+            // Inexact
+<span class="fc" id="L1397">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L1398">            return DfpField.FLAG_INEXACT;</span>
+        }
+
+<span class="fc" id="L1401">        return 0;</span>
+
+    }
+
+    /** Multiply this by x.
+     * @param x multiplicand
+     * @return product of this and x
+     */
+    public Dfp multiply(final Dfp x) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L1412" title="1 of 2 branches missed.">        if (field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="nc" id="L1413">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L1414">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L1415">            result.nans = QNAN;</span>
+<span class="nc" id="L1416">            return dotrap(DfpField.FLAG_INVALID, MULTIPLY_TRAP, x, result);</span>
+        }
+
+<span class="fc" id="L1419">        Dfp result = newInstance(getZero());</span>
+
+        /* handle special cases */
+<span class="fc bfc" id="L1422" title="All 4 branches covered.">        if (nans != FINITE || x.nans != FINITE) {</span>
+<span class="fc bfc" id="L1423" title="All 2 branches covered.">            if (isNaN()) {</span>
+<span class="fc" id="L1424">                return this;</span>
+            }
+
+<span class="fc bfc" id="L1427" title="All 2 branches covered.">            if (x.isNaN()) {</span>
+<span class="fc" id="L1428">                return x;</span>
+            }
+
+<span class="fc bfc" id="L1431" title="All 6 branches covered.">            if (nans == INFINITE &amp;&amp; x.nans == FINITE &amp;&amp; x.mant[mant.length-1] != 0) {</span>
+<span class="fc" id="L1432">                result = newInstance(this);</span>
+<span class="fc" id="L1433">                result.sign = (byte) (sign * x.sign);</span>
+<span class="fc" id="L1434">                return result;</span>
+            }
+
+<span class="fc bfc" id="L1437" title="All 6 branches covered.">            if (x.nans == INFINITE &amp;&amp; nans == FINITE &amp;&amp; mant[mant.length-1] != 0) {</span>
+<span class="fc" id="L1438">                result = newInstance(x);</span>
+<span class="fc" id="L1439">                result.sign = (byte) (sign * x.sign);</span>
+<span class="fc" id="L1440">                return result;</span>
+            }
+
+<span class="fc bfc" id="L1443" title="All 4 branches covered.">            if (x.nans == INFINITE &amp;&amp; nans == INFINITE) {</span>
+<span class="fc" id="L1444">                result = newInstance(this);</span>
+<span class="fc" id="L1445">                result.sign = (byte) (sign * x.sign);</span>
+<span class="fc" id="L1446">                return result;</span>
+            }
+
+<span class="pc bpc" id="L1449" title="5 of 12 branches missed.">            if ( (x.nans == INFINITE &amp;&amp; nans == FINITE &amp;&amp; mant[mant.length-1] == 0) ||</span>
+                    (nans == INFINITE &amp;&amp; x.nans == FINITE &amp;&amp; x.mant[mant.length-1] == 0) ) {
+<span class="fc" id="L1451">                field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1452">                result = newInstance(getZero());</span>
+<span class="fc" id="L1453">                result.nans = QNAN;</span>
+<span class="fc" id="L1454">                result = dotrap(DfpField.FLAG_INVALID, MULTIPLY_TRAP, x, result);</span>
+<span class="fc" id="L1455">                return result;</span>
+            }
+        }
+
+<span class="fc" id="L1459">        int[] product = new int[mant.length*2];  // Big enough to hold even the largest result</span>
+
+<span class="fc bfc" id="L1461" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1462">            int rh = 0;  // acts as a carry</span>
+<span class="fc bfc" id="L1463" title="All 2 branches covered.">            for (int j=0; j&lt;mant.length; j++) {</span>
+<span class="fc" id="L1464">                int r = mant[i] * x.mant[j];    // multiply the 2 digits</span>
+<span class="fc" id="L1465">                r = r + product[i+j] + rh;  // add to the product digit with carry in</span>
+
+<span class="fc" id="L1467">                rh = r / RADIX;</span>
+<span class="fc" id="L1468">                product[i+j] = r - rh * RADIX;</span>
+            }
+<span class="fc" id="L1470">            product[i+mant.length] = rh;</span>
+        }
+
+        // Find the most sig digit
+<span class="fc" id="L1474">        int md = mant.length * 2 - 1;  // default, in case result is zero</span>
+<span class="fc bfc" id="L1475" title="All 2 branches covered.">        for (int i = mant.length * 2 - 1; i &gt;= 0; i--) {</span>
+<span class="fc bfc" id="L1476" title="All 2 branches covered.">            if (product[i] != 0) {</span>
+<span class="fc" id="L1477">                md = i;</span>
+<span class="fc" id="L1478">                break;</span>
+            }
+        }
+
+        // Copy the digits into the result
+<span class="fc bfc" id="L1483" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1484">            result.mant[mant.length - i - 1] = product[md - i];</span>
+        }
+
+        // Fixup the exponent.
+<span class="fc" id="L1488">        result.exp = exp + x.exp + md - 2 * mant.length + 1;</span>
+<span class="fc bfc" id="L1489" title="All 2 branches covered.">        result.sign = (byte)((sign == x.sign)?1:-1);</span>
+
+<span class="fc bfc" id="L1491" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) {</span>
+            // if result is zero, set exp to zero
+<span class="fc" id="L1493">            result.exp = 0;</span>
+        }
+
+        final int excp;
+<span class="pc bpc" id="L1497" title="1 of 2 branches missed.">        if (md &gt; (mant.length-1)) {</span>
+<span class="fc" id="L1498">            excp = result.round(product[md-mant.length]);</span>
+        } else {
+<span class="nc" id="L1500">            excp = result.round(0); // has no effect except to check status</span>
+        }
+
+<span class="fc bfc" id="L1503" title="All 2 branches covered.">        if (excp != 0) {</span>
+<span class="fc" id="L1504">            result = dotrap(excp, MULTIPLY_TRAP, x, result);</span>
+        }
+
+<span class="fc" id="L1507">        return result;</span>
+
+    }
+
+    /** Multiply this by a single digit 0&amp;lt;=x&amp;lt;radix.
+     * There are speed advantages in this special case
+     * @param x multiplicand
+     * @return product of this and x
+     */
+    public Dfp multiply(final int x) {
+<span class="fc" id="L1517">        Dfp result = newInstance(this);</span>
+
+        /* handle special cases */
+<span class="fc bfc" id="L1520" title="All 2 branches covered.">        if (nans != FINITE) {</span>
+<span class="fc bfc" id="L1521" title="All 2 branches covered.">            if (isNaN()) {</span>
+<span class="fc" id="L1522">                return this;</span>
+            }
+
+<span class="pc bpc" id="L1525" title="1 of 4 branches missed.">            if (nans == INFINITE &amp;&amp; x != 0) {</span>
+<span class="fc" id="L1526">                result = newInstance(this);</span>
+<span class="fc" id="L1527">                return result;</span>
+            }
+
+<span class="pc bpc" id="L1530" title="2 of 4 branches missed.">            if (nans == INFINITE &amp;&amp; x == 0) {</span>
+<span class="fc" id="L1531">                field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1532">                result = newInstance(getZero());</span>
+<span class="fc" id="L1533">                result.nans = QNAN;</span>
+<span class="fc" id="L1534">                result = dotrap(DfpField.FLAG_INVALID, MULTIPLY_TRAP, newInstance(getZero()), result);</span>
+<span class="fc" id="L1535">                return result;</span>
+            }
+        }
+
+        /* range check x */
+<span class="fc bfc" id="L1540" title="All 4 branches covered.">        if (x &lt; 0 || x &gt;= RADIX) {</span>
+<span class="fc" id="L1541">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1542">            result = newInstance(getZero());</span>
+<span class="fc" id="L1543">            result.nans = QNAN;</span>
+<span class="fc" id="L1544">            result = dotrap(DfpField.FLAG_INVALID, MULTIPLY_TRAP, result, result);</span>
+<span class="fc" id="L1545">            return result;</span>
+        }
+
+<span class="fc" id="L1548">        int rh = 0;</span>
+<span class="fc bfc" id="L1549" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1550">            final int r = mant[i] * x + rh;</span>
+<span class="fc" id="L1551">            rh = r / RADIX;</span>
+<span class="fc" id="L1552">            result.mant[i] = r - rh * RADIX;</span>
+        }
+
+<span class="fc" id="L1555">        int lostdigit = 0;</span>
+<span class="fc bfc" id="L1556" title="All 2 branches covered.">        if (rh != 0) {</span>
+<span class="fc" id="L1557">            lostdigit = result.mant[0];</span>
+<span class="fc" id="L1558">            result.shiftRight();</span>
+<span class="fc" id="L1559">            result.mant[mant.length-1] = rh;</span>
+        }
+
+<span class="fc bfc" id="L1562" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) { // if result is zero, set exp to zero</span>
+<span class="fc" id="L1563">            result.exp = 0;</span>
+        }
+
+<span class="fc" id="L1566">        final int excp = result.round(lostdigit);</span>
+<span class="fc bfc" id="L1567" title="All 2 branches covered.">        if (excp != 0) {</span>
+<span class="fc" id="L1568">            result = dotrap(excp, MULTIPLY_TRAP, result, result);</span>
+        }
+
+<span class="fc" id="L1571">        return result;</span>
+    }
+
+    /** Divide this by divisor.
+     * @param divisor divisor
+     * @return quotient of this by divisor
+     */
+    public Dfp divide(Dfp divisor) {
+        int dividend[]; // current status of the dividend
+        int quotient[]; // quotient
+        int remainder[];// remainder
+        int qd;         // current quotient digit we're working with
+        int nsqd;       // number of significant quotient digits we have
+<span class="fc" id="L1584">        int trial=0;    // trial quotient digit</span>
+        int minadj;     // minimum adjustment
+        boolean trialgood; // Flag to indicate a good trail digit
+<span class="fc" id="L1587">        int md=0;       // most sig digit in result</span>
+        int excp;       // exceptions
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L1591" title="1 of 2 branches missed.">        if (field.getRadixDigits() != divisor.field.getRadixDigits()) {</span>
+<span class="nc" id="L1592">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L1593">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L1594">            result.nans = QNAN;</span>
+<span class="nc" id="L1595">            return dotrap(DfpField.FLAG_INVALID, DIVIDE_TRAP, divisor, result);</span>
+        }
+
+<span class="fc" id="L1598">        Dfp result = newInstance(getZero());</span>
+
+        /* handle special cases */
+<span class="fc bfc" id="L1601" title="All 4 branches covered.">        if (nans != FINITE || divisor.nans != FINITE) {</span>
+<span class="fc bfc" id="L1602" title="All 2 branches covered.">            if (isNaN()) {</span>
+<span class="fc" id="L1603">                return this;</span>
+            }
+
+<span class="fc bfc" id="L1606" title="All 2 branches covered.">            if (divisor.isNaN()) {</span>
+<span class="fc" id="L1607">                return divisor;</span>
+            }
+
+<span class="fc bfc" id="L1610" title="All 4 branches covered.">            if (nans == INFINITE &amp;&amp; divisor.nans == FINITE) {</span>
+<span class="fc" id="L1611">                result = newInstance(this);</span>
+<span class="fc" id="L1612">                result.sign = (byte) (sign * divisor.sign);</span>
+<span class="fc" id="L1613">                return result;</span>
+            }
+
+<span class="pc bpc" id="L1616" title="1 of 4 branches missed.">            if (divisor.nans == INFINITE &amp;&amp; nans == FINITE) {</span>
+<span class="fc" id="L1617">                result = newInstance(getZero());</span>
+<span class="fc" id="L1618">                result.sign = (byte) (sign * divisor.sign);</span>
+<span class="fc" id="L1619">                return result;</span>
+            }
+
+<span class="pc bpc" id="L1622" title="2 of 4 branches missed.">            if (divisor.nans == INFINITE &amp;&amp; nans == INFINITE) {</span>
+<span class="fc" id="L1623">                field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1624">                result = newInstance(getZero());</span>
+<span class="fc" id="L1625">                result.nans = QNAN;</span>
+<span class="fc" id="L1626">                result = dotrap(DfpField.FLAG_INVALID, DIVIDE_TRAP, divisor, result);</span>
+<span class="fc" id="L1627">                return result;</span>
+            }
+        }
+
+        /* Test for divide by zero */
+<span class="fc bfc" id="L1632" title="All 2 branches covered.">        if (divisor.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L1633">            field.setIEEEFlagsBits(DfpField.FLAG_DIV_ZERO);</span>
+<span class="fc" id="L1634">            result = newInstance(getZero());</span>
+<span class="fc" id="L1635">            result.sign = (byte) (sign * divisor.sign);</span>
+<span class="fc" id="L1636">            result.nans = INFINITE;</span>
+<span class="fc" id="L1637">            result = dotrap(DfpField.FLAG_DIV_ZERO, DIVIDE_TRAP, divisor, result);</span>
+<span class="fc" id="L1638">            return result;</span>
+        }
+
+<span class="fc" id="L1641">        dividend = new int[mant.length+1];  // one extra digit needed</span>
+<span class="fc" id="L1642">        quotient = new int[mant.length+2];  // two extra digits needed 1 for overflow, 1 for rounding</span>
+<span class="fc" id="L1643">        remainder = new int[mant.length+1]; // one extra digit needed</span>
+
+        /* Initialize our most significant digits to zero */
+
+<span class="fc" id="L1647">        dividend[mant.length] = 0;</span>
+<span class="fc" id="L1648">        quotient[mant.length] = 0;</span>
+<span class="fc" id="L1649">        quotient[mant.length+1] = 0;</span>
+<span class="fc" id="L1650">        remainder[mant.length] = 0;</span>
+
+        /* copy our mantissa into the dividend, initialize the
+       quotient while we are at it */
+
+<span class="fc bfc" id="L1655" title="All 2 branches covered.">        for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1656">            dividend[i] = mant[i];</span>
+<span class="fc" id="L1657">            quotient[i] = 0;</span>
+<span class="fc" id="L1658">            remainder[i] = 0;</span>
+        }
+
+        /* outer loop.  Once per quotient digit */
+<span class="fc" id="L1662">        nsqd = 0;</span>
+<span class="fc bfc" id="L1663" title="All 2 branches covered.">        for (qd = mant.length+1; qd &gt;= 0; qd--) {</span>
+            /* Determine outer limits of our quotient digit */
+
+            // r =  most sig 2 digits of dividend
+<span class="fc" id="L1667">            final int divMsb = dividend[mant.length]*RADIX+dividend[mant.length-1];</span>
+<span class="fc" id="L1668">            int min = divMsb       / (divisor.mant[mant.length-1]+1);</span>
+<span class="fc" id="L1669">            int max = (divMsb + 1) / divisor.mant[mant.length-1];</span>
+
+<span class="fc" id="L1671">            trialgood = false;</span>
+<span class="fc bfc" id="L1672" title="All 2 branches covered.">            while (!trialgood) {</span>
+                // try the mean
+<span class="fc" id="L1674">                trial = (min+max)/2;</span>
+
+                /* Multiply by divisor and store as remainder */
+<span class="fc" id="L1677">                int rh = 0;</span>
+<span class="fc bfc" id="L1678" title="All 2 branches covered.">                for (int i = 0; i &lt; mant.length + 1; i++) {</span>
+<span class="fc bfc" id="L1679" title="All 2 branches covered.">                    int dm = (i&lt;mant.length)?divisor.mant[i]:0;</span>
+<span class="fc" id="L1680">                    final int r = (dm * trial) + rh;</span>
+<span class="fc" id="L1681">                    rh = r / RADIX;</span>
+<span class="fc" id="L1682">                    remainder[i] = r - rh * RADIX;</span>
+                }
+
+                /* subtract the remainder from the dividend */
+<span class="fc" id="L1686">                rh = 1;  // carry in to aid the subtraction</span>
+<span class="fc bfc" id="L1687" title="All 2 branches covered.">                for (int i = 0; i &lt; mant.length + 1; i++) {</span>
+<span class="fc" id="L1688">                    final int r = ((RADIX-1) - remainder[i]) + dividend[i] + rh;</span>
+<span class="fc" id="L1689">                    rh = r / RADIX;</span>
+<span class="fc" id="L1690">                    remainder[i] = r - rh * RADIX;</span>
+                }
+
+                /* Lets analyze what we have here */
+<span class="fc bfc" id="L1694" title="All 2 branches covered.">                if (rh == 0) {</span>
+                    // trial is too big -- negative remainder
+<span class="fc" id="L1696">                    max = trial-1;</span>
+<span class="fc" id="L1697">                    continue;</span>
+                }
+
+                /* find out how far off the remainder is telling us we are */
+<span class="fc" id="L1701">                minadj = (remainder[mant.length] * RADIX)+remainder[mant.length-1];</span>
+<span class="fc" id="L1702">                minadj = minadj / (divisor.mant[mant.length-1]+1);</span>
+
+<span class="fc bfc" id="L1704" title="All 2 branches covered.">                if (minadj &gt;= 2) {</span>
+<span class="fc" id="L1705">                    min = trial+minadj;  // update the minimum</span>
+<span class="fc" id="L1706">                    continue;</span>
+                }
+
+                /* May have a good one here, check more thoroughly.  Basically
+           its a good one if it is less than the divisor */
+<span class="fc" id="L1711">                trialgood = false;  // assume false</span>
+<span class="fc bfc" id="L1712" title="All 2 branches covered.">                for (int i = mant.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc bfc" id="L1713" title="All 2 branches covered.">                    if (divisor.mant[i] &gt; remainder[i]) {</span>
+<span class="fc" id="L1714">                        trialgood = true;</span>
+                    }
+<span class="fc bfc" id="L1716" title="All 2 branches covered.">                    if (divisor.mant[i] &lt; remainder[i]) {</span>
+<span class="fc" id="L1717">                        break;</span>
+                    }
+                }
+
+<span class="fc bfc" id="L1721" title="All 2 branches covered.">                if (remainder[mant.length] != 0) {</span>
+<span class="fc" id="L1722">                    trialgood = false;</span>
+                }
+
+<span class="fc bfc" id="L1725" title="All 2 branches covered.">                if (trialgood == false) {</span>
+<span class="fc" id="L1726">                    min = trial+1;</span>
+                }
+<span class="fc" id="L1728">            }</span>
+
+            /* Great we have a digit! */
+<span class="fc" id="L1731">            quotient[qd] = trial;</span>
+<span class="fc bfc" id="L1732" title="All 4 branches covered.">            if (trial != 0 || nsqd != 0) {</span>
+<span class="fc" id="L1733">                nsqd++;</span>
+            }
+
+<span class="pc bpc" id="L1736" title="3 of 4 branches missed.">            if (field.getRoundingMode() == DfpField.RoundingMode.ROUND_DOWN &amp;&amp; nsqd == mant.length) {</span>
+                // We have enough for this mode
+<span class="nc" id="L1738">                break;</span>
+            }
+
+<span class="fc bfc" id="L1741" title="All 2 branches covered.">            if (nsqd &gt; mant.length) {</span>
+                // We have enough digits
+<span class="fc" id="L1743">                break;</span>
+            }
+
+            /* move the remainder into the dividend while left shifting */
+<span class="fc" id="L1747">            dividend[0] = 0;</span>
+<span class="fc bfc" id="L1748" title="All 2 branches covered.">            for (int i = 0; i &lt; mant.length; i++) {</span>
+<span class="fc" id="L1749">                dividend[i + 1] = remainder[i];</span>
+            }
+        }
+
+        /* Find the most sig digit */
+<span class="fc" id="L1754">        md = mant.length;  // default</span>
+<span class="fc bfc" id="L1755" title="All 2 branches covered.">        for (int i = mant.length + 1; i &gt;= 0; i--) {</span>
+<span class="fc bfc" id="L1756" title="All 2 branches covered.">            if (quotient[i] != 0) {</span>
+<span class="fc" id="L1757">                md = i;</span>
+<span class="fc" id="L1758">                break;</span>
+            }
+        }
+
+        /* Copy the digits into the result */
+<span class="fc bfc" id="L1763" title="All 2 branches covered.">        for (int i=0; i&lt;mant.length; i++) {</span>
+<span class="fc" id="L1764">            result.mant[mant.length-i-1] = quotient[md-i];</span>
+        }
+
+        /* Fixup the exponent. */
+<span class="fc" id="L1768">        result.exp = exp - divisor.exp + md - mant.length;</span>
+<span class="fc bfc" id="L1769" title="All 2 branches covered.">        result.sign = (byte) ((sign == divisor.sign) ? 1 : -1);</span>
+
+<span class="fc bfc" id="L1771" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) { // if result is zero, set exp to zero</span>
+<span class="fc" id="L1772">            result.exp = 0;</span>
+        }
+
+<span class="pc bpc" id="L1775" title="1 of 2 branches missed.">        if (md &gt; (mant.length-1)) {</span>
+<span class="fc" id="L1776">            excp = result.round(quotient[md-mant.length]);</span>
+        } else {
+<span class="nc" id="L1778">            excp = result.round(0);</span>
+        }
+
+<span class="fc bfc" id="L1781" title="All 2 branches covered.">        if (excp != 0) {</span>
+<span class="fc" id="L1782">            result = dotrap(excp, DIVIDE_TRAP, divisor, result);</span>
+        }
+
+<span class="fc" id="L1785">        return result;</span>
+    }
+
+    /** Divide by a single digit less than radix.
+     *  Special case, so there are speed advantages. 0 &amp;lt;= divisor &amp;lt; radix
+     * @param divisor divisor
+     * @return quotient of this by divisor
+     */
+    public Dfp divide(int divisor) {
+
+        // Handle special cases
+<span class="fc bfc" id="L1796" title="All 2 branches covered.">        if (nans != FINITE) {</span>
+<span class="fc bfc" id="L1797" title="All 2 branches covered.">            if (isNaN()) {</span>
+<span class="fc" id="L1798">                return this;</span>
+            }
+
+<span class="pc bpc" id="L1801" title="1 of 2 branches missed.">            if (nans == INFINITE) {</span>
+<span class="fc" id="L1802">                return newInstance(this);</span>
+            }
+        }
+
+        // Test for divide by zero
+<span class="fc bfc" id="L1807" title="All 2 branches covered.">        if (divisor == 0) {</span>
+<span class="fc" id="L1808">            field.setIEEEFlagsBits(DfpField.FLAG_DIV_ZERO);</span>
+<span class="fc" id="L1809">            Dfp result = newInstance(getZero());</span>
+<span class="fc" id="L1810">            result.sign = sign;</span>
+<span class="fc" id="L1811">            result.nans = INFINITE;</span>
+<span class="fc" id="L1812">            result = dotrap(DfpField.FLAG_DIV_ZERO, DIVIDE_TRAP, getZero(), result);</span>
+<span class="fc" id="L1813">            return result;</span>
+        }
+
+        // range check divisor
+<span class="fc bfc" id="L1817" title="All 4 branches covered.">        if (divisor &lt; 0 || divisor &gt;= RADIX) {</span>
+<span class="fc" id="L1818">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1819">            Dfp result = newInstance(getZero());</span>
+<span class="fc" id="L1820">            result.nans = QNAN;</span>
+<span class="fc" id="L1821">            result = dotrap(DfpField.FLAG_INVALID, DIVIDE_TRAP, result, result);</span>
+<span class="fc" id="L1822">            return result;</span>
+        }
+
+<span class="fc" id="L1825">        Dfp result = newInstance(this);</span>
+
+<span class="fc" id="L1827">        int rl = 0;</span>
+<span class="fc bfc" id="L1828" title="All 2 branches covered.">        for (int i = mant.length-1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L1829">            final int r = rl*RADIX + result.mant[i];</span>
+<span class="fc" id="L1830">            final int rh = r / divisor;</span>
+<span class="fc" id="L1831">            rl = r - rh * divisor;</span>
+<span class="fc" id="L1832">            result.mant[i] = rh;</span>
+        }
+
+<span class="fc bfc" id="L1835" title="All 2 branches covered.">        if (result.mant[mant.length-1] == 0) {</span>
+            // normalize
+<span class="fc" id="L1837">            result.shiftLeft();</span>
+<span class="fc" id="L1838">            final int r = rl * RADIX;        // compute the next digit and put it in</span>
+<span class="fc" id="L1839">            final int rh = r / divisor;</span>
+<span class="fc" id="L1840">            rl = r - rh * divisor;</span>
+<span class="fc" id="L1841">            result.mant[0] = rh;</span>
+        }
+
+<span class="fc" id="L1844">        final int excp = result.round(rl * RADIX / divisor);  // do the rounding</span>
+<span class="fc bfc" id="L1845" title="All 2 branches covered.">        if (excp != 0) {</span>
+<span class="fc" id="L1846">            result = dotrap(excp, DIVIDE_TRAP, result, result);</span>
+        }
+
+<span class="fc" id="L1849">        return result;</span>
+
+    }
+
+    /** Compute the square root.
+     * @return square root of the instance
+     */
+    public Dfp sqrt() {
+
+        // check for unusual cases
+<span class="fc bfc" id="L1859" title="All 4 branches covered.">        if (nans == FINITE &amp;&amp; mant[mant.length-1] == 0) {</span>
+            // if zero
+<span class="fc" id="L1861">            return newInstance(this);</span>
+        }
+
+<span class="fc bfc" id="L1864" title="All 2 branches covered.">        if (nans != FINITE) {</span>
+<span class="pc bpc" id="L1865" title="1 of 4 branches missed.">            if (nans == INFINITE &amp;&amp; sign == 1) {</span>
+                // if positive infinity
+<span class="fc" id="L1867">                return newInstance(this);</span>
+            }
+
+<span class="fc bfc" id="L1870" title="All 2 branches covered.">            if (nans == QNAN) {</span>
+<span class="fc" id="L1871">                return newInstance(this);</span>
+            }
+
+<span class="pc bpc" id="L1874" title="1 of 2 branches missed.">            if (nans == SNAN) {</span>
+                Dfp result;
+
+<span class="fc" id="L1877">                field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1878">                result = newInstance(this);</span>
+<span class="fc" id="L1879">                result = dotrap(DfpField.FLAG_INVALID, SQRT_TRAP, null, result);</span>
+<span class="fc" id="L1880">                return result;</span>
+            }
+        }
+
+<span class="fc bfc" id="L1884" title="All 2 branches covered.">        if (sign == -1) {</span>
+            // if negative
+            Dfp result;
+
+<span class="fc" id="L1888">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="fc" id="L1889">            result = newInstance(this);</span>
+<span class="fc" id="L1890">            result.nans = QNAN;</span>
+<span class="fc" id="L1891">            result = dotrap(DfpField.FLAG_INVALID, SQRT_TRAP, null, result);</span>
+<span class="fc" id="L1892">            return result;</span>
+        }
+
+<span class="fc" id="L1895">        Dfp x = newInstance(this);</span>
+
+        /* Lets make a reasonable guess as to the size of the square root */
+<span class="pc bpc" id="L1898" title="1 of 4 branches missed.">        if (x.exp &lt; -1 || x.exp &gt; 1) {</span>
+<span class="fc" id="L1899">            x.exp = this.exp / 2;</span>
+        }
+
+        /* Coarsely estimate the mantissa */
+<span class="fc bfc" id="L1903" title="All 4 branches covered.">        switch (x.mant[mant.length-1] / 2000) {</span>
+            case 0:
+<span class="fc" id="L1905">                x.mant[mant.length-1] = x.mant[mant.length-1]/2+1;</span>
+<span class="fc" id="L1906">                break;</span>
+            case 2:
+<span class="fc" id="L1908">                x.mant[mant.length-1] = 1500;</span>
+<span class="fc" id="L1909">                break;</span>
+            case 3:
+<span class="fc" id="L1911">                x.mant[mant.length-1] = 2200;</span>
+<span class="fc" id="L1912">                break;</span>
+            default:
+<span class="fc" id="L1914">                x.mant[mant.length-1] = 3000;</span>
+        }
+
+<span class="fc" id="L1917">        Dfp dx = newInstance(x);</span>
+
+        /* Now that we have the first pass estimate, compute the rest
+       by the formula dx = (y - x*x) / (2x); */
+
+<span class="fc" id="L1922">        Dfp px  = getZero();</span>
+<span class="fc" id="L1923">        Dfp ppx = getZero();</span>
+<span class="fc bfc" id="L1924" title="All 2 branches covered.">        while (x.unequal(px)) {</span>
+<span class="fc" id="L1925">            dx = newInstance(x);</span>
+<span class="fc" id="L1926">            dx.sign = -1;</span>
+<span class="fc" id="L1927">            dx = dx.add(this.divide(x));</span>
+<span class="fc" id="L1928">            dx = dx.divide(2);</span>
+<span class="fc" id="L1929">            ppx = px;</span>
+<span class="fc" id="L1930">            px = x;</span>
+<span class="fc" id="L1931">            x = x.add(dx);</span>
+
+<span class="pc bpc" id="L1933" title="1 of 2 branches missed.">            if (x.equals(ppx)) {</span>
+                // alternating between two values
+<span class="nc" id="L1935">                break;</span>
+            }
+
+            // if dx is zero, break.  Note testing the most sig digit
+            // is a sufficient test since dx is normalized
+<span class="fc bfc" id="L1940" title="All 2 branches covered.">            if (dx.mant[mant.length-1] == 0) {</span>
+<span class="fc" id="L1941">                break;</span>
+            }
+        }
+
+<span class="fc" id="L1945">        return x;</span>
+
+    }
+
+    /** Get a string representation of the instance.
+     * @return string representation of the instance
+     */
+    @Override
+    public String toString() {
+<span class="fc bfc" id="L1954" title="All 2 branches covered.">        if (nans != FINITE) {</span>
+            // if non-finite exceptional cases
+<span class="fc bfc" id="L1956" title="All 2 branches covered.">            if (nans == INFINITE) {</span>
+<span class="fc bfc" id="L1957" title="All 2 branches covered.">                return (sign &lt; 0) ? NEG_INFINITY_STRING : POS_INFINITY_STRING;</span>
+            } else {
+<span class="fc" id="L1959">                return NAN_STRING;</span>
+            }
+        }
+
+<span class="pc bpc" id="L1963" title="1 of 4 branches missed.">        if (exp &gt; mant.length || exp &lt; -1) {</span>
+<span class="fc" id="L1964">            return dfp2sci();</span>
+        }
+
+<span class="fc" id="L1967">        return dfp2string();</span>
+
+    }
+
+    /** Convert an instance to a string using scientific notation.
+     * @return string representation of the instance in scientific notation
+     */
+    protected String dfp2sci() {
+<span class="fc" id="L1975">        char rawdigits[]    = new char[mant.length * 4];</span>
+<span class="fc" id="L1976">        char outputbuffer[] = new char[mant.length * 4 + 20];</span>
+        int p;
+        int q;
+        int e;
+        int ae;
+        int shf;
+
+        // Get all the digits
+<span class="fc" id="L1984">        p = 0;</span>
+<span class="fc bfc" id="L1985" title="All 2 branches covered.">        for (int i = mant.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L1986">            rawdigits[p++] = (char) ((mant[i] / 1000) + '0');</span>
+<span class="fc" id="L1987">            rawdigits[p++] = (char) (((mant[i] / 100) %10) + '0');</span>
+<span class="fc" id="L1988">            rawdigits[p++] = (char) (((mant[i] / 10) % 10) + '0');</span>
+<span class="fc" id="L1989">            rawdigits[p++] = (char) (((mant[i]) % 10) + '0');</span>
+        }
+
+        // Find the first non-zero one
+<span class="pc bpc" id="L1993" title="1 of 2 branches missed.">        for (p = 0; p &lt; rawdigits.length; p++) {</span>
+<span class="fc bfc" id="L1994" title="All 2 branches covered.">            if (rawdigits[p] != '0') {</span>
+<span class="fc" id="L1995">                break;</span>
+            }
+        }
+<span class="fc" id="L1998">        shf = p;</span>
+
+        // Now do the conversion
+<span class="fc" id="L2001">        q = 0;</span>
+<span class="fc bfc" id="L2002" title="All 2 branches covered.">        if (sign == -1) {</span>
+<span class="fc" id="L2003">            outputbuffer[q++] = '-';</span>
+        }
+
+<span class="pc bpc" id="L2006" title="1 of 2 branches missed.">        if (p != rawdigits.length) {</span>
+            // there are non zero digits...
+<span class="fc" id="L2008">            outputbuffer[q++] = rawdigits[p++];</span>
+<span class="fc" id="L2009">            outputbuffer[q++] = '.';</span>
+
+<span class="fc bfc" id="L2011" title="All 2 branches covered.">            while (p&lt;rawdigits.length) {</span>
+<span class="fc" id="L2012">                outputbuffer[q++] = rawdigits[p++];</span>
+            }
+        } else {
+<span class="nc" id="L2015">            outputbuffer[q++] = '0';</span>
+<span class="nc" id="L2016">            outputbuffer[q++] = '.';</span>
+<span class="nc" id="L2017">            outputbuffer[q++] = '0';</span>
+<span class="nc" id="L2018">            outputbuffer[q++] = 'e';</span>
+<span class="nc" id="L2019">            outputbuffer[q++] = '0';</span>
+<span class="nc" id="L2020">            return new String(outputbuffer, 0, 5);</span>
+        }
+
+<span class="fc" id="L2023">        outputbuffer[q++] = 'e';</span>
+
+        // Find the msd of the exponent
+
+<span class="fc" id="L2027">        e = exp * 4 - shf - 1;</span>
+<span class="fc" id="L2028">        ae = e;</span>
+<span class="pc bpc" id="L2029" title="1 of 2 branches missed.">        if (e &lt; 0) {</span>
+<span class="nc" id="L2030">            ae = -e;</span>
+        }
+
+        // Find the largest p such that p &lt; e
+<span class="fc bfc" id="L2034" title="All 2 branches covered.">        for (p = 1000000000; p &gt; ae; p /= 10) {</span>
+            // nothing to do
+        }
+
+<span class="pc bpc" id="L2038" title="1 of 2 branches missed.">        if (e &lt; 0) {</span>
+<span class="nc" id="L2039">            outputbuffer[q++] = '-';</span>
+        }
+
+<span class="fc bfc" id="L2042" title="All 2 branches covered.">        while (p &gt; 0) {</span>
+<span class="fc" id="L2043">            outputbuffer[q++] = (char)(ae / p + '0');</span>
+<span class="fc" id="L2044">            ae = ae % p;</span>
+<span class="fc" id="L2045">            p = p / 10;</span>
+        }
+
+<span class="fc" id="L2048">        return new String(outputbuffer, 0, q);</span>
+
+    }
+
+    /** Convert an instance to a string using normal notation.
+     * @return string representation of the instance in normal notation
+     */
+    protected String dfp2string() {
+<span class="fc" id="L2056">        char buffer[] = new char[mant.length*4 + 20];</span>
+<span class="fc" id="L2057">        int p = 1;</span>
+        int q;
+<span class="fc" id="L2059">        int e = exp;</span>
+<span class="fc" id="L2060">        boolean pointInserted = false;</span>
+
+<span class="fc" id="L2062">        buffer[0] = ' ';</span>
+
+<span class="fc bfc" id="L2064" title="All 2 branches covered.">        if (e &lt;= 0) {</span>
+<span class="fc" id="L2065">            buffer[p++] = '0';</span>
+<span class="fc" id="L2066">            buffer[p++] = '.';</span>
+<span class="fc" id="L2067">            pointInserted = true;</span>
+        }
+
+<span class="fc bfc" id="L2070" title="All 2 branches covered.">        while (e &lt; 0) {</span>
+<span class="fc" id="L2071">            buffer[p++] = '0';</span>
+<span class="fc" id="L2072">            buffer[p++] = '0';</span>
+<span class="fc" id="L2073">            buffer[p++] = '0';</span>
+<span class="fc" id="L2074">            buffer[p++] = '0';</span>
+<span class="fc" id="L2075">            e++;</span>
+        }
+
+<span class="fc bfc" id="L2078" title="All 2 branches covered.">        for (int i = mant.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L2079">            buffer[p++] = (char) ((mant[i] / 1000) + '0');</span>
+<span class="fc" id="L2080">            buffer[p++] = (char) (((mant[i] / 100) % 10) + '0');</span>
+<span class="fc" id="L2081">            buffer[p++] = (char) (((mant[i] / 10) % 10) + '0');</span>
+<span class="fc" id="L2082">            buffer[p++] = (char) (((mant[i]) % 10) + '0');</span>
+<span class="fc bfc" id="L2083" title="All 2 branches covered.">            if (--e == 0) {</span>
+<span class="fc" id="L2084">                buffer[p++] = '.';</span>
+<span class="fc" id="L2085">                pointInserted = true;</span>
+            }
+        }
+
+<span class="pc bpc" id="L2089" title="1 of 2 branches missed.">        while (e &gt; 0) {</span>
+<span class="nc" id="L2090">            buffer[p++] = '0';</span>
+<span class="nc" id="L2091">            buffer[p++] = '0';</span>
+<span class="nc" id="L2092">            buffer[p++] = '0';</span>
+<span class="nc" id="L2093">            buffer[p++] = '0';</span>
+<span class="nc" id="L2094">            e--;</span>
+        }
+
+<span class="pc bpc" id="L2097" title="1 of 2 branches missed.">        if (!pointInserted) {</span>
+            // Ensure we have a radix point!
+<span class="nc" id="L2099">            buffer[p++] = '.';</span>
+        }
+
+        // Suppress leading zeros
+<span class="fc" id="L2103">        q = 1;</span>
+<span class="fc bfc" id="L2104" title="All 2 branches covered.">        while (buffer[q] == '0') {</span>
+<span class="fc" id="L2105">            q++;</span>
+        }
+<span class="fc bfc" id="L2107" title="All 2 branches covered.">        if (buffer[q] == '.') {</span>
+<span class="fc" id="L2108">            q--;</span>
+        }
+
+        // Suppress trailing zeros
+<span class="fc bfc" id="L2112" title="All 2 branches covered.">        while (buffer[p-1] == '0') {</span>
+<span class="fc" id="L2113">            p--;</span>
+        }
+
+        // Insert sign
+<span class="fc bfc" id="L2117" title="All 2 branches covered.">        if (sign &lt; 0) {</span>
+<span class="fc" id="L2118">            buffer[--q] = '-';</span>
+        }
+
+<span class="fc" id="L2121">        return new String(buffer, q, p - q);</span>
+
+    }
+
+    /** Raises a trap.  This does not set the corresponding flag however.
+     *  @param type the trap type
+     *  @param what - name of routine trap occurred in
+     *  @param oper - input operator to function
+     *  @param result - the result computed prior to the trap
+     *  @return The suggested return value from the trap handler
+     */
+    public Dfp dotrap(int type, String what, Dfp oper, Dfp result) {
+<span class="fc" id="L2133">        Dfp def = result;</span>
+
+<span class="fc bfc" id="L2135" title="All 5 branches covered.">        switch (type) {</span>
+            case DfpField.FLAG_INVALID:
+<span class="fc" id="L2137">                def = newInstance(getZero());</span>
+<span class="fc" id="L2138">                def.sign = result.sign;</span>
+<span class="fc" id="L2139">                def.nans = QNAN;</span>
+<span class="fc" id="L2140">                break;</span>
+
+            case DfpField.FLAG_DIV_ZERO:
+<span class="pc bpc" id="L2143" title="1 of 4 branches missed.">                if (nans == FINITE &amp;&amp; mant[mant.length-1] != 0) {</span>
+                    // normal case, we are finite, non-zero
+<span class="fc" id="L2145">                    def = newInstance(getZero());</span>
+<span class="fc" id="L2146">                    def.sign = (byte)(sign*oper.sign);</span>
+<span class="fc" id="L2147">                    def.nans = INFINITE;</span>
+                }
+
+<span class="pc bpc" id="L2150" title="1 of 4 branches missed.">                if (nans == FINITE &amp;&amp; mant[mant.length-1] == 0) {</span>
+                    //  0/0
+<span class="fc" id="L2152">                    def = newInstance(getZero());</span>
+<span class="fc" id="L2153">                    def.nans = QNAN;</span>
+                }
+
+<span class="pc bpc" id="L2156" title="2 of 4 branches missed.">                if (nans == INFINITE || nans == QNAN) {</span>
+<span class="nc" id="L2157">                    def = newInstance(getZero());</span>
+<span class="nc" id="L2158">                    def.nans = QNAN;</span>
+                }
+
+<span class="pc bpc" id="L2161" title="2 of 4 branches missed.">                if (nans == INFINITE || nans == SNAN) {</span>
+<span class="nc" id="L2162">                    def = newInstance(getZero());</span>
+<span class="nc" id="L2163">                    def.nans = QNAN;</span>
+                }
+                break;
+
+            case DfpField.FLAG_UNDERFLOW:
+<span class="fc bfc" id="L2168" title="All 2 branches covered.">                if ( (result.exp+mant.length) &lt; MIN_EXP) {</span>
+<span class="fc" id="L2169">                    def = newInstance(getZero());</span>
+<span class="fc" id="L2170">                    def.sign = result.sign;</span>
+                } else {
+<span class="fc" id="L2172">                    def = newInstance(result);  // gradual underflow</span>
+                }
+<span class="fc" id="L2174">                result.exp = result.exp + ERR_SCALE;</span>
+<span class="fc" id="L2175">                break;</span>
+
+            case DfpField.FLAG_OVERFLOW:
+<span class="fc" id="L2178">                result.exp = result.exp - ERR_SCALE;</span>
+<span class="fc" id="L2179">                def = newInstance(getZero());</span>
+<span class="fc" id="L2180">                def.sign = result.sign;</span>
+<span class="fc" id="L2181">                def.nans = INFINITE;</span>
+<span class="fc" id="L2182">                break;</span>
+
+<span class="fc" id="L2184">            default: def = result; break;</span>
+        }
+
+<span class="fc" id="L2187">        return trap(type, what, oper, def, result);</span>
+
+    }
+
+    /** Trap handler.  Subclasses may override this to provide trap
+     *  functionality per IEEE 854-1987.
+     *
+     *  @param type  The exception type - e.g. FLAG_OVERFLOW
+     *  @param what  The name of the routine we were in e.g. divide()
+     *  @param oper  An operand to this function if any
+     *  @param def   The default return value if trap not enabled
+     *  @param result    The result that is specified to be delivered per
+     *                   IEEE 854, if any
+     *  @return the value that should be return by the operation triggering the trap
+     */
+    protected Dfp trap(int type, String what, Dfp oper, Dfp def, Dfp result) {
+<span class="fc" id="L2203">        return def;</span>
+    }
+
+    /** Returns the type - one of FINITE, INFINITE, SNAN, QNAN.
+     * @return type of the number
+     */
+    public int classify() {
+<span class="fc" id="L2210">        return nans;</span>
+    }
+
+    /** Creates an instance that is the same as x except that it has the sign of y.
+     * abs(x) = dfp.copysign(x, dfp.one)
+     * @param x number to get the value from
+     * @param y number to get the sign from
+     * @return a number with the value of x and the sign of y
+     */
+    public static Dfp copysign(final Dfp x, final Dfp y) {
+<span class="fc" id="L2220">        Dfp result = x.newInstance(x);</span>
+<span class="fc" id="L2221">        result.sign = y.sign;</span>
+<span class="fc" id="L2222">        return result;</span>
+    }
+
+    /** Returns the next number greater than this one in the direction of x.
+     * If this==x then simply returns this.
+     * @param x direction where to look at
+     * @return closest number next to instance in the direction of x
+     */
+    public Dfp nextAfter(final Dfp x) {
+
+        // make sure we don't mix number with different precision
+<span class="pc bpc" id="L2233" title="1 of 2 branches missed.">        if (field.getRadixDigits() != x.field.getRadixDigits()) {</span>
+<span class="nc" id="L2234">            field.setIEEEFlagsBits(DfpField.FLAG_INVALID);</span>
+<span class="nc" id="L2235">            final Dfp result = newInstance(getZero());</span>
+<span class="nc" id="L2236">            result.nans = QNAN;</span>
+<span class="nc" id="L2237">            return dotrap(DfpField.FLAG_INVALID, NEXT_AFTER_TRAP, x, result);</span>
+        }
+
+        // if this is greater than x
+<span class="fc" id="L2241">        boolean up = false;</span>
+<span class="fc bfc" id="L2242" title="All 2 branches covered.">        if (this.lessThan(x)) {</span>
+<span class="fc" id="L2243">            up = true;</span>
+        }
+
+<span class="fc bfc" id="L2246" title="All 2 branches covered.">        if (compare(this, x) == 0) {</span>
+<span class="fc" id="L2247">            return newInstance(x);</span>
+        }
+
+<span class="fc bfc" id="L2250" title="All 2 branches covered.">        if (lessThan(getZero())) {</span>
+<span class="fc bfc" id="L2251" title="All 2 branches covered.">            up = !up;</span>
+        }
+
+        final Dfp inc;
+        Dfp result;
+<span class="fc bfc" id="L2256" title="All 2 branches covered.">        if (up) {</span>
+<span class="fc" id="L2257">            inc = newInstance(getOne());</span>
+<span class="fc" id="L2258">            inc.exp = this.exp-mant.length+1;</span>
+<span class="fc" id="L2259">            inc.sign = this.sign;</span>
+
+<span class="fc bfc" id="L2261" title="All 2 branches covered.">            if (this.equals(getZero())) {</span>
+<span class="fc" id="L2262">                inc.exp = MIN_EXP-mant.length;</span>
+            }
+
+<span class="fc" id="L2265">            result = add(inc);</span>
+        } else {
+<span class="fc" id="L2267">            inc = newInstance(getOne());</span>
+<span class="fc" id="L2268">            inc.exp = this.exp;</span>
+<span class="fc" id="L2269">            inc.sign = this.sign;</span>
+
+<span class="fc bfc" id="L2271" title="All 2 branches covered.">            if (this.equals(inc)) {</span>
+<span class="fc" id="L2272">                inc.exp = this.exp-mant.length;</span>
+            } else {
+<span class="fc" id="L2274">                inc.exp = this.exp-mant.length+1;</span>
+            }
+
+<span class="fc bfc" id="L2277" title="All 2 branches covered.">            if (this.equals(getZero())) {</span>
+<span class="fc" id="L2278">                inc.exp = MIN_EXP-mant.length;</span>
+            }
+
+<span class="fc" id="L2281">            result = this.subtract(inc);</span>
+        }
+
+<span class="pc bpc" id="L2284" title="1 of 4 branches missed.">        if (result.classify() == INFINITE &amp;&amp; this.classify() != INFINITE) {</span>
+<span class="fc" id="L2285">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L2286">            result = dotrap(DfpField.FLAG_INEXACT, NEXT_AFTER_TRAP, x, result);</span>
+        }
+
+<span class="pc bpc" id="L2289" title="1 of 4 branches missed.">        if (result.equals(getZero()) &amp;&amp; this.equals(getZero()) == false) {</span>
+<span class="fc" id="L2290">            field.setIEEEFlagsBits(DfpField.FLAG_INEXACT);</span>
+<span class="fc" id="L2291">            result = dotrap(DfpField.FLAG_INEXACT, NEXT_AFTER_TRAP, x, result);</span>
+        }
+
+<span class="fc" id="L2294">        return result;</span>
+
+    }
+
+    /** Convert the instance into a double.
+     * @return a double approximating the instance
+     * @see #toSplitDouble()
+     */
+    public double toDouble() {
+
+<span class="pc bpc" id="L2304" title="1 of 2 branches missed.">        if (isInfinite()) {</span>
+<span class="nc bnc" id="L2305" title="All 2 branches missed.">            if (lessThan(getZero())) {</span>
+<span class="nc" id="L2306">                return Double.NEGATIVE_INFINITY;</span>
+            } else {
+<span class="nc" id="L2308">                return Double.POSITIVE_INFINITY;</span>
+            }
+        }
+
+<span class="pc bpc" id="L2312" title="1 of 2 branches missed.">        if (isNaN()) {</span>
+<span class="nc" id="L2313">            return Double.NaN;</span>
+        }
+
+<span class="fc" id="L2316">        Dfp y = this;</span>
+<span class="fc" id="L2317">        boolean negate = false;</span>
+<span class="fc bfc" id="L2318" title="All 2 branches covered.">        if (lessThan(getZero())) {</span>
+<span class="fc" id="L2319">            y = negate();</span>
+<span class="fc" id="L2320">            negate = true;</span>
+        }
+
+        /* Find the exponent, first estimate by integer log10, then adjust.
+         Should be faster than doing a natural logarithm.  */
+<span class="fc" id="L2325">        int exponent = (int)(y.log10() * 3.32);</span>
+<span class="fc bfc" id="L2326" title="All 2 branches covered.">        if (exponent &lt; 0) {</span>
+<span class="fc" id="L2327">            exponent--;</span>
+        }
+
+<span class="fc" id="L2330">        Dfp tempDfp = DfpMath.pow(getTwo(), exponent);</span>
+<span class="pc bpc" id="L2331" title="1 of 4 branches missed.">        while (tempDfp.lessThan(y) || tempDfp.equals(y)) {</span>
+<span class="fc" id="L2332">            tempDfp = tempDfp.multiply(2);</span>
+<span class="fc" id="L2333">            exponent++;</span>
+        }
+<span class="fc" id="L2335">        exponent--;</span>
+
+        /* We have the exponent, now work on the mantissa */
+
+<span class="fc" id="L2339">        y = y.divide(DfpMath.pow(getTwo(), exponent));</span>
+<span class="pc bpc" id="L2340" title="1 of 2 branches missed.">        if (exponent &gt; -1023) {</span>
+<span class="fc" id="L2341">            y = y.subtract(getOne());</span>
+        }
+
+<span class="pc bpc" id="L2344" title="1 of 2 branches missed.">        if (exponent &lt; -1074) {</span>
+<span class="nc" id="L2345">            return 0;</span>
+        }
+
+<span class="pc bpc" id="L2348" title="1 of 2 branches missed.">        if (exponent &gt; 1023) {</span>
+<span class="nc bnc" id="L2349" title="All 2 branches missed.">            return negate ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;</span>
+        }
+
+
+<span class="fc" id="L2353">        y = y.multiply(newInstance(4503599627370496l)).rint();</span>
+<span class="fc" id="L2354">        String str = y.toString();</span>
+<span class="fc" id="L2355">        str = str.substring(0, str.length()-1);</span>
+<span class="fc" id="L2356">        long mantissa = Long.parseLong(str);</span>
+
+<span class="pc bpc" id="L2358" title="1 of 2 branches missed.">        if (mantissa == 4503599627370496L) {</span>
+            // Handle special case where we round up to next power of two
+<span class="nc" id="L2360">            mantissa = 0;</span>
+<span class="nc" id="L2361">            exponent++;</span>
+        }
+
+        /* Its going to be subnormal, so make adjustments */
+<span class="pc bpc" id="L2365" title="1 of 2 branches missed.">        if (exponent &lt;= -1023) {</span>
+<span class="nc" id="L2366">            exponent--;</span>
+        }
+
+<span class="pc bpc" id="L2369" title="1 of 2 branches missed.">        while (exponent &lt; -1023) {</span>
+<span class="nc" id="L2370">            exponent++;</span>
+<span class="nc" id="L2371">            mantissa &gt;&gt;&gt;= 1;</span>
+        }
+
+<span class="fc" id="L2374">        long bits = mantissa | ((exponent + 1023L) &lt;&lt; 52);</span>
+<span class="fc" id="L2375">        double x = Double.longBitsToDouble(bits);</span>
+
+<span class="fc bfc" id="L2377" title="All 2 branches covered.">        if (negate) {</span>
+<span class="fc" id="L2378">            x = -x;</span>
+        }
+
+<span class="fc" id="L2381">        return x;</span>
+
+    }
+
+    /** Convert the instance into a split double.
+     * @return an array of two doubles which sum represent the instance
+     * @see #toDouble()
+     */
+    public double[] toSplitDouble() {
+<span class="nc" id="L2390">        double split[] = new double[2];</span>
+<span class="nc" id="L2391">        long mask = 0xffffffffc0000000L;</span>
+
+<span class="nc" id="L2393">        split[0] = Double.longBitsToDouble(Double.doubleToLongBits(toDouble()) &amp; mask);</span>
+<span class="nc" id="L2394">        split[1] = subtract(newInstance(split[0])).toDouble();</span>
+
+<span class="nc" id="L2396">        return split;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

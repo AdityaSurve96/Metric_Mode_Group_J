@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>LaguerreSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">LaguerreSolver.java</span></div><h1>LaguerreSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.analysis.polynomials.PolynomialFunction;
+import org.apache.commons.math.complex.Complex;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements the &lt;a href=&quot;http://mathworld.wolfram.com/LaguerresMethod.html&quot;&gt;
+ * Laguerre's Method&lt;/a&gt; for root finding of real coefficient polynomials.
+ * For reference, see &lt;b&gt;A First Course in Numerical Analysis&lt;/b&gt;,
+ * ISBN 048641454X, chapter 8.
+ * &lt;p&gt;
+ * Laguerre's method is global in the sense that it can start with any initial
+ * approximation and be able to solve all roots from that point.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class LaguerreSolver extends UnivariateRealSolverImpl {
+
+    /** polynomial function to solve.
+     * @deprecated as of 2.0 the function is not stored anymore in the instance
+     */
+    @Deprecated
+    private final PolynomialFunction p;
+
+    /**
+     * Construct a solver for the given function.
+     *
+     * @param f function to solve
+     * @throws IllegalArgumentException if function is not polynomial
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public LaguerreSolver(UnivariateRealFunction f) throws IllegalArgumentException {
+<span class="fc" id="L61">        super(f, 100, 1E-6);</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (f instanceof PolynomialFunction) {</span>
+<span class="fc" id="L63">            p = (PolynomialFunction) f;</span>
+        } else {
+<span class="nc" id="L65">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.FUNCTION_NOT_POLYNOMIAL);</span>
+        }
+<span class="fc" id="L67">    }</span>
+
+    /**
+     * Construct a solver.
+     * @deprecated in 2.2 (to be removed in 3.0)
+     */
+    @Deprecated
+    public LaguerreSolver() {
+<span class="fc" id="L75">        super(100, 1E-6);</span>
+<span class="fc" id="L76">        p = null;</span>
+<span class="fc" id="L77">    }</span>
+
+    /**
+     * Returns a copy of the polynomial function.
+     *
+     * @return a fresh copy of the polynomial function
+     * @deprecated as of 2.0 the function is not stored anymore within the instance.
+     */
+    @Deprecated
+    public PolynomialFunction getPolynomialFunction() {
+<span class="nc" id="L87">        return new PolynomialFunction(p.getCoefficients());</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="fc" id="L94">        return solve(p, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L101">        return solve(p, min, max, initial);</span>
+    }
+
+    /**
+     * Find a real root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f function to solve (must be polynomial)
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L124">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L125">        return solve(f, min, max, initial);</span>
+    }
+
+    /**
+     * Find a real root in the given interval with initial value.
+     * &lt;p&gt;
+     * Requires bracketing condition.&lt;/p&gt;
+     *
+     * @param f function to solve (must be polynomial)
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max, final double initial)
+        throws ConvergenceException, FunctionEvaluationException {
+
+        // check for zeros before verifying bracketing
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (f.value(min) == 0.0) {</span>
+<span class="nc" id="L151">            return min;</span>
+        }
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (f.value(max) == 0.0) {</span>
+<span class="nc" id="L154">            return max;</span>
+        }
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (f.value(initial) == 0.0) {</span>
+<span class="nc" id="L157">            return initial;</span>
+        }
+
+<span class="nc" id="L160">        verifyBracketing(min, max, f);</span>
+<span class="nc" id="L161">        verifySequence(min, initial, max);</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        if (isBracketing(min, initial, f)) {</span>
+<span class="nc" id="L163">            return solve(f, min, initial);</span>
+        } else {
+<span class="nc" id="L165">            return solve(f, initial, max);</span>
+        }
+
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * Despite the bracketing condition, the root returned by solve(Complex[],
+     * Complex) may not be a real zero inside [min, max]. For example,
+     * p(x) = x^3 + 1, min = -2, max = 2, initial = 0. We can either try
+     * another initial value, or, as we did here, call solveAll() to obtain
+     * all roots and pick up the one that we're looking for.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param maxEval Maximum number of evaluations.
+     * @return the point at which the function value is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L193">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L194">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a real root in the given interval.
+     * &lt;p&gt;
+     * Despite the bracketing condition, the root returned by solve(Complex[],
+     * Complex) may not be a real zero inside [min, max]. For example,
+     * p(x) = x^3 + 1, min = -2, max = 2, initial = 0. We can either try
+     * another initial value, or, as we did here, call solveAll() to obtain
+     * all roots and pick up the one that we're looking for.&lt;/p&gt;
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the point at which the function value is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws ConvergenceException, FunctionEvaluationException {
+
+        // check function type
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (!(f instanceof PolynomialFunction)) {</span>
+<span class="fc" id="L223">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.FUNCTION_NOT_POLYNOMIAL);</span>
+        }
+
+        // check for zeros before verifying bracketing
+<span class="pc bpc" id="L227" title="1 of 2 branches missed.">        if (f.value(min) == 0.0) { return min; }</span>
+<span class="pc bpc" id="L228" title="1 of 2 branches missed.">        if (f.value(max) == 0.0) { return max; }</span>
+<span class="fc" id="L229">        verifyBracketing(min, max, f);</span>
+
+<span class="fc" id="L231">        double coefficients[] = ((PolynomialFunction) f).getCoefficients();</span>
+<span class="fc" id="L232">        Complex c[] = new Complex[coefficients.length];</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        for (int i = 0; i &lt; coefficients.length; i++) {</span>
+<span class="fc" id="L234">            c[i] = new Complex(coefficients[i], 0.0);</span>
+        }
+<span class="fc" id="L236">        Complex initial = new Complex(0.5 * (min + max), 0.0);</span>
+<span class="fc" id="L237">        Complex z = solve(c, initial);</span>
+<span class="fc bfc" id="L238" title="All 2 branches covered.">        if (isRootOK(min, max, z)) {</span>
+<span class="fc" id="L239">            setResult(z.getReal(), iterationCount);</span>
+<span class="fc" id="L240">            return result;</span>
+        }
+
+        // solve all roots and select the one we're seeking
+<span class="fc" id="L244">        Complex[] root = solveAll(c, initial);</span>
+<span class="pc bpc" id="L245" title="1 of 2 branches missed.">        for (int i = 0; i &lt; root.length; i++) {</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">            if (isRootOK(min, max, root[i])) {</span>
+<span class="fc" id="L247">                setResult(root[i].getReal(), iterationCount);</span>
+<span class="fc" id="L248">                return result;</span>
+            }
+        }
+
+        // should never happen
+<span class="nc" id="L253">        throw new ConvergenceException();</span>
+    }
+
+    /**
+     * Returns true iff the given complex root is actually a real zero
+     * in the given interval, within the solver tolerance level.
+     *
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param z the complex root
+     * @return true iff z is the sought-after real zero
+     */
+    protected boolean isRootOK(double min, double max, Complex z) {
+<span class="fc" id="L266">        double tolerance = FastMath.max(relativeAccuracy * z.abs(), absoluteAccuracy);</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        return (isSequence(min, z.getReal(), max)) &amp;&amp;</span>
+<span class="fc bfc" id="L268" title="All 2 branches covered.">               (FastMath.abs(z.getImaginary()) &lt;= tolerance ||</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">                z.abs() &lt;= functionValueAccuracy);</span>
+    }
+
+    /**
+     * Find all complex roots for the polynomial with the given coefficients,
+     * starting from the given initial value.
+     *
+     * @param coefficients the polynomial coefficients array
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2.
+     */
+    @Deprecated
+    public Complex[] solveAll(double coefficients[], double initial) throws
+        ConvergenceException, FunctionEvaluationException {
+
+<span class="fc" id="L289">        Complex c[] = new Complex[coefficients.length];</span>
+<span class="fc" id="L290">        Complex z = new Complex(initial, 0.0);</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">        for (int i = 0; i &lt; c.length; i++) {</span>
+<span class="fc" id="L292">            c[i] = new Complex(coefficients[i], 0.0);</span>
+        }
+<span class="fc" id="L294">        return solveAll(c, z);</span>
+    }
+
+    /**
+     * Find all complex roots for the polynomial with the given coefficients,
+     * starting from the given initial value.
+     *
+     * @param coefficients the polynomial coefficients array
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2.
+     */
+    @Deprecated
+    public Complex[] solveAll(Complex coefficients[], Complex initial) throws
+        MaxIterationsExceededException, FunctionEvaluationException {
+
+<span class="fc" id="L314">        int n = coefficients.length - 1;</span>
+<span class="fc" id="L315">        int iterationCount = 0;</span>
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        if (n &lt; 1) {</span>
+<span class="nc" id="L317">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L318">                  LocalizedFormats.NON_POSITIVE_POLYNOMIAL_DEGREE, n);</span>
+        }
+<span class="fc" id="L320">        Complex c[] = new Complex[n+1];    // coefficients for deflated polynomial</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">        for (int i = 0; i &lt;= n; i++) {</span>
+<span class="fc" id="L322">            c[i] = coefficients[i];</span>
+        }
+
+        // solve individual root successively
+<span class="fc" id="L326">        Complex root[] = new Complex[n];</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L328">            Complex subarray[] = new Complex[n-i+1];</span>
+<span class="fc" id="L329">            System.arraycopy(c, 0, subarray, 0, subarray.length);</span>
+<span class="fc" id="L330">            root[i] = solve(subarray, initial);</span>
+            // polynomial deflation using synthetic division
+<span class="fc" id="L332">            Complex newc = c[n-i];</span>
+<span class="fc" id="L333">            Complex oldc = null;</span>
+<span class="fc bfc" id="L334" title="All 2 branches covered.">            for (int j = n-i-1; j &gt;= 0; j--) {</span>
+<span class="fc" id="L335">                oldc = c[j];</span>
+<span class="fc" id="L336">                c[j] = newc;</span>
+<span class="fc" id="L337">                newc = oldc.add(newc.multiply(root[i]));</span>
+            }
+<span class="fc" id="L339">            iterationCount += this.iterationCount;</span>
+        }
+
+<span class="fc" id="L342">        resultComputed = true;</span>
+<span class="fc" id="L343">        this.iterationCount = iterationCount;</span>
+<span class="fc" id="L344">        return root;</span>
+    }
+
+    /**
+     * Find a complex root for the polynomial with the given coefficients,
+     * starting from the given initial value.
+     *
+     * @param coefficients the polynomial coefficients array
+     * @param initial the start value to use
+     * @return the point at which the function value is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if any parameters are invalid
+     * @deprecated in 2.2.
+     */
+    @Deprecated
+    public Complex solve(Complex coefficients[], Complex initial) throws
+        MaxIterationsExceededException, FunctionEvaluationException {
+
+<span class="fc" id="L364">        int n = coefficients.length - 1;</span>
+<span class="pc bpc" id="L365" title="1 of 2 branches missed.">        if (n &lt; 1) {</span>
+<span class="nc" id="L366">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L367">                  LocalizedFormats.NON_POSITIVE_POLYNOMIAL_DEGREE, n);</span>
+        }
+<span class="fc" id="L369">        Complex N  = new Complex(n,     0.0);</span>
+<span class="fc" id="L370">        Complex N1 = new Complex(n - 1, 0.0);</span>
+
+<span class="fc" id="L372">        int i = 1;</span>
+<span class="fc" id="L373">        Complex pv = null;</span>
+<span class="fc" id="L374">        Complex dv = null;</span>
+<span class="fc" id="L375">        Complex d2v = null;</span>
+<span class="fc" id="L376">        Complex G = null;</span>
+<span class="fc" id="L377">        Complex G2 = null;</span>
+<span class="fc" id="L378">        Complex H = null;</span>
+<span class="fc" id="L379">        Complex delta = null;</span>
+<span class="fc" id="L380">        Complex denominator = null;</span>
+<span class="fc" id="L381">        Complex z = initial;</span>
+<span class="fc" id="L382">        Complex oldz = new Complex(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);</span>
+<span class="pc bpc" id="L383" title="1 of 2 branches missed.">        while (i &lt;= maximalIterationCount) {</span>
+            // Compute pv (polynomial value), dv (derivative value), and
+            // d2v (second derivative value) simultaneously.
+<span class="fc" id="L386">            pv = coefficients[n];</span>
+<span class="fc" id="L387">            dv = Complex.ZERO;</span>
+<span class="fc" id="L388">            d2v = Complex.ZERO;</span>
+<span class="fc bfc" id="L389" title="All 2 branches covered.">            for (int j = n-1; j &gt;= 0; j--) {</span>
+<span class="fc" id="L390">                d2v = dv.add(z.multiply(d2v));</span>
+<span class="fc" id="L391">                dv = pv.add(z.multiply(dv));</span>
+<span class="fc" id="L392">                pv = coefficients[j].add(z.multiply(pv));</span>
+            }
+<span class="fc" id="L394">            d2v = d2v.multiply(new Complex(2.0, 0.0));</span>
+
+            // check for convergence
+<span class="fc" id="L397">            double tolerance = FastMath.max(relativeAccuracy * z.abs(),</span>
+                                        absoluteAccuracy);
+<span class="fc bfc" id="L399" title="All 2 branches covered.">            if ((z.subtract(oldz)).abs() &lt;= tolerance) {</span>
+<span class="fc" id="L400">                resultComputed = true;</span>
+<span class="fc" id="L401">                iterationCount = i;</span>
+<span class="fc" id="L402">                return z;</span>
+            }
+<span class="fc bfc" id="L404" title="All 2 branches covered.">            if (pv.abs() &lt;= functionValueAccuracy) {</span>
+<span class="fc" id="L405">                resultComputed = true;</span>
+<span class="fc" id="L406">                iterationCount = i;</span>
+<span class="fc" id="L407">                return z;</span>
+            }
+
+            // now pv != 0, calculate the new approximation
+<span class="fc" id="L411">            G = dv.divide(pv);</span>
+<span class="fc" id="L412">            G2 = G.multiply(G);</span>
+<span class="fc" id="L413">            H = G2.subtract(d2v.divide(pv));</span>
+<span class="fc" id="L414">            delta = N1.multiply((N.multiply(H)).subtract(G2));</span>
+            // choose a denominator larger in magnitude
+<span class="fc" id="L416">            Complex deltaSqrt = delta.sqrt();</span>
+<span class="fc" id="L417">            Complex dplus = G.add(deltaSqrt);</span>
+<span class="fc" id="L418">            Complex dminus = G.subtract(deltaSqrt);</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">            denominator = dplus.abs() &gt; dminus.abs() ? dplus : dminus;</span>
+            // Perturb z if denominator is zero, for instance,
+            // p(x) = x^3 + 1, z = 0.
+<span class="fc bfc" id="L422" title="All 2 branches covered.">            if (denominator.equals(new Complex(0.0, 0.0))) {</span>
+<span class="fc" id="L423">                z = z.add(new Complex(absoluteAccuracy, absoluteAccuracy));</span>
+<span class="fc" id="L424">                oldz = new Complex(Double.POSITIVE_INFINITY,</span>
+                                   Double.POSITIVE_INFINITY);
+            } else {
+<span class="fc" id="L427">                oldz = z;</span>
+<span class="fc" id="L428">                z = z.subtract(N.divide(denominator));</span>
+            }
+<span class="fc" id="L430">            i++;</span>
+<span class="fc" id="L431">        }</span>
+<span class="nc" id="L432">        throw new MaxIterationsExceededException(maximalIterationCount);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

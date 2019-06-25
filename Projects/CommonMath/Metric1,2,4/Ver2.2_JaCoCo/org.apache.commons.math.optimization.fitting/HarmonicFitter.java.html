@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>HarmonicFitter.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.fitting</a> &gt; <span class="el_source">HarmonicFitter.java</span></div><h1>HarmonicFitter.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.fitting;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.optimization.DifferentiableMultivariateVectorialOptimizer;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.util.FastMath;
+
+/** This class implements a curve fitting specialized for sinusoids.
+ * &lt;p&gt;Harmonic fitting is a very simple case of curve fitting. The
+ * estimated coefficients are the amplitude a, the pulsation &amp;omega; and
+ * the phase &amp;phi;: &lt;code&gt;f (t) = a cos (&amp;omega; t + &amp;phi;)&lt;/code&gt;. They are
+ * searched by a least square estimator initialized with a rough guess
+ * based on integrals.&lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class HarmonicFitter {
+
+    /** Fitter for the coefficients. */
+    private final CurveFitter fitter;
+
+    /** Values for amplitude, pulsation &amp;omega; and phase &amp;phi;. */
+    private double[] parameters;
+
+    /** Simple constructor.
+     * @param optimizer optimizer to use for the fitting
+     */
+<span class="fc" id="L46">    public HarmonicFitter(final DifferentiableMultivariateVectorialOptimizer optimizer) {</span>
+<span class="fc" id="L47">        this.fitter = new CurveFitter(optimizer);</span>
+<span class="fc" id="L48">        parameters  = null;</span>
+<span class="fc" id="L49">    }</span>
+
+    /** Simple constructor.
+     * &lt;p&gt;This constructor can be used when a first guess of the
+     * coefficients is already known.&lt;/p&gt;
+     * @param optimizer optimizer to use for the fitting
+     * @param initialGuess guessed values for amplitude (index 0),
+     * pulsation &amp;omega; (index 1) and phase &amp;phi; (index 2)
+     */
+    public HarmonicFitter(final DifferentiableMultivariateVectorialOptimizer optimizer,
+<span class="fc" id="L59">                          final double[] initialGuess) {</span>
+<span class="fc" id="L60">        this.fitter     = new CurveFitter(optimizer);</span>
+<span class="fc" id="L61">        this.parameters = initialGuess.clone();</span>
+<span class="fc" id="L62">    }</span>
+
+    /** Add an observed weighted (x,y) point to the sample.
+     * @param weight weight of the observed point in the fit
+     * @param x abscissa of the point
+     * @param y observed value of the point at x, after fitting we should
+     * have P(x) as close as possible to this value
+     */
+    public void addObservedPoint(double weight, double x, double y) {
+<span class="fc" id="L71">        fitter.addObservedPoint(weight, x, y);</span>
+<span class="fc" id="L72">    }</span>
+
+    /** Fit an harmonic function to the observed points.
+     * @return harmonic function best fitting the observed points
+     * @throws OptimizationException if the sample is too short or if
+     * the first guess cannot be computed
+     */
+    public HarmonicFunction fit() throws OptimizationException {
+
+        // shall we compute the first guess of the parameters ourselves ?
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (parameters == null) {</span>
+<span class="fc" id="L83">            final WeightedObservedPoint[] observations = fitter.getObservations();</span>
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">            if (observations.length &lt; 4) {</span>
+<span class="nc" id="L85">                throw new OptimizationException(LocalizedFormats.INSUFFICIENT_OBSERVED_POINTS_IN_SAMPLE,</span>
+<span class="nc" id="L86">                                                observations.length, 4);</span>
+            }
+
+<span class="fc" id="L89">            HarmonicCoefficientsGuesser guesser = new HarmonicCoefficientsGuesser(observations);</span>
+<span class="fc" id="L90">            guesser.guess();</span>
+<span class="fc" id="L91">            parameters = new double[] {</span>
+<span class="fc" id="L92">                guesser.getGuessedAmplitude(),</span>
+<span class="fc" id="L93">                guesser.getGuessedPulsation(),</span>
+<span class="fc" id="L94">                guesser.getGuessedPhase()</span>
+            };
+
+        }
+
+        try {
+<span class="fc" id="L100">            double[] fitted = fitter.fit(new ParametricHarmonicFunction(), parameters);</span>
+<span class="fc" id="L101">            return new HarmonicFunction(fitted[0], fitted[1], fitted[2]);</span>
+<span class="nc" id="L102">        } catch (FunctionEvaluationException fee) {</span>
+            // should never happen
+<span class="nc" id="L104">            throw new RuntimeException(fee);</span>
+        }
+
+    }
+
+    /** Parametric harmonic function. */
+<span class="fc" id="L110">    private static class ParametricHarmonicFunction implements ParametricRealFunction {</span>
+
+        /** {@inheritDoc} */
+        public double value(double x, double[] parameters) {
+<span class="fc" id="L114">            final double a     = parameters[0];</span>
+<span class="fc" id="L115">            final double omega = parameters[1];</span>
+<span class="fc" id="L116">            final double phi   = parameters[2];</span>
+<span class="fc" id="L117">            return a * FastMath.cos(omega * x + phi);</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[] gradient(double x, double[] parameters) {
+<span class="fc" id="L122">            final double a     = parameters[0];</span>
+<span class="fc" id="L123">            final double omega = parameters[1];</span>
+<span class="fc" id="L124">            final double phi   = parameters[2];</span>
+<span class="fc" id="L125">            final double alpha = omega * x + phi;</span>
+<span class="fc" id="L126">            final double cosAlpha = FastMath.cos(alpha);</span>
+<span class="fc" id="L127">            final double sinAlpha = FastMath.sin(alpha);</span>
+<span class="fc" id="L128">            return new double[] { cosAlpha, -a * x * sinAlpha, -a * sinAlpha };</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

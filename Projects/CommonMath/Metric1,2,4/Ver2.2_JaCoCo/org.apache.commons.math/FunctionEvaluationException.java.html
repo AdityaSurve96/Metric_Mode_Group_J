@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>FunctionEvaluationException.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math</a> &gt; <span class="el_source">FunctionEvaluationException.java</span></div><h1>FunctionEvaluationException.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math;
+
+import org.apache.commons.math.exception.util.DummyLocalizable;
+import org.apache.commons.math.exception.util.Localizable;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.linear.ArrayRealVector;
+
+/**
+ * Exception thrown when an error occurs evaluating a function.
+ * &lt;p&gt;
+ * Maintains an &lt;code&gt;argument&lt;/code&gt; property holding the input value that
+ * caused the function evaluation to fail.
+ *
+ * @version $Revision$ $Date$
+ */
+public class FunctionEvaluationException extends MathException  {
+
+    /** Serializable version identifier. */
+    private static final long serialVersionUID = 1384427981840836868L;
+
+    /** Argument causing function evaluation failure */
+    private double[] argument;
+
+    /**
+     * Construct an exception indicating the argument value
+     * that caused the function evaluation to fail.
+     *
+     * @param argument  the failing function argument
+     */
+    public FunctionEvaluationException(double argument) {
+<span class="fc" id="L47">        super(LocalizedFormats.EVALUATION_FAILED, argument);</span>
+<span class="fc" id="L48">        this.argument = new double[] { argument };</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Construct an exception indicating the argument value
+     * that caused the function evaluation to fail.
+     *
+     * @param argument  the failing function argument
+     * @since 2.0
+     */
+    public FunctionEvaluationException(double[] argument) {
+<span class="fc" id="L59">        super(LocalizedFormats.EVALUATION_FAILED, new ArrayRealVector(argument));</span>
+<span class="fc" id="L60">        this.argument = argument.clone();</span>
+<span class="fc" id="L61">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 1.2
+     */
+    public FunctionEvaluationException(double argument,
+                                       String pattern, Object ... arguments) {
+<span class="nc" id="L73">        this(argument, new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L74">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+    public FunctionEvaluationException(double argument,
+                                       Localizable pattern, Object ... arguments) {
+<span class="fc" id="L86">        super(pattern, arguments);</span>
+<span class="fc" id="L87">        this.argument = new double[] { argument };</span>
+<span class="fc" id="L88">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.0
+     */
+    public FunctionEvaluationException(double[] argument,
+                                       String pattern, Object ... arguments) {
+<span class="nc" id="L100">        this(argument, new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L101">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+    public FunctionEvaluationException(double[] argument,
+                                       Localizable pattern, Object ... arguments) {
+<span class="fc" id="L113">        super(pattern, arguments);</span>
+<span class="fc" id="L114">        this.argument = argument.clone();</span>
+<span class="fc" id="L115">    }</span>
+
+    /**
+     * Constructs an exception with specified root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @since 1.2
+     */
+    public FunctionEvaluationException(Throwable cause, double argument) {
+<span class="fc" id="L125">        super(cause);</span>
+<span class="fc" id="L126">        this.argument = new double[] { argument };</span>
+<span class="fc" id="L127">    }</span>
+
+    /**
+     * Constructs an exception with specified root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @since 2.0
+     */
+    public FunctionEvaluationException(Throwable cause, double[] argument) {
+<span class="fc" id="L137">        super(cause);</span>
+<span class="fc" id="L138">        this.argument = argument.clone();</span>
+<span class="fc" id="L139">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message and root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 1.2
+     */
+    public FunctionEvaluationException(Throwable cause,
+                                       double argument, String pattern,
+                                       Object ... arguments) {
+<span class="nc" id="L153">        this(cause, argument, new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L154">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message and root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+    public FunctionEvaluationException(Throwable cause,
+                                       double argument, Localizable pattern,
+                                       Object ... arguments) {
+<span class="fc" id="L168">        super(cause, pattern, arguments);</span>
+<span class="fc" id="L169">        this.argument = new double[] { argument };</span>
+<span class="fc" id="L170">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message and root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.0
+     */
+    public FunctionEvaluationException(Throwable cause,
+                                       double[] argument, String pattern,
+                                       Object ... arguments) {
+<span class="nc" id="L184">        this(cause, argument, new DummyLocalizable(pattern), arguments);</span>
+<span class="nc" id="L185">    }</span>
+
+    /**
+     * Constructs an exception with specified formatted detail message and root cause.
+     * Message formatting is delegated to {@link java.text.MessageFormat}.
+     * @param cause  the exception or error that caused this exception to be thrown
+     * @param argument  the failing function argument
+     * @param pattern format specifier
+     * @param arguments format arguments
+     * @since 2.2
+     */
+    public FunctionEvaluationException(Throwable cause,
+                                       double[] argument, Localizable pattern,
+                                       Object ... arguments) {
+<span class="fc" id="L199">        super(cause, pattern, arguments);</span>
+<span class="fc" id="L200">        this.argument = argument.clone();</span>
+<span class="fc" id="L201">    }</span>
+
+    /**
+     * Returns the function argument that caused this exception.
+     *
+     * @return  argument that caused function evaluation to fail
+     */
+    public double[] getArgument() {
+<span class="fc" id="L209">        return argument.clone();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

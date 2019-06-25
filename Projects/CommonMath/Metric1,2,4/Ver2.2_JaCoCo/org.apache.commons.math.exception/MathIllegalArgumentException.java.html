@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>MathIllegalArgumentException.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.exception</a> &gt; <span class="el_source">MathIllegalArgumentException.java</span></div><h1>MathIllegalArgumentException.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.exception;
+
+import java.util.Locale;
+
+import org.apache.commons.math.exception.util.ArgUtils;
+import org.apache.commons.math.exception.util.MessageFactory;
+import org.apache.commons.math.exception.util.Localizable;
+
+/**
+ * Base class for all preconditions violation exceptions.
+ * This class is not intended to be instantiated directly: it should serve
+ * as a base class to create all the exceptions that share the semantics of
+ * the standard {@link IllegalArgumentException}, but must also provide a
+ * localized message.
+ *
+ * @since 2.2
+ * @version $Revision$ $Date$
+ */
+public class MathIllegalArgumentException extends IllegalArgumentException implements MathThrowable {
+
+    /** Serializable version Id. */
+    private static final long serialVersionUID = -6024911025449780478L;
+
+    /**
+     * Pattern used to build the message (specific context).
+     */
+    private final Localizable specific;
+    /**
+     * Pattern used to build the message (general problem description).
+     */
+    private final Localizable general;
+    /**
+     * Arguments used to build the message.
+     */
+    private final Object[] arguments;
+
+    /**
+     * @param specific Message pattern providing the specific context of
+     * the error.
+     * @param general Message pattern explaining the cause of the error.
+     * @param args Arguments.
+     */
+    protected MathIllegalArgumentException(Localizable specific,
+                                           Localizable general,
+<span class="fc" id="L61">                                           Object ... args) {</span>
+<span class="fc" id="L62">        this.specific = specific;</span>
+<span class="fc" id="L63">        this.general = general;</span>
+<span class="fc" id="L64">        arguments = ArgUtils.flatten(args);</span>
+<span class="fc" id="L65">    }</span>
+    /**
+     * @param general Message pattern explaining the cause of the error.
+     * @param args Arguments.
+     */
+    protected MathIllegalArgumentException(Localizable general,
+                                           Object ... args) {
+<span class="fc" id="L72">        this(null, general, args);</span>
+<span class="fc" id="L73">    }</span>
+
+    /** {@inheritDoc} */
+    public Localizable getSpecificPattern() {
+<span class="nc" id="L77">        return specific;</span>
+    }
+
+    /** {@inheritDoc} */
+    public Localizable getGeneralPattern() {
+<span class="nc" id="L82">        return general;</span>
+    }
+
+    /** {@inheritDoc} */
+    public Object[] getArguments() {
+<span class="nc" id="L87">        return arguments.clone();</span>
+    }
+
+    /**
+     * Get the message in a specified locale.
+     *
+     * @param locale Locale in which the message should be translated.
+     *
+     * @return the localized message.
+     */
+    public String getMessage(final Locale locale) {
+<span class="nc" id="L98">        return MessageFactory.buildMessage(locale, specific, general, arguments);</span>
+    }
+
+   /** {@inheritDoc} */
+    @Override
+    public String getMessage() {
+<span class="nc" id="L104">        return getMessage(Locale.US);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String getLocalizedMessage() {
+<span class="nc" id="L110">        return getMessage(Locale.getDefault());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

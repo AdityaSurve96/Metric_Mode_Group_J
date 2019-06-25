@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>ConvergingAlgorithmImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math</a> &gt; <span class="el_source">ConvergingAlgorithmImpl.java</span></div><h1>ConvergingAlgorithmImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math;
+
+/**
+ * Provide a default implementation for several functions useful to generic
+ * converging algorithms.
+ *
+ * @version $Revision$ $Date$
+ * @since 2.0
+ * @deprecated in 2.2 (to be removed in 3.0).
+ */
+public abstract class ConvergingAlgorithmImpl implements ConvergingAlgorithm {
+
+    /** Maximum absolute error. */
+    protected double absoluteAccuracy;
+
+    /** Maximum relative error. */
+    protected double relativeAccuracy;
+
+    /** Maximum number of iterations. */
+    protected int maximalIterationCount;
+
+    /** Default maximum absolute error. */
+    protected double defaultAbsoluteAccuracy;
+
+    /** Default maximum relative error. */
+    protected double defaultRelativeAccuracy;
+
+    /** Default maximum number of iterations. */
+    protected int defaultMaximalIterationCount;
+
+    /** The last iteration count. */
+    protected int iterationCount;
+
+    /**
+     * Construct an algorithm with given iteration count and accuracy.
+     *
+     * @param defaultAbsoluteAccuracy maximum absolute error
+     * @param defaultMaximalIterationCount maximum number of iterations
+     * @throws IllegalArgumentException if f is null or the
+     * defaultAbsoluteAccuracy is not valid
+     * @deprecated in 2.2. Derived classes should use the &quot;setter&quot; methods
+     * in order to assign meaningful values to all the instances variables.
+     */
+    @Deprecated
+    protected ConvergingAlgorithmImpl(final int defaultMaximalIterationCount,
+<span class="fc" id="L63">                                      final double defaultAbsoluteAccuracy) {</span>
+<span class="fc" id="L64">        this.defaultAbsoluteAccuracy = defaultAbsoluteAccuracy;</span>
+<span class="fc" id="L65">        this.defaultRelativeAccuracy = 1.0e-14;</span>
+<span class="fc" id="L66">        this.absoluteAccuracy = defaultAbsoluteAccuracy;</span>
+<span class="fc" id="L67">        this.relativeAccuracy = defaultRelativeAccuracy;</span>
+<span class="fc" id="L68">        this.defaultMaximalIterationCount = defaultMaximalIterationCount;</span>
+<span class="fc" id="L69">        this.maximalIterationCount = defaultMaximalIterationCount;</span>
+<span class="fc" id="L70">        this.iterationCount = 0;</span>
+<span class="fc" id="L71">    }</span>
+
+    /**
+     * Default constructor.
+     *
+     * @since 2.2
+     * @deprecated in 2.2 (to be removed as soon as the single non-default one
+     * has been removed).
+     */
+    @Deprecated
+<span class="fc" id="L81">    protected ConvergingAlgorithmImpl() {}</span>
+
+    /** {@inheritDoc} */
+    public int getIterationCount() {
+<span class="fc" id="L85">        return iterationCount;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setAbsoluteAccuracy(double accuracy) {
+<span class="fc" id="L90">        absoluteAccuracy = accuracy;</span>
+<span class="fc" id="L91">    }</span>
+
+    /** {@inheritDoc} */
+    public double getAbsoluteAccuracy() {
+<span class="fc" id="L95">        return absoluteAccuracy;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void resetAbsoluteAccuracy() {
+<span class="fc" id="L100">        absoluteAccuracy = defaultAbsoluteAccuracy;</span>
+<span class="fc" id="L101">    }</span>
+
+    /** {@inheritDoc} */
+    public void setMaximalIterationCount(int count) {
+<span class="fc" id="L105">        maximalIterationCount = count;</span>
+<span class="fc" id="L106">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaximalIterationCount() {
+<span class="fc" id="L110">        return maximalIterationCount;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void resetMaximalIterationCount() {
+<span class="fc" id="L115">        maximalIterationCount = defaultMaximalIterationCount;</span>
+<span class="fc" id="L116">    }</span>
+
+    /** {@inheritDoc} */
+    public void setRelativeAccuracy(double accuracy) {
+<span class="fc" id="L120">        relativeAccuracy = accuracy;</span>
+<span class="fc" id="L121">    }</span>
+
+    /** {@inheritDoc} */
+    public double getRelativeAccuracy() {
+<span class="fc" id="L125">        return relativeAccuracy;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void resetRelativeAccuracy() {
+<span class="fc" id="L130">        relativeAccuracy = defaultRelativeAccuracy;</span>
+<span class="fc" id="L131">    }</span>
+
+    /**
+     * Reset the iterations counter to 0.
+     *
+     * @since 2.2
+     */
+    protected void resetIterationsCounter() {
+<span class="fc" id="L139">        iterationCount = 0;</span>
+<span class="fc" id="L140">    }</span>
+
+    /**
+     * Increment the iterations counter by 1.
+     *
+     * @throws MaxIterationsExceededException if the maximal number
+     * of iterations is exceeded.
+     * @since 2.2
+     */
+    protected void incrementIterationsCounter()
+        throws MaxIterationsExceededException {
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        if (++iterationCount &gt; maximalIterationCount) {</span>
+<span class="fc" id="L152">            throw new MaxIterationsExceededException(maximalIterationCount);</span>
+        }
+<span class="fc" id="L154">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,900 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>FirstOrderIntegratorWithJacobians.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.ode.jacobians</a> &gt; <span class="el_source">FirstOrderIntegratorWithJacobians.java</span></div><h1>FirstOrderIntegratorWithJacobians.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.ode.jacobians;
+
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Collection;
+
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.MaxEvaluationsExceededException;
+import org.apache.commons.math.ode.DerivativeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.ode.ExtendedFirstOrderDifferentialEquations;
+import org.apache.commons.math.ode.FirstOrderIntegrator;
+import org.apache.commons.math.ode.IntegratorException;
+import org.apache.commons.math.ode.events.EventException;
+import org.apache.commons.math.ode.events.EventHandler;
+import org.apache.commons.math.ode.sampling.StepHandler;
+import org.apache.commons.math.ode.sampling.StepInterpolator;
+
+/** This class enhances a first order integrator for differential equations to
+ * compute also partial derivatives of the solution with respect to initial state
+ * and parameters.
+ * &lt;p&gt;In order to compute both the state and its derivatives, the ODE problem
+ * is extended with jacobians of the raw ODE and the variational equations are
+ * added to form a new compound problem of higher dimension. If the original ODE
+ * problem has dimension n and there are p parameters, the compound problem will
+ * have dimension n &amp;times; (1 + n + p).&lt;/p&gt;
+ * @see ParameterizedODE
+ * @see ODEWithJacobians
+ * @version $Revision$ $Date$
+ * @since 2.1
+ * @deprecated as of 2.2 the complete package is deprecated, it will be replaced
+ * in 3.0 by a completely rewritten implementation
+ */
+@Deprecated
+public class FirstOrderIntegratorWithJacobians {
+
+    /** Underlying integrator for compound problem. */
+    private final FirstOrderIntegrator integrator;
+
+    /** Raw equations to integrate. */
+    private final ODEWithJacobians ode;
+
+    /** Maximal number of evaluations allowed. */
+    private int maxEvaluations;
+
+    /** Number of evaluations already performed. */
+    private int evaluations;
+
+    /** Build an enhanced integrator using internal differentiation to compute jacobians.
+     * @param integrator underlying integrator to solve the compound problem
+     * @param ode original problem (f in the equation y' = f(t, y))
+     * @param p parameters array (may be null if {@link
+     * ParameterizedODE#getParametersDimension()
+     * getParametersDimension()} from original problem is zero)
+     * @param hY step sizes to use for computing the jacobian df/dy, must have the
+     * same dimension as the original problem
+     * @param hP step sizes to use for computing the jacobian df/dp, must have the
+     * same dimension as the original problem parameters dimension
+     * @see #FirstOrderIntegratorWithJacobians(FirstOrderIntegrator,
+     * ODEWithJacobians)
+     */
+    public FirstOrderIntegratorWithJacobians(final FirstOrderIntegrator integrator,
+                                             final ParameterizedODE ode,
+<span class="fc" id="L84">                                             final double[] p, final double[] hY, final double[] hP) {</span>
+<span class="fc" id="L85">        checkDimension(ode.getDimension(), hY);</span>
+<span class="fc" id="L86">        checkDimension(ode.getParametersDimension(), p);</span>
+<span class="fc" id="L87">        checkDimension(ode.getParametersDimension(), hP);</span>
+<span class="fc" id="L88">        this.integrator = integrator;</span>
+<span class="fc" id="L89">        this.ode = new FiniteDifferencesWrapper(ode, p, hY, hP);</span>
+<span class="fc" id="L90">        setMaxEvaluations(-1);</span>
+<span class="fc" id="L91">    }</span>
+
+    /** Build an enhanced integrator using ODE builtin jacobian computation features.
+     * @param integrator underlying integrator to solve the compound problem
+     * @param ode original problem, which can compute the jacobians by itself
+     * @see #FirstOrderIntegratorWithJacobians(FirstOrderIntegrator,
+     * ParameterizedODE, double[], double[], double[])
+     */
+    public FirstOrderIntegratorWithJacobians(final FirstOrderIntegrator integrator,
+<span class="fc" id="L100">                                             final ODEWithJacobians ode) {</span>
+<span class="fc" id="L101">        this.integrator = integrator;</span>
+<span class="fc" id="L102">        this.ode = ode;</span>
+<span class="fc" id="L103">        setMaxEvaluations(-1);</span>
+<span class="fc" id="L104">    }</span>
+
+    /** Add a step handler to this integrator.
+     * &lt;p&gt;The handler will be called by the integrator for each accepted
+     * step.&lt;/p&gt;
+     * @param handler handler for the accepted steps
+     * @see #getStepHandlers()
+     * @see #clearStepHandlers()
+     */
+    public void addStepHandler(StepHandlerWithJacobians handler) {
+<span class="fc" id="L114">        final int n = ode.getDimension();</span>
+<span class="fc" id="L115">        final int k = ode.getParametersDimension();</span>
+<span class="fc" id="L116">        integrator.addStepHandler(new StepHandlerWrapper(handler, n, k));</span>
+<span class="fc" id="L117">    }</span>
+
+    /** Get all the step handlers that have been added to the integrator.
+     * @return an unmodifiable collection of the added events handlers
+     * @see #addStepHandler(StepHandlerWithJacobians)
+     * @see #clearStepHandlers()
+     */
+    public Collection&lt;StepHandlerWithJacobians&gt; getStepHandlers() {
+<span class="nc" id="L125">        final Collection&lt;StepHandlerWithJacobians&gt; handlers =</span>
+            new ArrayList&lt;StepHandlerWithJacobians&gt;();
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        for (final StepHandler handler : integrator.getStepHandlers()) {</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (handler instanceof StepHandlerWrapper) {</span>
+<span class="nc" id="L129">                handlers.add(((StepHandlerWrapper) handler).getHandler());</span>
+            }
+<span class="nc" id="L131">        }</span>
+<span class="nc" id="L132">        return handlers;</span>
+    }
+
+    /** Remove all the step handlers that have been added to the integrator.
+     * @see #addStepHandler(StepHandlerWithJacobians)
+     * @see #getStepHandlers()
+     */
+    public void clearStepHandlers() {
+<span class="nc" id="L140">        integrator.clearStepHandlers();</span>
+<span class="nc" id="L141">    }</span>
+
+    /** Add an event handler to the integrator.
+     * @param handler event handler
+     * @param maxCheckInterval maximal time interval between switching
+     * function checks (this interval prevents missing sign changes in
+     * case the integration steps becomes very large)
+     * @param convergence convergence threshold in the event time search
+     * @param maxIterationCount upper limit of the iteration count in
+     * the event time search
+     * @see #getEventHandlers()
+     * @see #clearEventHandlers()
+     */
+    public void addEventHandler(EventHandlerWithJacobians handler,
+                                double maxCheckInterval,
+                                double convergence,
+                                int maxIterationCount) {
+<span class="fc" id="L158">        final int n = ode.getDimension();</span>
+<span class="fc" id="L159">        final int k = ode.getParametersDimension();</span>
+<span class="fc" id="L160">        integrator.addEventHandler(new EventHandlerWrapper(handler, n, k),</span>
+                                   maxCheckInterval, convergence, maxIterationCount);
+<span class="fc" id="L162">    }</span>
+
+    /** Get all the event handlers that have been added to the integrator.
+     * @return an unmodifiable collection of the added events handlers
+     * @see #addEventHandler(EventHandlerWithJacobians, double, double, int)
+     * @see #clearEventHandlers()
+     */
+    public Collection&lt;EventHandlerWithJacobians&gt; getEventHandlers() {
+<span class="nc" id="L170">        final Collection&lt;EventHandlerWithJacobians&gt; handlers =</span>
+            new ArrayList&lt;EventHandlerWithJacobians&gt;();
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        for (final EventHandler handler : integrator.getEventHandlers()) {</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">            if (handler instanceof EventHandlerWrapper) {</span>
+<span class="nc" id="L174">                handlers.add(((EventHandlerWrapper) handler).getHandler());</span>
+            }
+<span class="nc" id="L176">        }</span>
+<span class="nc" id="L177">        return handlers;</span>
+    }
+
+    /** Remove all the event handlers that have been added to the integrator.
+     * @see #addEventHandler(EventHandlerWithJacobians, double, double, int)
+     * @see #getEventHandlers()
+     */
+    public void clearEventHandlers() {
+<span class="nc" id="L185">        integrator.clearEventHandlers();</span>
+<span class="nc" id="L186">    }</span>
+
+    /** Integrate the differential equations and the variational equations up to the given time.
+     * &lt;p&gt;This method solves an Initial Value Problem (IVP) and also computes the derivatives
+     * of the solution with respect to initial state and parameters. This can be used as
+     * a basis to solve Boundary Value Problems (BVP).&lt;/p&gt;
+     * &lt;p&gt;Since this method stores some internal state variables made
+     * available in its public interface during integration ({@link
+     * #getCurrentSignedStepsize()}), it is &lt;em&gt;not&lt;/em&gt; thread-safe.&lt;/p&gt;
+     * @param t0 initial time
+     * @param y0 initial value of the state vector at t0
+     * @param dY0dP initial value of the state vector derivative with respect to the
+     * parameters at t0
+     * @param t target time for the integration
+     * (can be set to a value smaller than &lt;code&gt;t0&lt;/code&gt; for backward integration)
+     * @param y placeholder where to put the state vector at each successful
+     *  step (and hence at the end of integration), can be the same object as y0
+     * @param dYdY0 placeholder where to put the state vector derivative with respect
+     * to the initial state (dy[i]/dy0[j] is in element array dYdY0[i][j]) at each successful
+     *  step (and hence at the end of integration)
+     * @param dYdP placeholder where to put the state vector derivative with respect
+     * to the parameters (dy[i]/dp[j] is in element array dYdP[i][j]) at each successful
+     *  step (and hence at the end of integration)
+     * @return stop time, will be the same as target time if integration reached its
+     * target, but may be different if some event handler stops it at some point.
+     * @throws IntegratorException if the integrator cannot perform integration
+     * @throws DerivativeException this exception is propagated to the caller if
+     * the underlying user function triggers one
+     */
+    public double integrate(final double t0, final double[] y0, final double[][] dY0dP,
+                            final double t, final double[] y,
+                            final double[][] dYdY0, final double[][] dYdP)
+        throws DerivativeException, IntegratorException {
+
+<span class="fc" id="L220">        final int n = ode.getDimension();</span>
+<span class="fc" id="L221">        final int k = ode.getParametersDimension();</span>
+<span class="fc" id="L222">        checkDimension(n, y0);</span>
+<span class="fc" id="L223">        checkDimension(n, y);</span>
+<span class="fc" id="L224">        checkDimension(n, dYdY0);</span>
+<span class="fc" id="L225">        checkDimension(n, dYdY0[0]);</span>
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">        if (k != 0) {</span>
+<span class="fc" id="L227">            checkDimension(n, dY0dP);</span>
+<span class="fc" id="L228">            checkDimension(k, dY0dP[0]);</span>
+<span class="fc" id="L229">            checkDimension(n, dYdP);</span>
+<span class="fc" id="L230">            checkDimension(k, dYdP[0]);</span>
+        }
+
+        // set up initial state, including partial derivatives
+        // the compound state z contains the raw state y and its derivatives
+        // with respect to initial state y0 and to parameters p
+        //    y[i]         is stored in z[i]
+        //    dy[i]/dy0[j] is stored in z[n + i * n + j]
+        //    dy[i]/dp[j]  is stored in z[n * (n + 1) + i * k + j]
+<span class="fc" id="L239">        final double[] z = new double[n * (1 + n + k)];</span>
+<span class="fc" id="L240">        System.arraycopy(y0, 0, z, 0, n);</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">        for (int i = 0; i &lt; n; ++i) {</span>
+
+            // set diagonal element of dy/dy0 to 1.0 at t = t0
+<span class="fc" id="L244">            z[i * (1 + n) + n] = 1.0;</span>
+
+            // set initial derivatives with respect to parameters
+<span class="fc" id="L247">            System.arraycopy(dY0dP[i], 0, z, n * (n + 1) + i * k, k);</span>
+
+        }
+
+        // integrate the compound state variational equations
+<span class="fc" id="L252">        evaluations = 0;</span>
+<span class="fc" id="L253">        final double stopTime = integrator.integrate(new MappingWrapper(), t0, z, t, z);</span>
+
+        // dispatch the final compound state into the state and partial derivatives arrays
+<span class="fc" id="L256">        dispatchCompoundState(z, y, dYdY0, dYdP);</span>
+
+<span class="fc" id="L258">        return stopTime;</span>
+
+    }
+
+    /** Dispatch a compound state array into state and jacobians arrays.
+     * @param z compound state
+     * @param y raw state array to fill
+     * @param dydy0 jacobian array to fill
+     * @param dydp jacobian array to fill
+     */
+    private static void dispatchCompoundState(final double[] z, final double[] y,
+                                              final double[][] dydy0, final double[][] dydp) {
+
+<span class="fc" id="L271">        final int n = y.length;</span>
+<span class="fc" id="L272">        final int k = dydp[0].length;</span>
+
+        // state
+<span class="fc" id="L275">        System.arraycopy(z, 0, y, 0, n);</span>
+
+        // jacobian with respect to initial state
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L279">            System.arraycopy(z, n * (i + 1), dydy0[i], 0, n);</span>
+        }
+
+        // jacobian with respect to parameters
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L284">            System.arraycopy(z, n * (n + 1) + i * k, dydp[i], 0, k);</span>
+        }
+
+<span class="fc" id="L287">    }</span>
+
+    /** Get the current value of the step start time t&lt;sub&gt;i&lt;/sub&gt;.
+     * &lt;p&gt;This method can be called during integration (typically by
+     * the object implementing the {@link org.apache.commons.math.ode.FirstOrderDifferentialEquations
+     * differential equations} problem) if the value of the current step that
+     * is attempted is needed.&lt;/p&gt;
+     * &lt;p&gt;The result is undefined if the method is called outside of
+     * calls to &lt;code&gt;integrate&lt;/code&gt;.&lt;/p&gt;
+     * @return current value of the step start time t&lt;sub&gt;i&lt;/sub&gt;
+     */
+    public double getCurrentStepStart() {
+<span class="fc" id="L299">        return integrator.getCurrentStepStart();</span>
+    }
+
+    /** Get the current signed value of the integration stepsize.
+     * &lt;p&gt;This method can be called during integration (typically by
+     * the object implementing the {@link org.apache.commons.math.ode.FirstOrderDifferentialEquations
+     * differential equations} problem) if the signed value of the current stepsize
+     * that is tried is needed.&lt;/p&gt;
+     * &lt;p&gt;The result is undefined if the method is called outside of
+     * calls to &lt;code&gt;integrate&lt;/code&gt;.&lt;/p&gt;
+     * @return current signed value of the stepsize
+     */
+    public double getCurrentSignedStepsize() {
+<span class="fc" id="L312">        return integrator.getCurrentSignedStepsize();</span>
+    }
+
+    /** Set the maximal number of differential equations function evaluations.
+     * &lt;p&gt;The purpose of this method is to avoid infinite loops which can occur
+     * for example when stringent error constraints are set or when lots of
+     * discrete events are triggered, thus leading to many rejected steps.&lt;/p&gt;
+     * @param maxEvaluations maximal number of function evaluations (negative
+     * values are silently converted to maximal integer value, thus representing
+     * almost unlimited evaluations)
+     */
+    public void setMaxEvaluations(int maxEvaluations) {
+<span class="fc bfc" id="L324" title="All 2 branches covered.">        this.maxEvaluations = (maxEvaluations &lt; 0) ? Integer.MAX_VALUE : maxEvaluations;</span>
+<span class="fc" id="L325">    }</span>
+
+    /** Get the maximal number of functions evaluations.
+     * @return maximal number of functions evaluations
+     */
+    public int getMaxEvaluations() {
+<span class="fc" id="L331">        return maxEvaluations;</span>
+    }
+
+    /** Get the number of evaluations of the differential equations function.
+     * &lt;p&gt;
+     * The number of evaluations corresponds to the last call to the
+     * &lt;code&gt;integrate&lt;/code&gt; method. It is 0 if the method has not been called yet.
+     * &lt;/p&gt;
+     * @return number of evaluations of the differential equations function
+     */
+    public int getEvaluations() {
+<span class="fc" id="L342">        return evaluations;</span>
+    }
+
+    /** Check array dimensions.
+     * @param expected expected dimension
+     * @param array (may be null if expected is 0)
+     * @throws IllegalArgumentException if the array dimension does not match the expected one
+     */
+    private void checkDimension(final int expected, final Object array)
+        throws IllegalArgumentException {
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">        int arrayDimension = (array == null) ? 0 : Array.getLength(array);</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">        if (arrayDimension != expected) {</span>
+<span class="nc" id="L354">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="nc" id="L355">                  LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE, arrayDimension, expected);</span>
+        }
+<span class="fc" id="L357">    }</span>
+
+    /** Wrapper class used to map state and jacobians into compound state. */
+    private class MappingWrapper implements  ExtendedFirstOrderDifferentialEquations {
+
+        /** Current state. */
+        private final double[]   y;
+
+        /** Time derivative of the current state. */
+        private final double[]   yDot;
+
+        /** Derivatives of yDot with respect to state. */
+        private final double[][] dFdY;
+
+        /** Derivatives of yDot with respect to parameters. */
+        private final double[][] dFdP;
+
+        /** Simple constructor.
+         */
+<span class="fc" id="L376">        public MappingWrapper() {</span>
+
+<span class="fc" id="L378">            final int n = ode.getDimension();</span>
+<span class="fc" id="L379">            final int k = ode.getParametersDimension();</span>
+<span class="fc" id="L380">            y    = new double[n];</span>
+<span class="fc" id="L381">            yDot = new double[n];</span>
+<span class="fc" id="L382">            dFdY = new double[n][n];</span>
+<span class="fc" id="L383">            dFdP = new double[n][k];</span>
+
+<span class="fc" id="L385">        }</span>
+
+        /** {@inheritDoc} */
+        public int getDimension() {
+<span class="fc" id="L389">            final int n = y.length;</span>
+<span class="fc" id="L390">            final int k = dFdP[0].length;</span>
+<span class="fc" id="L391">            return n * (1 + n + k);</span>
+        }
+
+        /** {@inheritDoc} */
+        public int getMainSetDimension() {
+<span class="fc" id="L396">            return ode.getDimension();</span>
+        }
+
+        /** {@inheritDoc} */
+        public void computeDerivatives(final double t, final double[] z, final double[] zDot)
+            throws DerivativeException {
+
+<span class="fc" id="L403">            final int n = y.length;</span>
+<span class="fc" id="L404">            final int k = dFdP[0].length;</span>
+
+            // compute raw ODE and its jacobians: dy/dt, d[dy/dt]/dy0 and d[dy/dt]/dp
+<span class="fc" id="L407">            System.arraycopy(z,    0, y,    0, n);</span>
+<span class="pc bpc" id="L408" title="1 of 2 branches missed.">            if (++evaluations &gt; maxEvaluations) {</span>
+<span class="nc" id="L409">                throw new DerivativeException(new MaxEvaluationsExceededException(maxEvaluations));</span>
+            }
+<span class="fc" id="L411">            ode.computeDerivatives(t, y, yDot);</span>
+<span class="fc" id="L412">            ode.computeJacobians(t, y, yDot, dFdY, dFdP);</span>
+
+            // state part of the compound equations
+<span class="fc" id="L415">            System.arraycopy(yDot, 0, zDot, 0, n);</span>
+
+            // variational equations: from d[dy/dt]/dy0 to d[dy/dy0]/dt
+<span class="fc bfc" id="L418" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L419">                final double[] dFdYi = dFdY[i];</span>
+<span class="fc bfc" id="L420" title="All 2 branches covered.">                for (int j = 0; j &lt; n; ++j) {</span>
+<span class="fc" id="L421">                    double s = 0;</span>
+<span class="fc" id="L422">                    final int startIndex = n + j;</span>
+<span class="fc" id="L423">                    int zIndex = startIndex;</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">                    for (int l = 0; l &lt; n; ++l) {</span>
+<span class="fc" id="L425">                        s += dFdYi[l] * z[zIndex];</span>
+<span class="fc" id="L426">                        zIndex += n;</span>
+                    }
+<span class="fc" id="L428">                    zDot[startIndex + i * n] = s;</span>
+                }
+            }
+
+            // variational equations: from d[dy/dt]/dy0 and d[dy/dt]/dp to d[dy/dp]/dt
+<span class="fc bfc" id="L433" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L434">                final double[] dFdYi = dFdY[i];</span>
+<span class="fc" id="L435">                final double[] dFdPi = dFdP[i];</span>
+<span class="fc bfc" id="L436" title="All 2 branches covered.">                for (int j = 0; j &lt; k; ++j) {</span>
+<span class="fc" id="L437">                    double s = dFdPi[j];</span>
+<span class="fc" id="L438">                    final int startIndex = n * (n + 1) + j;</span>
+<span class="fc" id="L439">                    int zIndex = startIndex;</span>
+<span class="fc bfc" id="L440" title="All 2 branches covered.">                    for (int l = 0; l &lt; n; ++l) {</span>
+<span class="fc" id="L441">                        s += dFdYi[l] * z[zIndex];</span>
+<span class="fc" id="L442">                        zIndex += k;</span>
+                    }
+<span class="fc" id="L444">                    zDot[startIndex + i * k] = s;</span>
+                }
+            }
+
+<span class="fc" id="L448">        }</span>
+
+    }
+
+    /** Wrapper class to compute jacobians by finite differences for ODE which do not compute them themselves. */
+    private class FiniteDifferencesWrapper implements ODEWithJacobians {
+
+        /** Raw ODE without jacobians computation. */
+        private final ParameterizedODE ode;
+
+        /** Parameters array (may be null if parameters dimension from original problem is zero) */
+        private final double[] p;
+
+        /** Step sizes to use for computing the jacobian df/dy. */
+        private final double[] hY;
+
+        /** Step sizes to use for computing the jacobian df/dp. */
+        private final double[] hP;
+
+        /** Temporary array for state derivatives used to compute jacobians. */
+        private final double[] tmpDot;
+
+        /** Simple constructor.
+         * @param ode original ODE problem, without jacobians computations
+         * @param p parameters array (may be null if parameters dimension from original problem is zero)
+         * @param hY step sizes to use for computing the jacobian df/dy
+         * @param hP step sizes to use for computing the jacobian df/dp
+         */
+        public FiniteDifferencesWrapper(final ParameterizedODE ode,
+<span class="fc" id="L477">                                        final double[] p, final double[] hY, final double[] hP) {</span>
+<span class="fc" id="L478">            this.ode = ode;</span>
+<span class="fc" id="L479">            this.p  = p.clone();</span>
+<span class="fc" id="L480">            this.hY = hY.clone();</span>
+<span class="fc" id="L481">            this.hP = hP.clone();</span>
+<span class="fc" id="L482">            tmpDot = new double[ode.getDimension()];</span>
+<span class="fc" id="L483">        }</span>
+
+        /** {@inheritDoc} */
+        public int getDimension() {
+<span class="fc" id="L487">            return ode.getDimension();</span>
+        }
+
+        /** {@inheritDoc} */
+        public void computeDerivatives(double t, double[] y, double[] yDot) throws DerivativeException {
+            // this call to computeDerivatives has already been counted,
+            // we must not increment the counter again
+<span class="fc" id="L494">            ode.computeDerivatives(t, y, yDot);</span>
+<span class="fc" id="L495">        }</span>
+
+        /** {@inheritDoc} */
+        public int getParametersDimension() {
+<span class="fc" id="L499">            return ode.getParametersDimension();</span>
+        }
+
+        /** {@inheritDoc} */
+        public void computeJacobians(double t, double[] y, double[] yDot,
+                                     double[][] dFdY, double[][] dFdP)
+            throws DerivativeException {
+
+<span class="fc" id="L507">            final int n = hY.length;</span>
+<span class="fc" id="L508">            final int k = hP.length;</span>
+
+<span class="fc" id="L510">            evaluations += n + k;</span>
+<span class="pc bpc" id="L511" title="1 of 2 branches missed.">            if (evaluations &gt; maxEvaluations) {</span>
+<span class="nc" id="L512">                throw new DerivativeException(new MaxEvaluationsExceededException(maxEvaluations));</span>
+            }
+
+            // compute df/dy where f is the ODE and y is the state array
+<span class="fc bfc" id="L516" title="All 2 branches covered.">            for (int j = 0; j &lt; n; ++j) {</span>
+<span class="fc" id="L517">                final double savedYj = y[j];</span>
+<span class="fc" id="L518">                y[j] += hY[j];</span>
+<span class="fc" id="L519">                ode.computeDerivatives(t, y, tmpDot);</span>
+<span class="fc bfc" id="L520" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L521">                    dFdY[i][j] = (tmpDot[i] - yDot[i]) / hY[j];</span>
+                }
+<span class="fc" id="L523">                y[j] = savedYj;</span>
+            }
+
+            // compute df/dp where f is the ODE and p is the parameters array
+<span class="fc bfc" id="L527" title="All 2 branches covered.">            for (int j = 0; j &lt; k; ++j) {</span>
+<span class="fc" id="L528">                ode.setParameter(j, p[j] +  hP[j]);</span>
+<span class="fc" id="L529">                ode.computeDerivatives(t, y, tmpDot);</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L531">                    dFdP[i][j] = (tmpDot[i] - yDot[i]) / hP[j];</span>
+                }
+<span class="fc" id="L533">                ode.setParameter(j, p[j]);</span>
+            }
+
+<span class="fc" id="L536">        }</span>
+
+    }
+
+    /** Wrapper for step handlers. */
+    private static class StepHandlerWrapper implements StepHandler {
+
+        /** Underlying step handler with jacobians. */
+        private final StepHandlerWithJacobians handler;
+
+        /** Dimension of the original ODE. */
+        private final int n;
+
+        /** Number of parameters. */
+        private final int k;
+
+        /** Simple constructor.
+         * @param handler underlying step handler with jacobians
+         * @param n dimension of the original ODE
+         * @param k number of parameters
+         */
+        public StepHandlerWrapper(final StepHandlerWithJacobians handler,
+<span class="fc" id="L558">                                  final int n, final int k) {</span>
+<span class="fc" id="L559">            this.handler = handler;</span>
+<span class="fc" id="L560">            this.n       = n;</span>
+<span class="fc" id="L561">            this.k       = k;</span>
+<span class="fc" id="L562">        }</span>
+
+        /** Get the underlying step handler with jacobians.
+         * @return underlying step handler with jacobians
+         */
+        public StepHandlerWithJacobians getHandler() {
+<span class="nc" id="L568">            return handler;</span>
+        }
+
+        /** {@inheritDoc} */
+        public void handleStep(StepInterpolator interpolator, boolean isLast)
+            throws DerivativeException {
+<span class="fc" id="L574">            handler.handleStep(new StepInterpolatorWrapper(interpolator, n, k), isLast);</span>
+<span class="fc" id="L575">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean requiresDenseOutput() {
+<span class="fc" id="L579">            return handler.requiresDenseOutput();</span>
+        }
+
+        /** {@inheritDoc} */
+        public void reset() {
+<span class="fc" id="L584">            handler.reset();</span>
+<span class="fc" id="L585">        }</span>
+
+    }
+
+    /** Wrapper for step interpolators. */
+    private static class StepInterpolatorWrapper
+        implements StepInterpolatorWithJacobians {
+
+        /** Wrapped interpolator. */
+        private StepInterpolator interpolator;
+
+        /** State array. */
+        private double[] y;
+
+        /** Jacobian with respect to initial state dy/dy0. */
+        private double[][] dydy0;
+
+        /** Jacobian with respect to parameters dy/dp. */
+        private double[][] dydp;
+
+        /** Time derivative of the state array. */
+        private double[] yDot;
+
+        /** Time derivative of the sacobian with respect to initial state dy/dy0. */
+        private double[][] dydy0Dot;
+
+        /** Time derivative of the jacobian with respect to parameters dy/dp. */
+        private double[][] dydpDot;
+
+        /** Simple constructor.
+         * &lt;p&gt;This constructor is used only for externalization. It does nothing.&lt;/p&gt;
+         */
+        @SuppressWarnings(&quot;unused&quot;)
+<span class="nc" id="L618">        public StepInterpolatorWrapper() {</span>
+<span class="nc" id="L619">        }</span>
+
+        /** Simple constructor.
+         * @param interpolator wrapped interpolator
+         * @param n dimension of the original ODE
+         * @param k number of parameters
+         */
+        public StepInterpolatorWrapper(final StepInterpolator interpolator,
+<span class="fc" id="L627">                                       final int n, final int k) {</span>
+<span class="fc" id="L628">            this.interpolator = interpolator;</span>
+<span class="fc" id="L629">            y        = new double[n];</span>
+<span class="fc" id="L630">            dydy0    = new double[n][n];</span>
+<span class="fc" id="L631">            dydp     = new double[n][k];</span>
+<span class="fc" id="L632">            yDot     = new double[n];</span>
+<span class="fc" id="L633">            dydy0Dot = new double[n][n];</span>
+<span class="fc" id="L634">            dydpDot  = new double[n][k];</span>
+<span class="fc" id="L635">        }</span>
+
+        /** {@inheritDoc} */
+        public void setInterpolatedTime(double time) {
+<span class="nc" id="L639">            interpolator.setInterpolatedTime(time);</span>
+<span class="nc" id="L640">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean isForward() {
+<span class="nc" id="L644">            return interpolator.isForward();</span>
+        }
+
+        /** {@inheritDoc} */
+        public double getPreviousTime() {
+<span class="fc" id="L649">            return interpolator.getPreviousTime();</span>
+        }
+
+        /** {@inheritDoc} */
+        public double getInterpolatedTime() {
+<span class="nc" id="L654">            return interpolator.getInterpolatedTime();</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[] getInterpolatedY() throws DerivativeException {
+<span class="fc" id="L659">            double[] extendedState = interpolator.getInterpolatedState();</span>
+<span class="fc" id="L660">            System.arraycopy(extendedState, 0, y, 0, y.length);</span>
+<span class="fc" id="L661">            return y;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[][] getInterpolatedDyDy0() throws DerivativeException {
+<span class="fc" id="L666">            double[] extendedState = interpolator.getInterpolatedState();</span>
+<span class="fc" id="L667">            final int n = y.length;</span>
+<span class="fc" id="L668">            int start = n;</span>
+<span class="fc bfc" id="L669" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L670">                System.arraycopy(extendedState, start, dydy0[i], 0, n);</span>
+<span class="fc" id="L671">                start += n;</span>
+            }
+<span class="fc" id="L673">            return dydy0;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[][] getInterpolatedDyDp() throws DerivativeException {
+<span class="fc" id="L678">            double[] extendedState = interpolator.getInterpolatedState();</span>
+<span class="fc" id="L679">            final int n = y.length;</span>
+<span class="fc" id="L680">            final int k = dydp[0].length;</span>
+<span class="fc" id="L681">            int start = n * (n + 1);</span>
+<span class="fc bfc" id="L682" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L683">                System.arraycopy(extendedState, start, dydp[i], 0, k);</span>
+<span class="fc" id="L684">                start += k;</span>
+            }
+<span class="fc" id="L686">            return dydp;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[] getInterpolatedYDot() throws DerivativeException {
+<span class="fc" id="L691">            double[] extendedDerivatives = interpolator.getInterpolatedDerivatives();</span>
+<span class="fc" id="L692">            System.arraycopy(extendedDerivatives, 0, yDot, 0, yDot.length);</span>
+<span class="fc" id="L693">            return yDot;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[][] getInterpolatedDyDy0Dot() throws DerivativeException {
+<span class="fc" id="L698">            double[] extendedDerivatives = interpolator.getInterpolatedDerivatives();</span>
+<span class="fc" id="L699">            final int n = y.length;</span>
+<span class="fc" id="L700">            int start = n;</span>
+<span class="fc bfc" id="L701" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L702">                System.arraycopy(extendedDerivatives, start, dydy0Dot[i], 0, n);</span>
+<span class="fc" id="L703">                start += n;</span>
+            }
+<span class="fc" id="L705">            return dydy0Dot;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double[][] getInterpolatedDyDpDot() throws DerivativeException {
+<span class="fc" id="L710">            double[] extendedDerivatives = interpolator.getInterpolatedDerivatives();</span>
+<span class="fc" id="L711">            final int n = y.length;</span>
+<span class="fc" id="L712">            final int k = dydpDot[0].length;</span>
+<span class="fc" id="L713">            int start = n * (n + 1);</span>
+<span class="fc bfc" id="L714" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+<span class="fc" id="L715">                System.arraycopy(extendedDerivatives, start, dydpDot[i], 0, k);</span>
+<span class="fc" id="L716">                start += k;</span>
+            }
+<span class="fc" id="L718">            return dydpDot;</span>
+        }
+
+        /** {@inheritDoc} */
+        public double getCurrentTime() {
+<span class="fc" id="L723">            return interpolator.getCurrentTime();</span>
+        }
+
+        /** {@inheritDoc} */
+        public StepInterpolatorWithJacobians copy() throws DerivativeException {
+<span class="nc" id="L728">            final int n = y.length;</span>
+<span class="nc" id="L729">            final int k = dydp[0].length;</span>
+<span class="nc" id="L730">            StepInterpolatorWrapper copied =</span>
+<span class="nc" id="L731">                new StepInterpolatorWrapper(interpolator.copy(), n, k);</span>
+<span class="nc" id="L732">            copyArray(y,        copied.y);</span>
+<span class="nc" id="L733">            copyArray(dydy0,    copied.dydy0);</span>
+<span class="nc" id="L734">            copyArray(dydp,     copied.dydp);</span>
+<span class="nc" id="L735">            copyArray(yDot,     copied.yDot);</span>
+<span class="nc" id="L736">            copyArray(dydy0Dot, copied.dydy0Dot);</span>
+<span class="nc" id="L737">            copyArray(dydpDot,  copied.dydpDot);</span>
+<span class="nc" id="L738">            return copied;</span>
+        }
+
+        /** {@inheritDoc} */
+        public void writeExternal(ObjectOutput out) throws IOException {
+<span class="nc" id="L743">            out.writeObject(interpolator);</span>
+<span class="nc" id="L744">            out.writeInt(y.length);</span>
+<span class="nc" id="L745">            out.writeInt(dydp[0].length);</span>
+<span class="nc" id="L746">            writeArray(out, y);</span>
+<span class="nc" id="L747">            writeArray(out, dydy0);</span>
+<span class="nc" id="L748">            writeArray(out, dydp);</span>
+<span class="nc" id="L749">            writeArray(out, yDot);</span>
+<span class="nc" id="L750">            writeArray(out, dydy0Dot);</span>
+<span class="nc" id="L751">            writeArray(out, dydpDot);</span>
+<span class="nc" id="L752">        }</span>
+
+        /** {@inheritDoc} */
+        public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+<span class="nc" id="L756">            interpolator = (StepInterpolator) in.readObject();</span>
+<span class="nc" id="L757">            final int n = in.readInt();</span>
+<span class="nc" id="L758">            final int k = in.readInt();</span>
+<span class="nc" id="L759">            y        = new double[n];</span>
+<span class="nc" id="L760">            dydy0    = new double[n][n];</span>
+<span class="nc" id="L761">            dydp     = new double[n][k];</span>
+<span class="nc" id="L762">            yDot     = new double[n];</span>
+<span class="nc" id="L763">            dydy0Dot = new double[n][n];</span>
+<span class="nc" id="L764">            dydpDot  = new double[n][k];</span>
+<span class="nc" id="L765">            readArray(in, y);</span>
+<span class="nc" id="L766">            readArray(in, dydy0);</span>
+<span class="nc" id="L767">            readArray(in, dydp);</span>
+<span class="nc" id="L768">            readArray(in, yDot);</span>
+<span class="nc" id="L769">            readArray(in, dydy0Dot);</span>
+<span class="nc" id="L770">            readArray(in, dydpDot);</span>
+<span class="nc" id="L771">        }</span>
+
+        /** Copy an array.
+         * @param src source array
+         * @param dest destination array
+         */
+        private static void copyArray(final double[] src, final double[] dest) {
+<span class="nc" id="L778">            System.arraycopy(src, 0, dest, 0, src.length);</span>
+<span class="nc" id="L779">        }</span>
+
+        /** Copy an array.
+         * @param src source array
+         * @param dest destination array
+         */
+        private static void copyArray(final double[][] src, final double[][] dest) {
+<span class="nc bnc" id="L786" title="All 2 branches missed.">            for (int i = 0; i &lt; src.length; ++i) {</span>
+<span class="nc" id="L787">                copyArray(src[i], dest[i]);</span>
+            }
+<span class="nc" id="L789">        }</span>
+
+        /** Write an array.
+         * @param out output stream
+         * @param array array to write
+         * @exception IOException if array cannot be read
+         */
+        private static void writeArray(final ObjectOutput out, final double[] array)
+            throws IOException {
+<span class="nc bnc" id="L798" title="All 2 branches missed.">            for (int i = 0; i &lt; array.length; ++i) {</span>
+<span class="nc" id="L799">                out.writeDouble(array[i]);</span>
+            }
+<span class="nc" id="L801">        }</span>
+
+        /** Write an array.
+         * @param out output stream
+         * @param array array to write
+         * @exception IOException if array cannot be read
+         */
+        private static void writeArray(final ObjectOutput out, final double[][] array)
+            throws IOException {
+<span class="nc bnc" id="L810" title="All 2 branches missed.">            for (int i = 0; i &lt; array.length; ++i) {</span>
+<span class="nc" id="L811">                writeArray(out, array[i]);</span>
+            }
+<span class="nc" id="L813">        }</span>
+
+        /** Read an array.
+         * @param in input stream
+         * @param array array to read
+         * @exception IOException if array cannot be read
+         */
+        private static void readArray(final ObjectInput in, final double[] array)
+            throws IOException {
+<span class="nc bnc" id="L822" title="All 2 branches missed.">            for (int i = 0; i &lt; array.length; ++i) {</span>
+<span class="nc" id="L823">                array[i] = in.readDouble();</span>
+            }
+<span class="nc" id="L825">        }</span>
+
+        /** Read an array.
+         * @param in input stream
+         * @param array array to read
+         * @exception IOException if array cannot be read
+         */
+        private static void readArray(final ObjectInput in, final double[][] array)
+            throws IOException {
+<span class="nc bnc" id="L834" title="All 2 branches missed.">            for (int i = 0; i &lt; array.length; ++i) {</span>
+<span class="nc" id="L835">                readArray(in, array[i]);</span>
+            }
+<span class="nc" id="L837">        }</span>
+
+    }
+
+    /** Wrapper for event handlers. */
+    private static class EventHandlerWrapper implements EventHandler {
+
+        /** Underlying event handler with jacobians. */
+        private final EventHandlerWithJacobians handler;
+
+        /** State array. */
+        private double[] y;
+
+        /** Jacobian with respect to initial state dy/dy0. */
+        private double[][] dydy0;
+
+        /** Jacobian with respect to parameters dy/dp. */
+        private double[][] dydp;
+
+        /** Simple constructor.
+         * @param handler underlying event handler with jacobians
+         * @param n dimension of the original ODE
+         * @param k number of parameters
+         */
+        public EventHandlerWrapper(final EventHandlerWithJacobians handler,
+<span class="fc" id="L862">                                   final int n, final int k) {</span>
+<span class="fc" id="L863">            this.handler = handler;</span>
+<span class="fc" id="L864">            y        = new double[n];</span>
+<span class="fc" id="L865">            dydy0    = new double[n][n];</span>
+<span class="fc" id="L866">            dydp     = new double[n][k];</span>
+<span class="fc" id="L867">        }</span>
+
+        /** Get the underlying event handler with jacobians.
+         * @return underlying event handler with jacobians
+         */
+        public EventHandlerWithJacobians getHandler() {
+<span class="nc" id="L873">            return handler;</span>
+        }
+
+        /** {@inheritDoc} */
+        public int eventOccurred(double t, double[] z, boolean increasing)
+            throws EventException {
+<span class="fc" id="L879">            dispatchCompoundState(z, y, dydy0, dydp);</span>
+<span class="fc" id="L880">            return handler.eventOccurred(t, y, dydy0, dydp, increasing);</span>
+        }
+
+        /** {@inheritDoc} */
+        public double g(double t, double[] z)
+            throws EventException {
+<span class="fc" id="L886">            dispatchCompoundState(z, y, dydy0, dydp);</span>
+<span class="fc" id="L887">            return handler.g(t, y, dydy0, dydp);</span>
+        }
+
+        /** {@inheritDoc} */
+        public void resetState(double t, double[] z)
+            throws EventException {
+<span class="nc" id="L893">            dispatchCompoundState(z, y, dydy0, dydp);</span>
+<span class="nc" id="L894">            handler.resetState(t, y, dydy0, dydp);</span>
+<span class="nc" id="L895">        }</span>
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

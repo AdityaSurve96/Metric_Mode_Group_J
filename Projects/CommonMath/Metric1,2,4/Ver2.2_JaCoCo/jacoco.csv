@@ -1,0 +1,494 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+Commons Math,org.apache.commons.math.stat.clustering,KMeansPlusPlusClusterer.new Object() {...},3,23,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.stat.clustering,KMeansPlusPlusClusterer,22,429,6,48,4,110,6,31,0,9
+Commons Math,org.apache.commons.math.stat.clustering,Cluster,0,23,0,0,0,8,0,4,0,4
+Commons Math,org.apache.commons.math.stat.clustering,KMeansPlusPlusClusterer.EmptyClusterStrategy,5,53,0,0,0,5,1,3,1,3
+Commons Math,org.apache.commons.math.stat.clustering,EuclideanIntegerPoint,74,104,8,12,14,20,7,10,2,5
+Commons Math,org.apache.commons.math,ArgumentOutsideDomainException,0,22,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math,MaxEvaluationsExceededException,20,14,0,0,6,3,3,1,3,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new ArrayIndexOutOfBoundsException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new ArithmeticException() {...},7,16,0,0,1,2,1,2,1,2
+Commons Math,org.apache.commons.math,MathRuntimeException.new ConcurrentModificationException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new IllegalStateException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new IllegalArgumentException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathConfigurationException,17,18,0,0,4,8,2,4,2,4
+Commons Math,org.apache.commons.math,MathRuntimeException.new EOFException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new NullPointerException() {...},23,0,0,0,3,0,3,0,3,0
+Commons Math,org.apache.commons.math,MathRuntimeException.new UnsupportedOperationException() {...},23,0,0,0,3,0,3,0,3,0
+Commons Math,org.apache.commons.math,MathRuntimeException.new NoSuchElementException() {...},14,9,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException,207,92,6,2,44,17,28,13,24,13
+Commons Math,org.apache.commons.math,FunctionEvaluationException,38,111,0,0,8,25,4,9,4,9
+Commons Math,org.apache.commons.math,DuplicateSampleAbscissaException,0,28,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math,MathRuntimeException.new ParseException() {...},14,11,0,0,2,1,2,1,2,1
+Commons Math,org.apache.commons.math,MathRuntimeException.new RuntimeException() {...},24,0,0,0,3,0,3,0,3,0
+Commons Math,org.apache.commons.math,MaxIterationsExceededException,9,25,0,0,2,7,1,3,1,3
+Commons Math,org.apache.commons.math,MathException,36,115,2,6,7,30,6,13,4,11
+Commons Math,org.apache.commons.math,DimensionMismatchException,0,28,0,0,0,6,0,3,0,3
+Commons Math,org.apache.commons.math,ConvergingAlgorithmImpl,0,88,0,2,0,31,0,15,0,14
+Commons Math,org.apache.commons.math,ConvergenceException,17,21,0,0,4,8,2,4,2,4
+Commons Math,org.apache.commons.math.analysis.integration,SimpsonIntegrator,43,114,3,9,7,26,5,6,2,3
+Commons Math,org.apache.commons.math.analysis.integration,LegendreGaussIntegrator,33,456,3,12,4,69,4,10,1,4
+Commons Math,org.apache.commons.math.analysis.integration,UnivariateRealIntegratorImpl,49,87,5,5,15,24,7,8,4,6
+Commons Math,org.apache.commons.math.analysis.integration,TrapezoidIntegrator,18,169,2,12,4,33,4,9,2,4
+Commons Math,org.apache.commons.math.analysis.integration,RombergIntegrator,18,163,2,10,4,33,4,7,2,3
+Commons Math,org.apache.commons.math.optimization.fitting,HarmonicFitter,24,93,1,3,4,21,1,5,0,4
+Commons Math,org.apache.commons.math.optimization.fitting,WeightedObservedPoint,0,21,0,0,0,8,0,4,0,4
+Commons Math,org.apache.commons.math.optimization.fitting,PolynomialFitter.ParametricPolynomial,0,48,0,4,0,11,0,5,0,3
+Commons Math,org.apache.commons.math.optimization.fitting,CurveFitter.TheoreticalValuesFunction,0,47,0,2,0,10,0,4,0,3
+Commons Math,org.apache.commons.math.optimization.fitting,PolynomialFitter,6,39,0,0,2,9,0,4,0,4
+Commons Math,org.apache.commons.math.optimization.fitting,HarmonicFunction,15,33,0,0,1,9,1,5,1,5
+Commons Math,org.apache.commons.math.optimization.fitting,GaussianFunction,74,47,5,3,14,13,7,5,3,5
+Commons Math,org.apache.commons.math.optimization.fitting,GaussianParametersGuesser.new Comparator() {...},44,26,15,5,13,7,10,2,0,2
+Commons Math,org.apache.commons.math.optimization.fitting,CurveFitter,6,91,0,2,2,22,1,7,1,6
+Commons Math,org.apache.commons.math.optimization.fitting,ParametricGaussianFunction,0,135,0,6,0,25,0,7,0,4
+Commons Math,org.apache.commons.math.optimization.fitting,GaussianDerivativeFunction,97,0,8,0,20,0,7,0,3,0
+Commons Math,org.apache.commons.math.optimization.fitting,CurveFitter.TheoreticalValuesFunction.new MultivariateMatrixFunction() {...},0,42,0,2,0,7,0,3,0,2
+Commons Math,org.apache.commons.math.optimization.fitting,GaussianParametersGuesser,23,363,11,31,5,57,10,20,0,9
+Commons Math,org.apache.commons.math.optimization.fitting,HarmonicFitter.ParametricHarmonicFunction,0,71,0,0,0,12,0,3,0,3
+Commons Math,org.apache.commons.math.optimization.fitting,GaussianFitter,0,43,0,0,0,10,0,5,0,5
+Commons Math,org.apache.commons.math.optimization.fitting,HarmonicCoefficientsGuesser,7,370,2,16,1,77,2,15,0,8
+Commons Math,org.apache.commons.math.stat,Frequency.NaturalComparator,0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.stat,StatUtils,19,349,1,15,4,66,2,34,1,27
+Commons Math,org.apache.commons.math.stat,Frequency,53,442,10,36,16,115,12,46,4,31
+Commons Math,org.apache.commons.math.optimization.linear,SimplexSolver,0,275,0,38,0,61,0,26,0,7
+Commons Math,org.apache.commons.math.optimization.linear,Relationship.new Object() {...},2,17,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.optimization.linear,UnboundedSolutionException,0,6,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.optimization.linear,LinearObjectiveFunction,22,69,4,4,4,19,6,8,2,8
+Commons Math,org.apache.commons.math.optimization.linear,AbstractLinearOptimizer,15,39,1,1,3,13,3,4,2,4
+Commons Math,org.apache.commons.math.optimization.linear,Relationship,10,58,1,2,2,10,3,5,2,4
+Commons Math,org.apache.commons.math.optimization.linear,SimplexTableau,46,945,10,106,10,166,13,76,3,28
+Commons Math,org.apache.commons.math.optimization.linear,NoFeasibleSolutionException,0,6,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.optimization.linear,LinearConstraint,74,73,7,5,18,21,9,8,3,8
+Commons Math,org.apache.commons.math.exception.util,DummyLocalizable,6,9,0,0,2,4,2,2,2,2
+Commons Math,org.apache.commons.math.exception.util,ArgUtils,3,56,0,8,2,8,1,5,1,1
+Commons Math,org.apache.commons.math.exception.util,LocalizedFormats,10,2895,1,1,1,271,3,4,2,4
+Commons Math,org.apache.commons.math.exception.util,MessageFactory,9,45,0,6,2,10,2,4,2,1
+Commons Math,org.apache.commons.math.special,Erf,3,61,0,12,2,10,1,8,1,2
+Commons Math,org.apache.commons.math.special,Beta,17,133,1,23,4,16,4,15,3,4
+Commons Math,org.apache.commons.math.special,Gamma.new ContinuedFraction() {...},0,27,0,0,0,3,0,3,0,3
+Commons Math,org.apache.commons.math.special,Beta.new ContinuedFraction() {...},0,87,0,2,0,8,0,4,0,3
+Commons Math,org.apache.commons.math.special,Gamma,17,420,6,46,5,53,7,28,1,8
+Commons Math,org.apache.commons.math.stat.inference,TestUtils,45,159,0,0,17,33,12,30,12,30
+Commons Math,org.apache.commons.math.stat.inference,OneWayAnovaImpl.AnovaStats,0,12,0,0,0,5,0,1,0,1
+Commons Math,org.apache.commons.math.stat.inference,ChiSquareTestImpl,63,802,8,74,8,135,8,50,0,17
+Commons Math,org.apache.commons.math.stat.inference,TTestImpl,23,606,1,27,5,99,2,45,1,32
+Commons Math,org.apache.commons.math.stat.inference,OneWayAnovaImpl,20,216,2,14,2,46,2,11,0,5
+Commons Math,org.apache.commons.math.estimation,GaussNewtonEstimator,17,225,1,17,8,39,4,10,3,2
+Commons Math,org.apache.commons.math.estimation,AbstractEstimator,0,413,0,22,0,80,0,23,0,12
+Commons Math,org.apache.commons.math.estimation,EstimationException,0,13,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.estimation,EstimatedParameter,0,56,0,0,0,22,0,8,0,8
+Commons Math,org.apache.commons.math.estimation,LevenbergMarquardtEstimator,53,2050,18,178,8,343,15,93,0,10
+Commons Math,org.apache.commons.math.estimation,WeightedMeasurement,0,43,0,0,0,16,0,7,0,7
+Commons Math,org.apache.commons.math.estimation,SimpleEstimationProblem,0,76,0,4,0,16,0,8,0,6
+Commons Math,org.apache.commons.math.genetics,OnePointCrossover,10,97,3,7,2,19,3,5,0,3
+Commons Math,org.apache.commons.math.genetics,Chromosome,2,56,1,7,1,15,2,8,1,5
+Commons Math,org.apache.commons.math.genetics,InvalidRepresentationException,12,4,0,0,6,2,3,1,3,1
+Commons Math,org.apache.commons.math.genetics,RandomKeyMutation,11,33,1,1,2,8,1,2,0,2
+Commons Math,org.apache.commons.math.genetics,TournamentSelection.new ListPopulation() {...},2,7,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.genetics,ListPopulation,37,75,3,7,9,23,6,10,3,8
+Commons Math,org.apache.commons.math.genetics,BinaryMutation,5,41,1,3,1,8,1,3,0,2
+Commons Math,org.apache.commons.math.genetics,GeneticAlgorithm,13,149,6,12,4,39,7,14,1,11
+Commons Math,org.apache.commons.math.genetics,RandomKey,57,284,3,29,4,62,4,24,1,11
+Commons Math,org.apache.commons.math.genetics,ElitisticListPopulation,17,64,4,2,4,15,3,5,1,4
+Commons Math,org.apache.commons.math.genetics,ChromosomePair,15,15,0,0,1,6,1,3,1,3
+Commons Math,org.apache.commons.math.genetics,TournamentSelection,12,62,1,3,4,14,3,4,2,3
+Commons Math,org.apache.commons.math.genetics,AbstractListChromosome,16,42,0,0,1,11,1,4,1,4
+Commons Math,org.apache.commons.math.genetics,BinaryChromosome,2,89,1,15,1,21,1,12,0,5
+Commons Math,org.apache.commons.math.genetics,FixedGenerationCount,8,26,1,3,2,9,2,3,1,2
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians.StepInterpolatorWrapper,252,226,10,8,60,47,18,13,13,9
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians.StepHandlerWrapper,3,33,0,0,1,10,1,4,1,4
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians.EventHandlerWrapper,22,59,0,0,4,10,2,3,2,3
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians,81,291,11,11,18,58,11,16,4,12
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians.MappingWrapper,10,232,1,13,1,41,1,10,0,4
+Commons Math,org.apache.commons.math.ode.jacobians,FirstOrderIntegratorWithJacobians.FiniteDifferencesWrapper,10,188,1,9,1,29,1,9,0,5
+Commons Math,org.apache.commons.math.optimization.general,NonLinearConjugateGradientOptimizer,30,344,6,34,8,66,6,20,1,5
+Commons Math,org.apache.commons.math.optimization.general,ConjugateGradientFormula,9,29,0,0,0,3,2,2,2,2
+Commons Math,org.apache.commons.math.optimization.general,NonLinearConjugateGradientOptimizer.IdentityPreconditioner,0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.optimization.general,GaussNewtonOptimizer,0,190,0,16,0,38,0,10,0,2
+Commons Math,org.apache.commons.math.optimization.general,NonLinearConjugateGradientOptimizer.LineSearchFunction,0,63,0,4,0,11,0,4,0,2
+Commons Math,org.apache.commons.math.optimization.general,AbstractScalarDifferentiableOptimizer,25,102,2,2,4,29,4,12,2,12
+Commons Math,org.apache.commons.math.optimization.general,LevenbergMarquardtOptimizer,53,2051,18,186,8,347,15,98,0,11
+Commons Math,org.apache.commons.math.optimization.general,AbstractLeastSquaresOptimizer,42,480,2,24,6,86,5,26,3,15
+Commons Math,org.apache.commons.math.stat.regression,AbstractMultipleLinearRegression,67,407,6,46,9,77,7,37,1,17
+Commons Math,org.apache.commons.math.stat.regression,GLSMultipleLinearRegression,21,95,0,2,3,21,1,7,1,6
+Commons Math,org.apache.commons.math.stat.regression,SimpleRegression,55,583,4,28,8,96,6,38,3,25
+Commons Math,org.apache.commons.math.stat.regression,OLSMultipleLinearRegression,0,212,0,12,0,39,0,17,0,11
+Commons Math,org.apache.commons.math.ode.sampling,StepNormalizer,7,150,3,11,1,31,3,8,0,4
+Commons Math,org.apache.commons.math.ode.sampling,AbstractStepInterpolator,16,482,7,19,2,137,7,28,0,22
+Commons Math,org.apache.commons.math.ode.sampling,DummyStepHandler.LazyHolder,3,6,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.ode.sampling,DummyStepHandler,2,9,0,0,1,6,1,5,1,5
+Commons Math,org.apache.commons.math.ode.sampling,NordsieckStepInterpolator,27,385,11,27,7,80,12,17,1,9
+Commons Math,org.apache.commons.math.ode.sampling,DummyStepInterpolator,4,104,2,6,1,25,2,9,0,7
+Commons Math,org.apache.commons.math.exception,NonMonotonousSequenceException,0,68,0,6,0,13,0,9,0,6
+Commons Math,org.apache.commons.math.exception,MathIllegalArgumentException,28,19,0,0,6,7,6,2,6,2
+Commons Math,org.apache.commons.math.exception,MathInternalError,20,0,0,0,4,0,2,0,2,0
+Commons Math,org.apache.commons.math.exception,MathUnsupportedOperationException,41,0,0,0,12,0,8,0,8,0
+Commons Math,org.apache.commons.math.exception,MathIllegalNumberException,0,38,0,0,0,7,0,3,0,3
+Commons Math,org.apache.commons.math.exception,DimensionMismatchException,0,19,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.exception,NumberIsTooLargeException,0,35,0,2,0,8,0,5,0,4
+Commons Math,org.apache.commons.math.exception,ZeroException,0,13,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.exception,MathIllegalStateException,42,21,0,0,10,7,8,2,8,2
+Commons Math,org.apache.commons.math.exception,ConvergenceException,24,0,0,0,6,0,3,0,3,0
+Commons Math,org.apache.commons.math.exception,NotPositiveException,0,15,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.exception,NotStrictlyPositiveException,0,15,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.exception,NullArgumentException,6,7,0,0,2,2,1,1,1,1
+Commons Math,org.apache.commons.math.exception,OutOfRangeException,0,27,0,0,0,6,0,3,0,3
+Commons Math,org.apache.commons.math.exception,NumberIsTooSmallException,0,35,0,2,0,8,0,5,0,4
+Commons Math,org.apache.commons.math.exception,NoDataException,0,11,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialFunctionNewtonForm,37,219,3,13,7,37,5,12,2,7
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialSplineFunction,0,237,0,20,0,39,0,18,0,8
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialFunctionLagrangeForm,75,482,8,32,10,79,7,22,2,7
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialFunction,81,442,12,44,16,77,12,31,2,13
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialsUtils.new PolynomialsUtils.RecurrenceCoefficientsGenerator() {...},0,23,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialsUtils.new PolynomialsUtils.RecurrenceCoefficientsGenerator() {...},0,22,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialsUtils.new PolynomialsUtils.RecurrenceCoefficientsGenerator() {...},0,32,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialsUtils.new PolynomialsUtils.RecurrenceCoefficientsGenerator() {...},0,38,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.polynomials,PolynomialsUtils,8,278,0,8,2,49,1,11,1,7
+Commons Math,org.apache.commons.math.geometry,CardanEulerSingularityException,0,10,0,2,0,2,0,2,0,1
+Commons Math,org.apache.commons.math.geometry,Rotation,0,3217,6,116,0,397,6,77,0,22
+Commons Math,org.apache.commons.math.geometry,NotARotationMatrixException,5,5,0,0,2,2,1,1,1,1
+Commons Math,org.apache.commons.math.geometry,Vector3D,69,885,18,30,8,108,17,43,4,32
+Commons Math,org.apache.commons.math.geometry,Vector3DFormat,61,240,6,12,19,54,11,15,6,11
+Commons Math,org.apache.commons.math.geometry,RotationOrder,0,124,0,0,0,22,0,6,0,6
+Commons Math,org.apache.commons.math.util,OpenIntToDoubleHashMap.Iterator,20,99,4,12,4,24,4,9,0,5
+Commons Math,org.apache.commons.math.util,MultidimensionalCounter,30,259,2,24,4,53,2,20,1,8
+Commons Math,org.apache.commons.math.util,TransformerMap,36,134,8,12,10,31,8,14,1,11
+Commons Math,org.apache.commons.math.util,MultidimensionalCounter.Iterator,16,95,1,7,3,16,4,7,3,4
+Commons Math,org.apache.commons.math.util,OpenIntToFieldHashMap,12,697,0,68,5,155,2,57,2,23
+Commons Math,org.apache.commons.math.util,OpenIntToFieldHashMap.Iterator,21,98,4,12,5,23,4,9,0,5
+Commons Math,org.apache.commons.math.util,MathUtils.OrderDirection,5,33,0,0,0,3,1,3,1,3
+Commons Math,org.apache.commons.math.util,ResizableDoubleArray,58,1088,8,76,6,216,9,73,1,39
+Commons Math,org.apache.commons.math.util,DefaultTransformer,4,48,1,7,2,13,2,6,1,3
+Commons Math,org.apache.commons.math.util,OpenIntToDoubleHashMap,0,682,0,68,0,157,0,58,0,24
+Commons Math,org.apache.commons.math.util,CompositeFormat,0,219,1,27,0,57,1,22,0,9
+Commons Math,org.apache.commons.math.util,BigReal,56,311,0,4,11,64,9,25,9,23
+Commons Math,org.apache.commons.math.util,MathUtils.new Object() {...},2,17,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.util,FastMath,304,9387,135,719,40,1685,111,401,1,81
+Commons Math,org.apache.commons.math.util,BigRealField.LazyHolder,3,6,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.util,MathUtils,287,2647,70,454,53,503,50,296,6,74
+Commons Math,org.apache.commons.math.util,ContinuedFraction,82,178,11,19,12,46,13,7,2,3
+Commons Math,org.apache.commons.math.util,BigRealField,0,11,0,0,0,6,0,5,0,5
+Commons Math,org.apache.commons.math.distribution,TDistributionImpl,4,177,1,17,2,45,3,22,2,14
+Commons Math,org.apache.commons.math.distribution,ExponentialDistributionImpl,30,140,4,12,10,33,8,18,6,12
+Commons Math,org.apache.commons.math.distribution,SaddlePointExpansion,19,368,1,15,3,41,2,11,1,4
+Commons Math,org.apache.commons.math.distribution,ChiSquaredDistributionImpl,26,120,0,8,9,34,4,20,4,16
+Commons Math,org.apache.commons.math.distribution,ZipfDistributionImpl,38,158,2,12,10,37,6,17,4,12
+Commons Math,org.apache.commons.math.distribution,NormalDistributionImpl,4,217,0,18,2,56,2,29,2,20
+Commons Math,org.apache.commons.math.distribution,GammaDistributionImpl,4,194,0,16,2,48,2,26,2,18
+Commons Math,org.apache.commons.math.distribution,WeibullDistributionImpl,27,266,3,17,8,65,9,23,6,16
+Commons Math,org.apache.commons.math.distribution,PoissonDistributionImpl,58,140,1,11,17,36,7,17,6,12
+Commons Math,org.apache.commons.math.distribution,BetaDistributionImpl,50,186,8,14,12,47,9,22,3,17
+Commons Math,org.apache.commons.math.distribution,PascalDistributionImpl,34,151,3,11,6,41,5,18,2,14
+Commons Math,org.apache.commons.math.distribution,AbstractContinuousDistribution,49,106,5,7,9,25,5,8,2,5
+Commons Math,org.apache.commons.math.distribution,AbstractIntegerDistribution,57,196,6,22,11,46,8,18,3,9
+Commons Math,org.apache.commons.math.distribution,AbstractDistribution,0,30,0,2,0,6,0,3,0,2
+Commons Math,org.apache.commons.math.distribution,FDistributionImpl,4,250,0,16,2,60,2,25,2,17
+Commons Math,org.apache.commons.math.distribution,BinomialDistributionImpl,35,134,3,15,6,36,5,20,2,14
+Commons Math,org.apache.commons.math.distribution,CauchyDistributionImpl,63,154,8,10,19,36,11,18,7,13
+Commons Math,org.apache.commons.math.distribution,AbstractContinuousDistribution.new UnivariateRealFunction() {...},39,25,1,1,3,6,1,2,0,2
+Commons Math,org.apache.commons.math.distribution,HypergeometricDistributionImpl,73,353,6,18,15,69,8,28,2,22
+Commons Math,org.apache.commons.math.dfp,DfpField.RoundingMode,5,93,0,0,0,9,1,3,1,3
+Commons Math,org.apache.commons.math.dfp,Dfp.new Object() {...},8,53,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.dfp,DfpMath,183,1693,40,154,36,342,30,88,2,19
+Commons Math,org.apache.commons.math.dfp,DfpDec.new Object() {...},8,53,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.dfp,DfpField,60,732,10,36,13,153,22,40,12,27
+Commons Math,org.apache.commons.math.dfp,DfpDec,125,563,12,100,25,109,22,56,10,9
+Commons Math,org.apache.commons.math.dfp,Dfp,401,4523,90,604,97,897,90,326,5,57
+Commons Math,org.apache.commons.math.transform,FastSineTransformer,68,202,2,6,13,32,5,9,3,7
+Commons Math,org.apache.commons.math.transform,FastHadamardTransformer,33,203,1,15,6,38,3,13,2,6
+Commons Math,org.apache.commons.math.transform,FastFourierTransformer.RootsOfUnity,66,177,8,16,8,35,8,9,0,5
+Commons Math,org.apache.commons.math.transform,FastFourierTransformer,105,865,3,61,18,136,8,48,5,19
+Commons Math,org.apache.commons.math.transform,FastCosineTransformer,72,256,1,7,10,36,4,10,3,7
+Commons Math,org.apache.commons.math.transform,FastFourierTransformer.MultiDimensionalComplexMatrix,82,263,8,22,12,53,6,16,0,7
+Commons Math,org.apache.commons.math.ode.nonstiff,HighamHall54StepInterpolator,0,267,0,2,0,25,0,5,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,ClassicalRungeKuttaIntegrator,0,88,0,0,0,5,0,2,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,DormandPrince853StepInterpolator,21,1421,4,38,4,112,4,27,0,10
+Commons Math,org.apache.commons.math.ode.nonstiff,DormandPrince54StepInterpolator,0,367,0,10,0,58,0,11,0,6
+Commons Math,org.apache.commons.math.ode.nonstiff,AdaptiveStepsizeIntegrator,17,419,7,41,3,83,6,28,0,10
+Commons Math,org.apache.commons.math.ode.nonstiff,ThreeEighthesStepInterpolator,0,171,0,2,0,23,0,5,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,EulerStepInterpolator,0,51,0,2,0,9,0,5,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,RungeKuttaIntegrator,0,373,1,33,0,62,1,18,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsIntegrator,0,46,0,0,0,10,0,5,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,GraggBulirschStoerStepInterpolator,59,840,15,43,9,127,14,25,0,10
+Commons Math,org.apache.commons.math.ode.nonstiff,MidpointIntegrator,0,42,0,0,0,5,0,2,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,MidpointStepInterpolator,0,81,0,2,0,15,0,5,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,GillStepInterpolator,0,180,0,2,0,30,0,6,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,DormandPrince54Integrator,0,318,0,4,0,16,0,7,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,ClassicalRungeKuttaStepInterpolator,0,150,0,2,0,22,0,5,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,DormandPrince853Integrator,0,895,0,6,0,43,0,8,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,EmbeddedRungeKuttaIntegrator,0,615,0,54,0,112,0,36,0,9
+Commons Math,org.apache.commons.math.ode.nonstiff,GraggBulirschStoerIntegrator,25,2050,22,226,7,317,22,116,0,13
+Commons Math,org.apache.commons.math.ode.nonstiff,GillIntegrator,0,117,0,0,0,8,0,2,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsMoultonIntegrator.Corrector,13,132,2,6,0,21,2,6,0,4
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsNordsieckTransformer,9,276,0,18,2,52,1,16,1,7
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsNordsieckTransformer.new DefaultFieldMatrixChangingVisitor() {...},0,17,0,2,0,2,0,3,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,RungeKuttaStepInterpolator,14,177,6,18,1,39,6,11,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,HighamHall54Integrator,0,331,0,6,0,19,0,8,0,5
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsBashforthIntegrator,27,372,3,33,2,73,3,18,0,3
+Commons Math,org.apache.commons.math.ode.nonstiff,AdamsMoultonIntegrator,16,381,2,32,2,76,2,18,0,3
+Commons Math,org.apache.commons.math.ode.nonstiff,EulerIntegrator,0,25,0,0,0,5,0,2,0,2
+Commons Math,org.apache.commons.math.ode.nonstiff,ThreeEighthesIntegrator,0,88,0,0,0,5,0,2,0,2
+Commons Math,org.apache.commons.math.ode,DerivativeException,8,9,0,0,2,4,1,2,1,2
+Commons Math,org.apache.commons.math.ode,ContinuousOutputModel,4,526,3,45,1,107,3,32,0,11
+Commons Math,org.apache.commons.math.ode,MultistepIntegrator.InitializationCompletedMarkerException,0,5,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.ode,MultistepIntegrator.CountingDifferentialEquations,0,23,0,0,0,7,0,4,0,4
+Commons Math,org.apache.commons.math.ode,AbstractIntegrator,59,491,7,49,15,115,8,42,3,19
+Commons Math,org.apache.commons.math.ode,IntegratorException,5,9,0,0,2,4,1,2,1,2
+Commons Math,org.apache.commons.math.ode,MultistepIntegrator,44,129,2,2,10,31,7,7,5,7
+Commons Math,org.apache.commons.math.ode,FirstOrderConverter,0,75,0,0,0,14,0,3,0,3
+Commons Math,org.apache.commons.math.ode,AbstractIntegrator.EndTimeChecker,14,0,0,0,6,0,4,0,4,0
+Commons Math,org.apache.commons.math.ode,MultistepIntegrator.NordsieckInitializer,0,130,0,6,0,22,0,7,0,4
+Commons Math,org.apache.commons.math.ode,AbstractIntegrator.new Comparator() {...},0,18,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.optimization.direct,DirectSearchOptimizer,78,453,8,44,11,93,10,33,2,15
+Commons Math,org.apache.commons.math.optimization.direct,PowellOptimizer.LineSearch,6,87,0,0,2,22,0,4,0,4
+Commons Math,org.apache.commons.math.optimization.direct,MultiDirectional,0,181,0,14,0,41,0,11,0,4
+Commons Math,org.apache.commons.math.optimization.direct,PowellOptimizer.LineSearch.new UnivariateRealFunction() {...},0,49,0,2,0,6,0,3,0,2
+Commons Math,org.apache.commons.math.optimization.direct,DirectSearchOptimizer.new Comparator() {...},0,27,0,2,0,5,0,3,0,2
+Commons Math,org.apache.commons.math.optimization.direct,PowellOptimizer,9,331,3,19,2,70,4,13,1,5
+Commons Math,org.apache.commons.math.optimization.direct,NelderMead,1,372,1,31,1,65,1,18,0,3
+Commons Math,org.apache.commons.math.random,Well512a,23,109,0,0,6,15,3,2,3,2
+Commons Math,org.apache.commons.math.random,GaussianRandomGenerator,0,10,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.random,UniformRandomGenerator,0,20,0,0,0,5,0,3,0,3
+Commons Math,org.apache.commons.math.random,RandomAdaptor,22,53,4,2,7,16,5,12,3,11
+Commons Math,org.apache.commons.math.random,AbstractWell,40,195,1,7,8,30,4,7,3,4
+Commons Math,org.apache.commons.math.random,BitsStreamGenerator,0,233,0,12,0,50,0,15,0,9
+Commons Math,org.apache.commons.math.random,Well1024a,7,130,0,0,2,20,1,4,1,4
+Commons Math,org.apache.commons.math.random,EmpiricalDistributionImpl,62,402,3,17,17,80,4,20,1,13
+Commons Math,org.apache.commons.math.random,UnitSphereRandomVectorGenerator,0,74,0,6,0,17,0,6,0,3
+Commons Math,org.apache.commons.math.random,EmpiricalDistributionImpl.StreamDataAdapter,0,79,0,4,0,23,0,5,0,3
+Commons Math,org.apache.commons.math.random,UncorrelatedRandomVectorGenerator,8,70,1,3,1,16,1,4,0,3
+Commons Math,org.apache.commons.math.random,EmpiricalDistributionImpl.DataAdapterFactory,21,33,1,3,3,7,1,3,0,2
+Commons Math,org.apache.commons.math.random,AbstractRandomGenerator,40,156,5,17,9,38,6,16,2,9
+Commons Math,org.apache.commons.math.random,Well19937c,23,157,0,0,6,20,3,2,3,2
+Commons Math,org.apache.commons.math.random,Well19937a,23,141,0,0,6,18,3,2,3,2
+Commons Math,org.apache.commons.math.random,RandomDataImpl,42,1074,7,89,13,218,8,76,1,35
+Commons Math,org.apache.commons.math.random,Well44497b,23,169,0,2,6,22,3,3,3,2
+Commons Math,org.apache.commons.math.random,Well44497a,23,153,0,2,6,20,3,3,3,2
+Commons Math,org.apache.commons.math.random,CorrelatedRandomVectorGenerator,52,394,5,33,13,64,6,20,2,5
+Commons Math,org.apache.commons.math.random,EmpiricalDistributionImpl.ArrayDataAdapter,0,65,0,4,0,13,0,5,0,3
+Commons Math,org.apache.commons.math.random,MersenneTwister,4,478,1,27,2,72,1,22,0,9
+Commons Math,org.apache.commons.math.random,EmpiricalDistributionImpl.DataAdapter,0,6,0,0,0,1,0,1,0,1
+Commons Math,org.apache.commons.math.random,ValueServer,32,318,2,23,7,74,3,36,1,23
+Commons Math,org.apache.commons.math.random,JDKRandomGenerator,31,8,2,0,6,3,2,2,1,2
+Commons Math,org.apache.commons.math.fraction,FractionField.LazyHolder,3,6,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.fraction,AbstractFormat,17,102,3,9,5,33,5,14,2,11
+Commons Math,org.apache.commons.math.fraction,BigFractionField,0,11,0,0,0,6,0,5,0,5
+Commons Math,org.apache.commons.math.fraction,FractionConversionException,0,37,0,0,0,4,0,2,0,2
+Commons Math,org.apache.commons.math.fraction,Fraction,24,864,7,87,5,177,7,71,0,31
+Commons Math,org.apache.commons.math.fraction,ProperBigFractionFormat,27,199,4,23,9,58,5,16,1,6
+Commons Math,org.apache.commons.math.fraction,FractionField,0,11,0,0,0,6,0,5,0,5
+Commons Math,org.apache.commons.math.fraction,BigFractionField.LazyHolder,3,6,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.fraction,ProperFractionFormat,29,190,4,15,9,54,5,12,1,6
+Commons Math,org.apache.commons.math.fraction,BigFraction,102,1002,11,85,18,210,14,89,6,49
+Commons Math,org.apache.commons.math.fraction,BigFractionFormat,31,212,2,19,8,55,7,18,5,9
+Commons Math,org.apache.commons.math.fraction,FractionFormat,34,175,1,12,11,45,7,14,6,8
+Commons Math,org.apache.commons.math.optimization.univariate,BrentOptimizer,12,385,2,54,2,95,2,30,0,4
+Commons Math,org.apache.commons.math.optimization.univariate,AbstractUnivariateRealOptimizer,79,118,6,4,21,31,10,15,6,14
+Commons Math,org.apache.commons.math.optimization.univariate,BracketFinder,77,310,17,29,16,71,18,18,5,8
+Commons Math,org.apache.commons.math.stat.descriptive.summary,Product,6,133,1,9,3,34,2,14,1,10
+Commons Math,org.apache.commons.math.stat.descriptive.summary,SumOfSquares,6,101,0,6,3,27,1,11,1,8
+Commons Math,org.apache.commons.math.stat.descriptive.summary,SumOfLogs,6,92,0,6,3,27,1,11,1,8
+Commons Math,org.apache.commons.math.stat.descriptive.summary,Sum,14,125,1,9,4,33,3,13,2,9
+Commons Math,org.apache.commons.math.complex,ComplexField.LazyHolder,3,6,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.complex,ComplexFormat,57,280,5,25,18,72,8,29,4,17
+Commons Math,org.apache.commons.math.complex,ComplexUtils,3,26,0,2,2,4,1,2,1,1
+Commons Math,org.apache.commons.math.complex,ComplexField,0,11,0,0,0,6,0,5,0,5
+Commons Math,org.apache.commons.math.complex,Complex,16,859,7,109,4,161,8,85,1,34
+Commons Math,org.apache.commons.math.stat.descriptive.rank,Median,4,4,0,0,2,2,1,1,1,1
+Commons Math,org.apache.commons.math.stat.descriptive.rank,Percentile,68,478,9,59,17,108,11,40,3,14
+Commons Math,org.apache.commons.math.stat.descriptive.rank,Min,6,103,0,12,3,27,1,14,1,8
+Commons Math,org.apache.commons.math.stat.descriptive.rank,Max,6,103,0,12,3,27,1,14,1,8
+Commons Math,org.apache.commons.math.linear,NonSquareMatrixException,0,16,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.linear,AbstractRealVector.new Iterator() {...},6,41,0,2,1,6,1,4,1,3
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix,421,1692,44,150,72,308,37,116,11,45
+Commons Math,org.apache.commons.math.linear,Array2DRowRealMatrix,176,1012,8,86,28,188,9,72,2,32
+Commons Math,org.apache.commons.math.linear,MatrixUtils.FractionMatrixConverter,0,26,0,0,0,7,0,4,0,4
+Commons Math,org.apache.commons.math.linear,OpenMapRealVector.OpenMapEntry,0,27,0,0,0,7,0,4,0,4
+Commons Math,org.apache.commons.math.linear,FieldLUDecompositionImpl,51,432,7,47,7,74,5,29,1,6
+Commons Math,org.apache.commons.math.linear,LUDecompositionImpl,0,442,0,54,0,85,0,35,0,8
+Commons Math,org.apache.commons.math.linear,MatrixUtils,114,930,8,74,27,170,10,70,3,36
+Commons Math,org.apache.commons.math.linear,BlockFieldMatrix,603,3880,34,230,105,640,22,162,2,50
+Commons Math,org.apache.commons.math.linear,SingularMatrixException,0,6,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.linear,SingularValueDecompositionImpl,25,473,3,35,4,71,4,27,1,11
+Commons Math,org.apache.commons.math.linear,SparseFieldMatrix,142,114,8,2,29,24,8,10,4,9
+Commons Math,org.apache.commons.math.linear,ArrayRealVector,32,2147,3,175,6,402,3,190,0,104
+Commons Math,org.apache.commons.math.linear,ArrayFieldVector,216,1354,8,74,43,243,11,100,4,66
+Commons Math,org.apache.commons.math.linear,CholeskyDecompositionImpl.Solver,9,448,0,38,2,68,2,24,2,5
+Commons Math,org.apache.commons.math.linear,OpenMapRealMatrix,82,357,4,18,20,79,4,24,2,15
+Commons Math,org.apache.commons.math.linear,OpenMapRealVector,262,1236,37,115,57,305,41,97,9,53
+Commons Math,org.apache.commons.math.linear,CholeskyDecompositionImpl,0,221,0,22,0,45,0,17,0,6
+Commons Math,org.apache.commons.math.linear,MatrixUtils.BigFractionMatrixConverter,0,26,0,0,0,7,0,4,0,4
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix.new RealMatrixPreservingVisitor() {...},0,23,0,0,0,6,0,4,0,4
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix.new RealMatrixPreservingVisitor() {...},0,44,0,2,0,11,0,5,0,4
+Commons Math,org.apache.commons.math.linear,SingularValueDecompositionImpl.Solver,6,75,0,6,2,15,2,7,2,4
+Commons Math,org.apache.commons.math.linear,QRDecompositionImpl.Solver,7,541,0,44,1,88,1,28,1,6
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix.new DefaultRealMatrixPreservingVisitor() {...},0,16,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix.new DefaultRealMatrixPreservingVisitor() {...},0,30,0,0,0,6,0,3,0,3
+Commons Math,org.apache.commons.math.linear,AbstractRealMatrix.new DefaultRealMatrixChangingVisitor() {...},0,24,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.linear,DefaultRealMatrixChangingVisitor,2,6,0,0,1,3,1,3,1,3
+Commons Math,org.apache.commons.math.linear,EigenDecompositionImpl,72,864,11,77,13,146,12,47,3,12
+Commons Math,org.apache.commons.math.linear,DefaultFieldMatrixPreservingVisitor,1,10,0,0,1,5,1,3,1,3
+Commons Math,org.apache.commons.math.linear,MatrixIndexException,8,5,0,0,2,2,1,1,1,1
+Commons Math,org.apache.commons.math.linear,AbstractFieldMatrix,367,2095,36,186,57,367,29,143,4,57
+Commons Math,org.apache.commons.math.linear,BiDiagonalTransformer,13,972,7,103,3,152,10,55,3,7
+Commons Math,org.apache.commons.math.linear,AbstractFieldMatrix.new DefaultFieldMatrixPreservingVisitor() {...},0,31,0,0,0,6,0,3,0,3
+Commons Math,org.apache.commons.math.linear,AbstractFieldMatrix.new DefaultFieldMatrixChangingVisitor() {...},0,25,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.linear,AbstractFieldMatrix.new DefaultFieldMatrixPreservingVisitor() {...},0,17,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.linear,AbstractRealVector,608,606,55,47,145,141,55,91,22,73
+Commons Math,org.apache.commons.math.linear,RealMatrixImpl,223,965,11,83,38,178,14,67,4,30
+Commons Math,org.apache.commons.math.linear,RealVector.Entry,0,10,0,0,0,4,0,3,0,3
+Commons Math,org.apache.commons.math.linear,SingularValueDecompositionImpl.new DefaultRealMatrixPreservingVisitor() {...},0,23,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.linear,NotPositiveDefiniteMatrixException,0,6,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.linear,DefaultFieldMatrixChangingVisitor,2,10,0,0,1,5,1,3,1,3
+Commons Math,org.apache.commons.math.linear,MatrixVisitorException,13,0,0,0,4,0,2,0,2,0
+Commons Math,org.apache.commons.math.linear,BlockRealMatrix,299,4200,14,264,48,698,11,182,1,53
+Commons Math,org.apache.commons.math.linear,EigenDecompositionImpl.Solver,12,377,4,38,3,68,4,23,0,6
+Commons Math,org.apache.commons.math.linear,BigMatrixImpl,454,2348,36,212,89,428,34,151,10,51
+Commons Math,org.apache.commons.math.linear,TriDiagonalTransformer,3,559,0,46,1,85,1,30,1,7
+Commons Math,org.apache.commons.math.linear,OpenMapRealVector.OpenMapSparseIterator,5,29,0,0,1,7,1,3,1,3
+Commons Math,org.apache.commons.math.linear,NotSymmetricMatrixException,0,6,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.linear,AbstractRealVector.SparseEntryIterator,11,84,2,12,3,19,3,9,1,4
+Commons Math,org.apache.commons.math.linear,FieldLUDecompositionImpl.Solver,213,372,18,36,28,57,13,21,2,5
+Commons Math,org.apache.commons.math.linear,AbstractRealVector.EntryImpl,0,22,0,0,0,6,0,3,0,3
+Commons Math,org.apache.commons.math.linear,InvalidMatrixException,4,13,0,0,2,4,1,2,1,2
+Commons Math,org.apache.commons.math.linear,LUDecompositionImpl.Solver,0,509,0,52,0,79,0,33,0,7
+Commons Math,org.apache.commons.math.linear,Array2DRowFieldMatrix,224,1015,10,84,37,179,14,67,5,29
+Commons Math,org.apache.commons.math.linear,DefaultRealMatrixPreservingVisitor,1,6,0,0,1,3,1,3,1,3
+Commons Math,org.apache.commons.math.linear,QRDecompositionImpl,0,411,0,42,0,67,0,27,0,6
+Commons Math,org.apache.commons.math.linear,RealVectorFormat,44,231,2,22,12,56,7,22,6,11
+Commons Math,org.apache.commons.math.linear,SparseFieldVector,616,600,54,46,132,139,58,46,25,29
+Commons Math,org.apache.commons.math.analysis.solvers,UnivariateRealSolverUtils.LazyHolder,3,3,0,0,1,1,1,1,1,1
+Commons Math,org.apache.commons.math.analysis.solvers,BrentSolver,42,513,6,50,9,106,9,30,3,8
+Commons Math,org.apache.commons.math.analysis.solvers,NewtonSolver,39,74,1,3,8,19,4,6,3,5
+Commons Math,org.apache.commons.math.analysis.solvers,UnivariateRealSolverUtils,55,156,4,18,5,30,5,13,1,6
+Commons Math,org.apache.commons.math.analysis.solvers,BisectionSolver,29,79,1,5,5,21,4,7,3,5
+Commons Math,org.apache.commons.math.analysis.solvers,UnivariateRealSolverFactoryImpl,0,22,0,0,0,7,0,6,0,6
+Commons Math,org.apache.commons.math.analysis.solvers,MullerSolver,123,509,18,44,23,86,18,23,4,6
+Commons Math,org.apache.commons.math.analysis.solvers,SecantSolver,64,174,2,18,9,46,6,12,4,4
+Commons Math,org.apache.commons.math.analysis.solvers,RiddersSolver,103,178,13,13,20,46,13,8,4,4
+Commons Math,org.apache.commons.math.analysis.solvers,UnivariateRealSolverImpl,58,180,4,18,13,42,8,21,4,14
+Commons Math,org.apache.commons.math.analysis.solvers,UnivariateRealSolverFactory,0,7,0,0,0,3,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.solvers,LaguerreSolver,125,527,16,38,24,105,17,23,5,8
+Commons Math,org.apache.commons.math.stat.descriptive,AggregateSummaryStatistics.AggregatingSummaryStatistics,41,22,8,0,8,8,6,2,2,2
+Commons Math,org.apache.commons.math.stat.descriptive,MultivariateSummaryStatistics,0,740,8,36,0,145,8,50,0,36
+Commons Math,org.apache.commons.math.stat.descriptive,DescriptiveStatistics,132,671,3,19,18,135,4,56,2,47
+Commons Math,org.apache.commons.math.stat.descriptive,SummaryStatistics,190,708,19,39,45,142,26,41,7,31
+Commons Math,org.apache.commons.math.stat.descriptive,StatisticalSummaryValues,0,225,5,11,0,45,5,14,0,11
+Commons Math,org.apache.commons.math.stat.descriptive,AbstractStorelessUnivariateStatistic,5,109,2,16,1,24,2,14,0,7
+Commons Math,org.apache.commons.math.stat.descriptive,SynchronizedDescriptiveStatistics,16,69,0,0,3,26,1,14,1,14
+Commons Math,org.apache.commons.math.stat.descriptive,AggregateSummaryStatistics,138,256,10,14,27,53,15,14,5,12
+Commons Math,org.apache.commons.math.stat.descriptive,AbstractUnivariateStatistic,62,150,7,25,10,32,9,16,3,6
+Commons Math,org.apache.commons.math.stat.descriptive,SynchronizedSummaryStatistics,84,65,0,0,29,26,15,20,15,20
+Commons Math,org.apache.commons.math.stat.descriptive,SynchronizedMultivariateSummaryStatistics,0,104,0,0,0,41,0,31,0,31
+Commons Math,org.apache.commons.math.stat.descriptive.moment,GeometricMean,20,87,1,3,6,27,3,12,2,11
+Commons Math,org.apache.commons.math.stat.descriptive.moment,ThirdMoment,0,105,0,2,0,27,0,8,0,7
+Commons Math,org.apache.commons.math.stat.descriptive.moment,FourthMoment,6,103,0,2,3,24,1,7,1,6
+Commons Math,org.apache.commons.math.stat.descriptive.moment,SemiVariance.Direction,9,37,0,0,0,7,2,3,2,3
+Commons Math,org.apache.commons.math.stat.descriptive.moment,VectorialMean,22,103,4,12,7,20,5,9,1,5
+Commons Math,org.apache.commons.math.stat.descriptive.moment,VectorialCovariance,60,214,9,19,13,39,9,12,1,6
+Commons Math,org.apache.commons.math.stat.descriptive.moment,SecondMoment,8,63,0,2,3,18,1,7,1,6
+Commons Math,org.apache.commons.math.stat.descriptive.moment,SemiVariance,87,156,0,14,21,35,9,16,9,9
+Commons Math,org.apache.commons.math.stat.descriptive.moment,FirstMoment,6,102,0,2,3,30,1,8,1,7
+Commons Math,org.apache.commons.math.stat.descriptive.moment,Mean,8,177,3,9,4,41,4,14,1,11
+Commons Math,org.apache.commons.math.stat.descriptive.moment,Kurtosis,16,243,3,13,5,46,4,14,1,9
+Commons Math,org.apache.commons.math.stat.descriptive.moment,StandardDeviation,49,84,0,0,10,25,6,11,6,11
+Commons Math,org.apache.commons.math.stat.descriptive.moment,Variance,55,434,16,34,11,100,19,27,3,18
+Commons Math,org.apache.commons.math.stat.descriptive.moment,Skewness,9,233,2,14,3,50,3,15,1,9
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction,0,40,0,0,0,9,0,4,0,4
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,17,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,17,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,5,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,6,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,5,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,5,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,24,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,19,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,19,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,19,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,17,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new MultivariateRealFunction() {...},0,42,0,2,0,5,0,3,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,17,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction.new ComposableFunction() {...},0,19,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new ComposableFunction() {...},0,16,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new ComposableFunction() {...},0,16,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,BinaryFunction.new BinaryFunction() {...},0,7,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis,ComposableFunction,0,189,0,0,0,41,0,15,0,15
+Commons Math,org.apache.commons.math.optimization,LeastSquaresConverter,55,175,3,15,6,35,3,10,0,4
+Commons Math,org.apache.commons.math.optimization,MultiStartMultivariateRealOptimizer.new Comparator() {...},22,17,5,3,6,3,3,3,0,2
+Commons Math,org.apache.commons.math.optimization,MultiStartDifferentiableMultivariateVectorialOptimizer.new Comparator() {...},3,64,2,6,1,11,2,5,0,3
+Commons Math,org.apache.commons.math.optimization,MultiStartDifferentiableMultivariateVectorialOptimizer,13,187,0,8,4,44,2,14,2,10
+Commons Math,org.apache.commons.math.optimization,MultiStartDifferentiableMultivariateRealOptimizer,35,163,2,6,8,40,3,13,1,11
+Commons Math,org.apache.commons.math.optimization,MultiStartUnivariateRealOptimizer,102,350,6,28,23,70,12,25,6,14
+Commons Math,org.apache.commons.math.optimization,SimpleScalarValueChecker,0,51,0,4,0,13,0,5,0,3
+Commons Math,org.apache.commons.math.optimization,SimpleRealPointChecker,9,58,0,6,4,12,1,5,1,2
+Commons Math,org.apache.commons.math.optimization,GoalType,9,29,0,0,0,3,2,2,2,2
+Commons Math,org.apache.commons.math.optimization,SimpleVectorialPointChecker,11,56,2,4,5,13,3,3,1,2
+Commons Math,org.apache.commons.math.optimization,MultiStartMultivariateRealOptimizer,46,135,3,5,11,33,7,8,5,6
+Commons Math,org.apache.commons.math.optimization,OptimizationException,8,9,0,0,2,4,1,2,1,2
+Commons Math,org.apache.commons.math.optimization,RealPointValuePair,12,38,5,3,0,12,4,5,0,5
+Commons Math,org.apache.commons.math.optimization,MultiStartDifferentiableMultivariateRealOptimizer.new Comparator() {...},11,28,5,3,2,7,4,2,0,2
+Commons Math,org.apache.commons.math.optimization,VectorialPointValuePair,37,39,12,4,6,8,9,5,1,5
+Commons Math,org.apache.commons.math.optimization,SimpleVectorialValueChecker,0,67,0,6,0,18,0,6,0,3
+Commons Math,org.apache.commons.math.stat.correlation,PearsonsCorrelation,13,382,3,27,2,75,3,25,0,13
+Commons Math,org.apache.commons.math.stat.correlation,Covariance,35,226,3,13,7,46,6,16,3,11
+Commons Math,org.apache.commons.math.stat.correlation,SpearmansCorrelation,20,121,1,5,3,27,2,10,1,8
+Commons Math,org.apache.commons.math.ode.events,EventState.EmbeddedDerivativeException,9,0,0,0,4,0,2,0,2,0
+Commons Math,org.apache.commons.math.ode.events,CombinedEventsManager,249,0,38,0,63,0,30,0,11,0
+Commons Math,org.apache.commons.math.ode.events,EventState.EmbeddedEventException,9,0,0,0,4,0,2,0,2,0
+Commons Math,org.apache.commons.math.ode.events,EventState,132,378,23,41,30,76,19,24,2,9
+Commons Math,org.apache.commons.math.ode.events,EventState.new UnivariateRealFunction() {...},12,22,0,0,4,3,0,2,0,2
+Commons Math,org.apache.commons.math.ode.events,EventException,9,5,0,0,4,2,2,1,2,1
+Commons Math,org.apache.commons.math.analysis.interpolation,SplineInterpolator,0,330,0,12,0,38,0,8,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,TricubicSplineInterpolatingFunction,68,17988,10,70,6,97,10,35,0,5
+Commons Math,org.apache.commons.math.analysis.interpolation,LoessInterpolator,49,649,4,56,7,116,6,35,2,9
+Commons Math,org.apache.commons.math.analysis.interpolation,MicrosphereInterpolatingFunction.MicrosphereSurfaceElement,0,37,0,2,0,13,0,7,0,6
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction,28,316,9,21,6,50,9,15,0,9
+Commons Math,org.apache.commons.math.analysis.interpolation,SmoothingPolynomialBicubicSplineInterpolator,8,228,3,25,3,39,4,14,1,3
+Commons Math,org.apache.commons.math.analysis.interpolation,TricubicSplineInterpolator,4,576,4,50,1,78,4,27,0,4
+Commons Math,org.apache.commons.math.analysis.interpolation,NevilleInterpolator,0,9,0,0,0,2,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineInterpolator,4,299,3,31,1,44,3,18,0,4
+Commons Math,org.apache.commons.math.analysis.interpolation,SmoothingBicubicSplineInterpolator,5,367,3,39,1,54,3,22,0,4
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction.new BivariateRealFunction() {...},0,67,0,0,0,7,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction.new BivariateRealFunction() {...},0,67,0,0,0,7,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction.new BivariateRealFunction() {...},0,63,0,0,0,6,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction.new BivariateRealFunction() {...},0,63,0,0,0,6,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineFunction.new BivariateRealFunction() {...},0,63,0,0,0,6,0,2,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,TricubicSplineFunction,30,202,6,18,3,25,6,8,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,LinearInterpolator,0,108,0,8,0,18,0,6,0,2
+Commons Math,org.apache.commons.math.analysis.interpolation,DividedDifferenceInterpolator,0,111,0,6,0,19,0,6,0,3
+Commons Math,org.apache.commons.math.analysis.interpolation,BicubicSplineInterpolatingFunction,106,1741,10,42,11,80,12,26,2,10
+Commons Math,org.apache.commons.math.analysis.interpolation,MicrosphereInterpolatingFunction,20,214,5,19,3,39,5,10,0,3
+Commons Math,org.apache.commons.math.analysis.interpolation,MicrosphereInterpolator,12,45,2,2,2,14,2,5,0,5
+Commons Math,org.apache.commons.math.stat.ranking,NaturalRanking.new Object() {...},9,63,0,0,0,2,0,1,0,1
+Commons Math,org.apache.commons.math.stat.ranking,TiesStrategy,5,63,0,0,0,6,1,3,1,3
+Commons Math,org.apache.commons.math.stat.ranking,NaturalRanking.IntDoublePair,0,21,0,0,0,7,0,4,0,4
+Commons Math,org.apache.commons.math.stat.ranking,NaNStrategy,5,53,0,0,0,5,1,3,1,3
+Commons Math,org.apache.commons.math.stat.ranking,NaturalRanking,29,512,2,51,9,119,5,42,3,14

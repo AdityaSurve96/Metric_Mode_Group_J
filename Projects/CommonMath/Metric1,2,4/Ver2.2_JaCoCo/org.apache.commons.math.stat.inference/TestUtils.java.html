@@ -1,0 +1,437 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>TestUtils.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.stat.inference</a> &gt; <span class="el_source">TestUtils.java</span></div><h1>TestUtils.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.stat.inference;
+
+import java.util.Collection;
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.stat.descriptive.StatisticalSummary;
+
+/**
+ * A collection of static methods to create inference test instances or to
+ * perform inference tests.
+ *
+ * &lt;p&gt;
+ * The set methods are not compatible with using the class in multiple threads,
+ * and have therefore been deprecated (along with the getters).
+ * The setters and getters will be removed in version 3.0.
+ *
+ * @since 1.1
+ * @version $Revision$ $Date$
+ */
+public class TestUtils  {
+
+    /** Singleton TTest instance using default implementation. */
+<span class="fc" id="L38">    private static TTest tTest = new TTestImpl();</span>
+
+    /** Singleton ChiSquareTest instance using default implementation. */
+<span class="fc" id="L41">    private static ChiSquareTest chiSquareTest =</span>
+        new ChiSquareTestImpl();
+
+    /** Singleton ChiSquareTest instance using default implementation. */
+<span class="fc" id="L45">    private static UnknownDistributionChiSquareTest unknownDistributionChiSquareTest =</span>
+        new ChiSquareTestImpl();
+
+    /** Singleton OneWayAnova instance using default implementation. */
+<span class="fc" id="L49">    private static OneWayAnova oneWayAnova =</span>
+        new OneWayAnovaImpl();
+
+    /**
+     * Prevent instantiation.
+     */
+    protected TestUtils() {
+<span class="nc" id="L56">        super();</span>
+<span class="nc" id="L57">    }</span>
+
+    /**
+     * Set the (singleton) TTest instance.
+     *
+     * @param chiSquareTest the new instance to use
+     * @since 1.2
+     * @deprecated 2.2 will be removed in 3.0 - not compatible with use from multiple threads
+     */
+    @Deprecated
+    public static void setChiSquareTest(TTest chiSquareTest) {
+<span class="nc" id="L68">        TestUtils.tTest = chiSquareTest;</span>
+<span class="nc" id="L69">    }</span>
+
+    /**
+     * Return a (singleton) TTest instance.  Does not create a new instance.
+     *
+     * @return a TTest instance
+     * @deprecated 2.2 will be removed in 3.0
+     */
+    @Deprecated
+    public static TTest getTTest() {
+<span class="fc" id="L79">        return tTest;</span>
+    }
+
+    /**
+     * Set the (singleton) ChiSquareTest instance.
+     *
+     * @param chiSquareTest the new instance to use
+     * @since 1.2
+     * @deprecated 2.2 will be removed in 3.0 - not compatible with use from multiple threads
+     */
+    @Deprecated
+    public static void setChiSquareTest(ChiSquareTest chiSquareTest) {
+<span class="nc" id="L91">        TestUtils.chiSquareTest = chiSquareTest;</span>
+<span class="nc" id="L92">    }</span>
+
+    /**
+     * Return a (singleton) ChiSquareTest instance.  Does not create a new instance.
+     *
+     * @return a ChiSquareTest instance
+     * @deprecated 2.2 will be removed in 3.0
+     */
+    @Deprecated
+    public static ChiSquareTest getChiSquareTest() {
+<span class="nc" id="L102">        return chiSquareTest;</span>
+    }
+
+    /**
+     * Set the (singleton) UnknownDistributionChiSquareTest instance.
+     *
+     * @param unknownDistributionChiSquareTest the new instance to use
+     * @since 1.2
+     * @deprecated 2.2 will be removed in 3.0 - not compatible with use from multiple threads
+     */
+    @Deprecated
+    public static void setUnknownDistributionChiSquareTest(UnknownDistributionChiSquareTest unknownDistributionChiSquareTest) {
+<span class="nc" id="L114">        TestUtils.unknownDistributionChiSquareTest = unknownDistributionChiSquareTest;</span>
+<span class="nc" id="L115">    }</span>
+
+    /**
+     * Return a (singleton) UnknownDistributionChiSquareTest instance.  Does not create a new instance.
+     *
+     * @return a UnknownDistributionChiSquareTest instance
+     * @deprecated 2.2 will be removed in 3.0
+     */
+    @Deprecated
+    public static UnknownDistributionChiSquareTest getUnknownDistributionChiSquareTest() {
+<span class="fc" id="L125">        return unknownDistributionChiSquareTest;</span>
+    }
+
+    /**
+     * Set the (singleton) OneWayAnova instance
+     *
+     * @param oneWayAnova the new instance to use
+     * @since 1.2
+     * @deprecated 2.2 will be removed in 3.0 - not compatible with use from multiple threads
+     */
+    @Deprecated
+    public static void setOneWayAnova(OneWayAnova oneWayAnova) {
+<span class="nc" id="L137">        TestUtils.oneWayAnova = oneWayAnova;</span>
+<span class="nc" id="L138">    }</span>
+
+    /**
+     * Return a (singleton) OneWayAnova instance.  Does not create a new instance.
+     *
+     * @return a OneWayAnova instance
+     * @since 1.2
+     * @deprecated 2.2 will be removed in 3.0
+     */
+    @Deprecated
+    public static OneWayAnova getOneWayAnova() {
+<span class="nc" id="L149">        return oneWayAnova;</span>
+    }
+
+
+    // CHECKSTYLE: stop JavadocMethodCheck
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#homoscedasticT(double[], double[])
+     */
+    public static double homoscedasticT(double[] sample1, double[] sample2)
+        throws IllegalArgumentException {
+<span class="fc" id="L160">        return tTest.homoscedasticT(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#homoscedasticT(org.apache.commons.math.stat.descriptive.StatisticalSummary, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double homoscedasticT(StatisticalSummary sampleStats1,
+        StatisticalSummary sampleStats2)
+        throws IllegalArgumentException {
+<span class="nc" id="L169">        return tTest.homoscedasticT(sampleStats1, sampleStats2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#homoscedasticTTest(double[], double[], double)
+     */
+    public static boolean homoscedasticTTest(double[] sample1, double[] sample2,
+            double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L178">        return tTest. homoscedasticTTest(sample1, sample2, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#homoscedasticTTest(double[], double[])
+     */
+    public static double homoscedasticTTest(double[] sample1, double[] sample2)
+        throws IllegalArgumentException, MathException {
+<span class="nc" id="L186">        return tTest.homoscedasticTTest(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#homoscedasticTTest(org.apache.commons.math.stat.descriptive.StatisticalSummary, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double homoscedasticTTest(StatisticalSummary sampleStats1,
+        StatisticalSummary sampleStats2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L195">        return tTest.homoscedasticTTest(sampleStats1, sampleStats2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#pairedT(double[], double[])
+     */
+    public static double pairedT(double[] sample1, double[] sample2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L203">        return tTest.pairedT(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#pairedTTest(double[], double[], double)
+     */
+    public static boolean pairedTTest(double[] sample1, double[] sample2,
+        double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L212">        return tTest.pairedTTest(sample1, sample2, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#pairedTTest(double[], double[])
+     */
+    public static double pairedTTest(double[] sample1, double[] sample2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L220">        return tTest.pairedTTest(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#t(double, double[])
+     */
+    public static double t(double mu, double[] observed)
+        throws IllegalArgumentException {
+<span class="fc" id="L228">        return tTest.t(mu, observed);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#t(double, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double t(double mu, StatisticalSummary sampleStats)
+        throws IllegalArgumentException {
+<span class="fc" id="L236">        return tTest.t(mu, sampleStats);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#t(double[], double[])
+     */
+    public static double t(double[] sample1, double[] sample2)
+        throws IllegalArgumentException {
+<span class="fc" id="L244">        return tTest.t(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#t(org.apache.commons.math.stat.descriptive.StatisticalSummary, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double t(StatisticalSummary sampleStats1,
+            StatisticalSummary sampleStats2)
+        throws IllegalArgumentException {
+<span class="fc" id="L253">        return tTest.t(sampleStats1, sampleStats2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double, double[], double)
+     */
+    public static boolean tTest(double mu, double[] sample, double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L261">        return tTest.tTest(mu, sample, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double, double[])
+     */
+    public static double tTest(double mu, double[] sample)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L269">        return tTest.tTest(mu, sample);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double, org.apache.commons.math.stat.descriptive.StatisticalSummary, double)
+     */
+    public static boolean tTest(double mu, StatisticalSummary sampleStats,
+        double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L278">        return tTest. tTest(mu, sampleStats, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double tTest(double mu, StatisticalSummary sampleStats)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L286">        return tTest.tTest(mu, sampleStats);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double[], double[], double)
+     */
+    public static boolean tTest(double[] sample1, double[] sample2, double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L294">        return tTest.tTest(sample1, sample2, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(double[], double[])
+     */
+    public static double tTest(double[] sample1, double[] sample2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L302">        return tTest.tTest(sample1, sample2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(org.apache.commons.math.stat.descriptive.StatisticalSummary, org.apache.commons.math.stat.descriptive.StatisticalSummary, double)
+     */
+    public static boolean tTest(StatisticalSummary sampleStats1,
+        StatisticalSummary sampleStats2, double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L311">        return tTest. tTest(sampleStats1, sampleStats2, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.TTest#tTest(org.apache.commons.math.stat.descriptive.StatisticalSummary, org.apache.commons.math.stat.descriptive.StatisticalSummary)
+     */
+    public static double tTest(StatisticalSummary sampleStats1,
+        StatisticalSummary sampleStats2)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L320">        return tTest.tTest(sampleStats1, sampleStats2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquare(double[], long[])
+     */
+    public static double chiSquare(double[] expected, long[] observed)
+        throws IllegalArgumentException {
+<span class="fc" id="L328">        return chiSquareTest.chiSquare(expected, observed);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquare(long[][])
+     */
+    public static double chiSquare(long[][] counts)
+        throws IllegalArgumentException {
+<span class="fc" id="L336">        return chiSquareTest.chiSquare(counts);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquareTest(double[], long[], double)
+     */
+    public static boolean chiSquareTest(double[] expected, long[] observed,
+        double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L345">        return chiSquareTest.chiSquareTest(expected, observed, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquareTest(double[], long[])
+     */
+    public static double chiSquareTest(double[] expected, long[] observed)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L353">        return chiSquareTest.chiSquareTest(expected, observed);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquareTest(long[][], double)
+     */
+    public static boolean chiSquareTest(long[][] counts, double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L361">        return chiSquareTest. chiSquareTest(counts, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.ChiSquareTest#chiSquareTest(long[][])
+     */
+    public static double chiSquareTest(long[][] counts)
+        throws IllegalArgumentException, MathException {
+<span class="fc" id="L369">        return chiSquareTest. chiSquareTest(counts);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.UnknownDistributionChiSquareTest#chiSquareDataSetsComparison(long[], long[])
+     *
+     * @since 1.2
+     */
+    public static double chiSquareDataSetsComparison(long[] observed1, long[] observed2)
+        throws IllegalArgumentException {
+<span class="nc" id="L379">        return unknownDistributionChiSquareTest.chiSquareDataSetsComparison(observed1, observed2);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.UnknownDistributionChiSquareTest#chiSquareTestDataSetsComparison(long[], long[])
+     *
+     * @since 1.2
+     */
+    public static double chiSquareTestDataSetsComparison(long[] observed1, long[] observed2)
+        throws IllegalArgumentException, MathException {
+<span class="nc" id="L389">        return unknownDistributionChiSquareTest.chiSquareTestDataSetsComparison(observed1, observed2);</span>
+    }
+
+
+    /**
+     * @see org.apache.commons.math.stat.inference.UnknownDistributionChiSquareTest#chiSquareTestDataSetsComparison(long[], long[], double)
+     *
+     * @since 1.2
+     */
+    public static boolean chiSquareTestDataSetsComparison(long[] observed1, long[] observed2,
+        double alpha)
+        throws IllegalArgumentException, MathException {
+<span class="nc" id="L401">        return unknownDistributionChiSquareTest.chiSquareTestDataSetsComparison(observed1, observed2, alpha);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.OneWayAnova#anovaFValue(Collection)
+     *
+     * @since 1.2
+     */
+    public static double oneWayAnovaFValue(Collection&lt;double[]&gt; categoryData)
+    throws IllegalArgumentException, MathException {
+<span class="fc" id="L411">        return oneWayAnova.anovaFValue(categoryData);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.OneWayAnova#anovaPValue(Collection)
+     *
+     * @since 1.2
+     */
+    public static double oneWayAnovaPValue(Collection&lt;double[]&gt; categoryData)
+    throws IllegalArgumentException, MathException {
+<span class="fc" id="L421">        return oneWayAnova.anovaPValue(categoryData);</span>
+    }
+
+    /**
+     * @see org.apache.commons.math.stat.inference.OneWayAnova#anovaTest(Collection,double)
+     *
+     * @since 1.2
+     */
+    public static boolean oneWayAnovaTest(Collection&lt;double[]&gt; categoryData, double alpha)
+    throws IllegalArgumentException, MathException {
+<span class="fc" id="L431">        return oneWayAnova.anovaTest(categoryData, alpha);</span>
+    }
+
+    // CHECKSTYLE: resume JavadocMethodCheck
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

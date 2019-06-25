@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>NewtonSolver.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">NewtonSolver.java</span></div><h1>NewtonSolver.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.DifferentiableUnivariateRealFunction;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implements &lt;a href=&quot;http://mathworld.wolfram.com/NewtonsMethod.html&quot;&gt;
+ * Newton's Method&lt;/a&gt; for finding zeros of real univariate functions.
+ * &lt;p&gt;
+ * The function should be continuous but not necessarily smooth.&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ */
+public class NewtonSolver extends UnivariateRealSolverImpl {
+
+    /**
+     * Construct a solver for the given function.
+     * @param f function to solve.
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    public NewtonSolver(DifferentiableUnivariateRealFunction f) {
+<span class="fc" id="L48">        super(f, 100, 1E-6);</span>
+<span class="fc" id="L49">    }</span>
+
+    /**
+     * Construct a solver.
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public NewtonSolver() {
+<span class="fc" id="L57">        super(100, 1E-6);</span>
+<span class="fc" id="L58">    }</span>
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException  {
+<span class="fc" id="L64">        return solve(f, min, max);</span>
+    }
+
+    /** {@inheritDoc} */
+    @Deprecated
+    public double solve(final double min, final double max, final double startValue)
+        throws MaxIterationsExceededException, FunctionEvaluationException  {
+<span class="nc" id="L71">        return solve(f, min, max, startValue);</span>
+    }
+
+    /**
+     * Find a zero near the midpoint of &lt;code&gt;min&lt;/code&gt; and &lt;code&gt;max&lt;/code&gt;.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @param maxEval Maximum number of evaluations.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function or derivative
+     * @throws IllegalArgumentException if min is not less than max
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException  {
+<span class="nc" id="L90">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L91">        return solve(f, min, max);</span>
+    }
+
+    /**
+     * Find a zero near the midpoint of &lt;code&gt;min&lt;/code&gt; and &lt;code&gt;max&lt;/code&gt;.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval
+     * @param max the upper bound for the interval
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function or derivative
+     * @throws IllegalArgumentException if min is not less than max
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max)
+        throws MaxIterationsExceededException, FunctionEvaluationException  {
+<span class="fc" id="L110">        return solve(f, min, max, UnivariateRealSolverUtils.midpoint(min, max));</span>
+    }
+
+    /**
+     * Find a zero near the value &lt;code&gt;startValue&lt;/code&gt;.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval (ignored).
+     * @param max the upper bound for the interval (ignored).
+     * @param startValue the start value to use.
+     * @param maxEval Maximum number of evaluations.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function or derivative
+     * @throws IllegalArgumentException if startValue is not between min and max or
+     * if function is not a {@link DifferentiableUnivariateRealFunction} instance
+     */
+    @Override
+    public double solve(int maxEval, final UnivariateRealFunction f,
+                        final double min, final double max, final double startValue)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+<span class="nc" id="L131">        setMaximalIterationCount(maxEval);</span>
+<span class="nc" id="L132">        return solve(f, min, max, startValue);</span>
+    }
+
+    /**
+     * Find a zero near the value &lt;code&gt;startValue&lt;/code&gt;.
+     *
+     * @param f the function to solve
+     * @param min the lower bound for the interval (ignored).
+     * @param max the upper bound for the interval (ignored).
+     * @param startValue the start value to use.
+     * @return the value where the function is zero
+     * @throws MaxIterationsExceededException if the maximum iteration count is exceeded
+     * @throws FunctionEvaluationException if an error occurs evaluating the function or derivative
+     * @throws IllegalArgumentException if startValue is not between min and max or
+     * if function is not a {@link DifferentiableUnivariateRealFunction} instance
+     * @deprecated in 2.2 (to be removed in 3.0).
+     */
+    @Deprecated
+    public double solve(final UnivariateRealFunction f,
+                        final double min, final double max, final double startValue)
+        throws MaxIterationsExceededException, FunctionEvaluationException {
+
+        try {
+
+<span class="fc" id="L156">            final UnivariateRealFunction derivative =</span>
+<span class="fc" id="L157">                ((DifferentiableUnivariateRealFunction) f).derivative();</span>
+<span class="fc" id="L158">            clearResult();</span>
+<span class="fc" id="L159">            verifySequence(min, startValue, max);</span>
+
+<span class="fc" id="L161">            double x0 = startValue;</span>
+            double x1;
+
+<span class="fc" id="L164">            int i = 0;</span>
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">            while (i &lt; maximalIterationCount) {</span>
+
+<span class="fc" id="L167">                x1 = x0 - (f.value(x0) / derivative.value(x0));</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">                if (FastMath.abs(x1 - x0) &lt;= absoluteAccuracy) {</span>
+<span class="fc" id="L169">                    setResult(x1, i);</span>
+<span class="fc" id="L170">                    return x1;</span>
+                }
+
+<span class="fc" id="L173">                x0 = x1;</span>
+<span class="fc" id="L174">                ++i;</span>
+            }
+
+<span class="nc" id="L177">            throw new MaxIterationsExceededException(maximalIterationCount);</span>
+<span class="nc" id="L178">        } catch (ClassCastException cce) {</span>
+<span class="nc" id="L179">            throw MathRuntimeException.createIllegalArgumentException(LocalizedFormats.FUNCTION_NOT_DIFFERENTIABLE);</span>
+        }
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

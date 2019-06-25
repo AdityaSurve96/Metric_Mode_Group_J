@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>HarmonicCoefficientsGuesser.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.fitting</a> &gt; <span class="el_source">HarmonicCoefficientsGuesser.java</span></div><h1>HarmonicCoefficientsGuesser.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.fitting;
+
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.util.FastMath;
+
+/** This class guesses harmonic coefficients from a sample.
+
+ * &lt;p&gt;The algorithm used to guess the coefficients is as follows:&lt;/p&gt;
+
+ * &lt;p&gt;We know f (t) at some sampling points t&lt;sub&gt;i&lt;/sub&gt; and want to find a,
+ * &amp;omega; and &amp;phi; such that f (t) = a cos (&amp;omega; t + &amp;phi;).
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;From the analytical expression, we can compute two primitives :
+ * &lt;pre&gt;
+ *     If2  (t) = &amp;int; f&lt;sup&gt;2&lt;/sup&gt;  = a&lt;sup&gt;2&lt;/sup&gt; &amp;times; [t + S (t)] / 2
+ *     If'2 (t) = &amp;int; f'&lt;sup&gt;2&lt;/sup&gt; = a&lt;sup&gt;2&lt;/sup&gt; &amp;omega;&lt;sup&gt;2&lt;/sup&gt; &amp;times; [t - S (t)] / 2
+ *     where S (t) = sin (2 (&amp;omega; t + &amp;phi;)) / (2 &amp;omega;)
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;We can remove S between these expressions :
+ * &lt;pre&gt;
+ *     If'2 (t) = a&lt;sup&gt;2&lt;/sup&gt; &amp;omega;&lt;sup&gt;2&lt;/sup&gt; t - &amp;omega;&lt;sup&gt;2&lt;/sup&gt; If2 (t)
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;The preceding expression shows that If'2 (t) is a linear
+ * combination of both t and If2 (t): If'2 (t) = A &amp;times; t + B &amp;times; If2 (t)
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;From the primitive, we can deduce the same form for definite
+ * integrals between t&lt;sub&gt;1&lt;/sub&gt; and t&lt;sub&gt;i&lt;/sub&gt; for each t&lt;sub&gt;i&lt;/sub&gt; :
+ * &lt;pre&gt;
+ *   If2 (t&lt;sub&gt;i&lt;/sub&gt;) - If2 (t&lt;sub&gt;1&lt;/sub&gt;) = A &amp;times; (t&lt;sub&gt;i&lt;/sub&gt; - t&lt;sub&gt;1&lt;/sub&gt;) + B &amp;times; (If2 (t&lt;sub&gt;i&lt;/sub&gt;) - If2 (t&lt;sub&gt;1&lt;/sub&gt;))
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;We can find the coefficients A and B that best fit the sample
+ * to this linear expression by computing the definite integrals for
+ * each sample points.
+ * &lt;/p&gt;
+ *
+ * &lt;p&gt;For a bilinear expression z (x&lt;sub&gt;i&lt;/sub&gt;, y&lt;sub&gt;i&lt;/sub&gt;) = A &amp;times; x&lt;sub&gt;i&lt;/sub&gt; + B &amp;times; y&lt;sub&gt;i&lt;/sub&gt;, the
+ * coefficients A and B that minimize a least square criterion
+ * &amp;sum; (z&lt;sub&gt;i&lt;/sub&gt; - z (x&lt;sub&gt;i&lt;/sub&gt;, y&lt;sub&gt;i&lt;/sub&gt;))&lt;sup&gt;2&lt;/sup&gt; are given by these expressions:&lt;/p&gt;
+ * &lt;pre&gt;
+ *
+ *         &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ *     A = ------------------------
+ *         &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt;
+ *
+ *         &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ *     B = ------------------------
+ *         &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt;
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+ *
+ *
+ * &lt;p&gt;In fact, we can assume both a and &amp;omega; are positive and
+ * compute them directly, knowing that A = a&lt;sup&gt;2&lt;/sup&gt; &amp;omega;&lt;sup&gt;2&lt;/sup&gt; and that
+ * B = - &amp;omega;&lt;sup&gt;2&lt;/sup&gt;. The complete algorithm is therefore:&lt;/p&gt;
+ * &lt;pre&gt;
+ *
+ * for each t&lt;sub&gt;i&lt;/sub&gt; from t&lt;sub&gt;1&lt;/sub&gt; to t&lt;sub&gt;n-1&lt;/sub&gt;, compute:
+ *   f  (t&lt;sub&gt;i&lt;/sub&gt;)
+ *   f' (t&lt;sub&gt;i&lt;/sub&gt;) = (f (t&lt;sub&gt;i+1&lt;/sub&gt;) - f(t&lt;sub&gt;i-1&lt;/sub&gt;)) / (t&lt;sub&gt;i+1&lt;/sub&gt; - t&lt;sub&gt;i-1&lt;/sub&gt;)
+ *   x&lt;sub&gt;i&lt;/sub&gt; = t&lt;sub&gt;i&lt;/sub&gt; - t&lt;sub&gt;1&lt;/sub&gt;
+ *   y&lt;sub&gt;i&lt;/sub&gt; = &amp;int; f&lt;sup&gt;2&lt;/sup&gt; from t&lt;sub&gt;1&lt;/sub&gt; to t&lt;sub&gt;i&lt;/sub&gt;
+ *   z&lt;sub&gt;i&lt;/sub&gt; = &amp;int; f'&lt;sup&gt;2&lt;/sup&gt; from t&lt;sub&gt;1&lt;/sub&gt; to t&lt;sub&gt;i&lt;/sub&gt;
+ *   update the sums &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt;, &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt;, &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt;, &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; and &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ * end for
+ *
+ *            |--------------------------
+ *         \  | &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ * a     =  \ | ------------------------
+ *           \| &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ *
+ *
+ *            |--------------------------
+ *         \  | &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;z&lt;sub&gt;i&lt;/sub&gt;
+ * &amp;omega;     =  \ | ------------------------
+ *           \| &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;x&lt;sub&gt;i&lt;/sub&gt; &amp;sum;y&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; - &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt; &amp;sum;x&lt;sub&gt;i&lt;/sub&gt;y&lt;sub&gt;i&lt;/sub&gt;
+ *
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+
+ * &lt;p&gt;Once we know &amp;omega;, we can compute:
+ * &lt;pre&gt;
+ *    fc = &amp;omega; f (t) cos (&amp;omega; t) - f' (t) sin (&amp;omega; t)
+ *    fs = &amp;omega; f (t) sin (&amp;omega; t) + f' (t) cos (&amp;omega; t)
+ * &lt;/pre&gt;
+ * &lt;/p&gt;
+
+ * &lt;p&gt;It appears that &lt;code&gt;fc = a &amp;omega; cos (&amp;phi;)&lt;/code&gt; and
+ * &lt;code&gt;fs = -a &amp;omega; sin (&amp;phi;)&lt;/code&gt;, so we can use these
+ * expressions to compute &amp;phi;. The best estimate over the sample is
+ * given by averaging these expressions.
+ * &lt;/p&gt;
+
+ * &lt;p&gt;Since integrals and means are involved in the preceding
+ * estimations, these operations run in O(n) time, where n is the
+ * number of measurements.&lt;/p&gt;
+
+ * @version $Revision$ $Date$
+ * @since 2.0
+
+ */
+public class HarmonicCoefficientsGuesser {
+
+    /** Sampled observations. */
+    private final WeightedObservedPoint[] observations;
+
+    /** Guessed amplitude. */
+    private double a;
+
+    /** Guessed pulsation &amp;omega;. */
+    private double omega;
+
+    /** Guessed phase &amp;phi;. */
+    private double phi;
+
+    /** Simple constructor.
+     * @param observations sampled observations
+     */
+<span class="fc" id="L144">    public HarmonicCoefficientsGuesser(WeightedObservedPoint[] observations) {</span>
+<span class="fc" id="L145">        this.observations = observations.clone();</span>
+<span class="fc" id="L146">        a                 = Double.NaN;</span>
+<span class="fc" id="L147">        omega             = Double.NaN;</span>
+<span class="fc" id="L148">    }</span>
+
+    /** Estimate a first guess of the coefficients.
+     * @exception OptimizationException if the sample is too short or if
+     * the first guess cannot be computed (when the elements under the
+     * square roots are negative).
+     * */
+    public void guess() throws OptimizationException {
+<span class="fc" id="L156">        sortObservations();</span>
+<span class="fc" id="L157">        guessAOmega();</span>
+<span class="fc" id="L158">        guessPhi();</span>
+<span class="fc" id="L159">    }</span>
+
+    /** Sort the observations with respect to the abscissa.
+     */
+    private void sortObservations() {
+
+        // Since the samples are almost always already sorted, this
+        // method is implemented as an insertion sort that reorders the
+        // elements in place. Insertion sort is very efficient in this case.
+<span class="fc" id="L168">        WeightedObservedPoint curr = observations[0];</span>
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        for (int j = 1; j &lt; observations.length; ++j) {</span>
+<span class="fc" id="L170">            WeightedObservedPoint prec = curr;</span>
+<span class="fc" id="L171">            curr = observations[j];</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">            if (curr.getX() &lt; prec.getX()) {</span>
+                // the current element should be inserted closer to the beginning
+<span class="fc" id="L174">                int i = j - 1;</span>
+<span class="fc" id="L175">                WeightedObservedPoint mI = observations[i];</span>
+<span class="fc bfc" id="L176" title="All 4 branches covered.">                while ((i &gt;= 0) &amp;&amp; (curr.getX() &lt; mI.getX())) {</span>
+<span class="fc" id="L177">                    observations[i + 1] = mI;</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">                    if (i-- != 0) {</span>
+<span class="fc" id="L179">                        mI = observations[i];</span>
+                    }
+                }
+<span class="fc" id="L182">                observations[i + 1] = curr;</span>
+<span class="fc" id="L183">                curr = observations[j];</span>
+            }
+        }
+
+<span class="fc" id="L187">    }</span>
+
+    /** Estimate a first guess of the a and &amp;omega; coefficients.
+     * @exception OptimizationException if the sample is too short or if
+     * the first guess cannot be computed (when the elements under the
+     * square roots are negative).
+     */
+    private void guessAOmega() throws OptimizationException {
+
+        // initialize the sums for the linear model between the two integrals
+<span class="fc" id="L197">        double sx2 = 0.0;</span>
+<span class="fc" id="L198">        double sy2 = 0.0;</span>
+<span class="fc" id="L199">        double sxy = 0.0;</span>
+<span class="fc" id="L200">        double sxz = 0.0;</span>
+<span class="fc" id="L201">        double syz = 0.0;</span>
+
+<span class="fc" id="L203">        double currentX        = observations[0].getX();</span>
+<span class="fc" id="L204">        double currentY        = observations[0].getY();</span>
+<span class="fc" id="L205">        double f2Integral      = 0;</span>
+<span class="fc" id="L206">        double fPrime2Integral = 0;</span>
+<span class="fc" id="L207">        final double startX = currentX;</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        for (int i = 1; i &lt; observations.length; ++i) {</span>
+
+            // one step forward
+<span class="fc" id="L211">            final double previousX = currentX;</span>
+<span class="fc" id="L212">            final double previousY = currentY;</span>
+<span class="fc" id="L213">            currentX = observations[i].getX();</span>
+<span class="fc" id="L214">            currentY = observations[i].getY();</span>
+
+            // update the integrals of f&lt;sup&gt;2&lt;/sup&gt; and f'&lt;sup&gt;2&lt;/sup&gt;
+            // considering a linear model for f (and therefore constant f')
+<span class="fc" id="L218">            final double dx = currentX - previousX;</span>
+<span class="fc" id="L219">            final double dy = currentY - previousY;</span>
+<span class="fc" id="L220">            final double f2StepIntegral =</span>
+                dx * (previousY * previousY + previousY * currentY + currentY * currentY) / 3;
+<span class="fc" id="L222">            final double fPrime2StepIntegral = dy * dy / dx;</span>
+
+<span class="fc" id="L224">            final double x   = currentX - startX;</span>
+<span class="fc" id="L225">            f2Integral      += f2StepIntegral;</span>
+<span class="fc" id="L226">            fPrime2Integral += fPrime2StepIntegral;</span>
+
+<span class="fc" id="L228">            sx2 += x * x;</span>
+<span class="fc" id="L229">            sy2 += f2Integral * f2Integral;</span>
+<span class="fc" id="L230">            sxy += x * f2Integral;</span>
+<span class="fc" id="L231">            sxz += x * fPrime2Integral;</span>
+<span class="fc" id="L232">            syz += f2Integral * fPrime2Integral;</span>
+
+        }
+
+        // compute the amplitude and pulsation coefficients
+<span class="fc" id="L237">        double c1 = sy2 * sxz - sxy * syz;</span>
+<span class="fc" id="L238">        double c2 = sxy * sxz - sx2 * syz;</span>
+<span class="fc" id="L239">        double c3 = sx2 * sy2 - sxy * sxy;</span>
+<span class="pc bpc" id="L240" title="2 of 4 branches missed.">        if ((c1 / c2 &lt; 0.0) || (c2 / c3 &lt; 0.0)) {</span>
+<span class="nc" id="L241">            throw new OptimizationException(LocalizedFormats.UNABLE_TO_FIRST_GUESS_HARMONIC_COEFFICIENTS);</span>
+        }
+<span class="fc" id="L243">        a     = FastMath.sqrt(c1 / c2);</span>
+<span class="fc" id="L244">        omega = FastMath.sqrt(c2 / c3);</span>
+
+<span class="fc" id="L246">    }</span>
+
+    /** Estimate a first guess of the &amp;phi; coefficient.
+     */
+    private void guessPhi() {
+
+        // initialize the means
+<span class="fc" id="L253">        double fcMean = 0.0;</span>
+<span class="fc" id="L254">        double fsMean = 0.0;</span>
+
+<span class="fc" id="L256">        double currentX = observations[0].getX();</span>
+<span class="fc" id="L257">        double currentY = observations[0].getY();</span>
+<span class="fc bfc" id="L258" title="All 2 branches covered.">        for (int i = 1; i &lt; observations.length; ++i) {</span>
+
+            // one step forward
+<span class="fc" id="L261">            final double previousX = currentX;</span>
+<span class="fc" id="L262">            final double previousY = currentY;</span>
+<span class="fc" id="L263">            currentX = observations[i].getX();</span>
+<span class="fc" id="L264">            currentY = observations[i].getY();</span>
+<span class="fc" id="L265">            final double currentYPrime = (currentY - previousY) / (currentX - previousX);</span>
+
+<span class="fc" id="L267">            double   omegaX = omega * currentX;</span>
+<span class="fc" id="L268">            double   cosine = FastMath.cos(omegaX);</span>
+<span class="fc" id="L269">            double   sine   = FastMath.sin(omegaX);</span>
+<span class="fc" id="L270">            fcMean += omega * currentY * cosine - currentYPrime *   sine;</span>
+<span class="fc" id="L271">            fsMean += omega * currentY *   sine + currentYPrime * cosine;</span>
+
+        }
+
+<span class="fc" id="L275">        phi = FastMath.atan2(-fsMean, fcMean);</span>
+
+<span class="fc" id="L277">    }</span>
+
+    /** Get the guessed amplitude a.
+     * @return guessed amplitude a;
+     */
+    public double getGuessedAmplitude() {
+<span class="fc" id="L283">        return a;</span>
+    }
+
+    /** Get the guessed pulsation &amp;omega;.
+     * @return guessed pulsation &amp;omega;
+     */
+    public double getGuessedPulsation() {
+<span class="fc" id="L290">        return omega;</span>
+    }
+
+    /** Get the guessed phase &amp;phi;.
+     * @return guessed phase &amp;phi;
+     */
+    public double getGuessedPhase() {
+<span class="fc" id="L297">        return phi;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

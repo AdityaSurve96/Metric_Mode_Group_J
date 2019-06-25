@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractScalarDifferentiableOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.general</a> &gt; <span class="el_source">AbstractScalarDifferentiableOptimizer.java</span></div><h1>AbstractScalarDifferentiableOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.general;
+
+import org.apache.commons.math.analysis.DifferentiableMultivariateRealFunction;
+import org.apache.commons.math.analysis.MultivariateVectorialFunction;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxEvaluationsExceededException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.optimization.DifferentiableMultivariateRealOptimizer;
+import org.apache.commons.math.optimization.GoalType;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.optimization.RealConvergenceChecker;
+import org.apache.commons.math.optimization.RealPointValuePair;
+import org.apache.commons.math.optimization.SimpleScalarValueChecker;
+
+/**
+ * Base class for implementing optimizers for multivariate scalar functions.
+ * &lt;p&gt;This base class handles the boilerplate methods associated to thresholds
+ * settings, iterations and evaluations counting.&lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public abstract class AbstractScalarDifferentiableOptimizer
+    implements DifferentiableMultivariateRealOptimizer {
+
+    /** Default maximal number of iterations allowed. */
+    public static final int DEFAULT_MAX_ITERATIONS = 100;
+
+    /** Convergence checker. */
+    @Deprecated
+    protected RealConvergenceChecker checker;
+
+    /**
+     * Type of optimization.
+     * @since 2.1
+     */
+    @Deprecated
+    protected GoalType goal;
+
+    /** Current point set. */
+    @Deprecated
+    protected double[] point;
+
+    /** Maximal number of iterations allowed. */
+    private int maxIterations;
+
+    /** Number of iterations already performed. */
+    private int iterations;
+
+    /** Maximal number of evaluations allowed. */
+    private int maxEvaluations;
+
+    /** Number of evaluations already performed. */
+    private int evaluations;
+
+    /** Number of gradient evaluations. */
+    private int gradientEvaluations;
+
+    /** Objective function. */
+    private DifferentiableMultivariateRealFunction function;
+
+    /** Objective function gradient. */
+    private MultivariateVectorialFunction gradient;
+
+    /** Simple constructor with default settings.
+     * &lt;p&gt;The convergence check is set to a {@link SimpleScalarValueChecker}
+     * and the maximal number of evaluation is set to its default value.&lt;/p&gt;
+     */
+<span class="fc" id="L85">    protected AbstractScalarDifferentiableOptimizer() {</span>
+<span class="fc" id="L86">        setConvergenceChecker(new SimpleScalarValueChecker());</span>
+<span class="fc" id="L87">        setMaxIterations(DEFAULT_MAX_ITERATIONS);</span>
+<span class="fc" id="L88">        setMaxEvaluations(Integer.MAX_VALUE);</span>
+<span class="fc" id="L89">    }</span>
+
+    /** {@inheritDoc} */
+    public void setMaxIterations(int maxIterations) {
+<span class="fc" id="L93">        this.maxIterations = maxIterations;</span>
+<span class="fc" id="L94">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxIterations() {
+<span class="nc" id="L98">        return maxIterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getIterations() {
+<span class="fc" id="L103">        return iterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setMaxEvaluations(int maxEvaluations) {
+<span class="fc" id="L108">        this.maxEvaluations = maxEvaluations;</span>
+<span class="fc" id="L109">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxEvaluations() {
+<span class="nc" id="L113">        return maxEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getEvaluations() {
+<span class="fc" id="L118">        return evaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getGradientEvaluations() {
+<span class="fc" id="L123">        return gradientEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setConvergenceChecker(RealConvergenceChecker convergenceChecker) {
+<span class="fc" id="L128">        this.checker = convergenceChecker;</span>
+<span class="fc" id="L129">    }</span>
+
+    /** {@inheritDoc} */
+    public RealConvergenceChecker getConvergenceChecker() {
+<span class="fc" id="L133">        return checker;</span>
+    }
+
+    /** Increment the iterations counter by 1.
+     * @exception OptimizationException if the maximal number
+     * of iterations is exceeded
+     */
+    protected void incrementIterationsCounter()
+        throws OptimizationException {
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        if (++iterations &gt; maxIterations) {</span>
+<span class="nc" id="L143">            throw new OptimizationException(new MaxIterationsExceededException(maxIterations));</span>
+        }
+<span class="fc" id="L145">    }</span>
+
+    /**
+     * Compute the gradient vector.
+     * @param evaluationPoint point at which the gradient must be evaluated
+     * @return gradient at the specified point
+     * @exception FunctionEvaluationException if the function gradient
+     */
+    protected double[] computeObjectiveGradient(final double[] evaluationPoint)
+        throws FunctionEvaluationException {
+<span class="fc" id="L155">        ++gradientEvaluations;</span>
+<span class="fc" id="L156">        return gradient.value(evaluationPoint);</span>
+    }
+
+    /**
+     * Compute the objective function value.
+     * @param evaluationPoint point at which the objective function must be evaluated
+     * @return objective function value at specified point
+     * @exception FunctionEvaluationException if the function cannot be evaluated
+     * or its dimension doesn't match problem dimension or the maximal number
+     * of iterations is exceeded
+     */
+    protected double computeObjectiveValue(final double[] evaluationPoint)
+        throws FunctionEvaluationException {
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">        if (++evaluations &gt; maxEvaluations) {</span>
+<span class="nc" id="L170">            throw new FunctionEvaluationException(new MaxEvaluationsExceededException(maxEvaluations),</span>
+                                                  evaluationPoint);
+        }
+<span class="fc" id="L173">        return function.value(evaluationPoint);</span>
+    }
+
+    /** {@inheritDoc} */
+    public RealPointValuePair optimize(final DifferentiableMultivariateRealFunction f,
+                                         final GoalType goalType,
+                                         final double[] startPoint)
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException {
+
+        // reset counters
+<span class="fc" id="L183">        iterations          = 0;</span>
+<span class="fc" id="L184">        evaluations         = 0;</span>
+<span class="fc" id="L185">        gradientEvaluations = 0;</span>
+
+        // store optimization problem characteristics
+<span class="fc" id="L188">        function = f;</span>
+<span class="fc" id="L189">        gradient = f.gradient();</span>
+<span class="fc" id="L190">        goal     = goalType;</span>
+<span class="fc" id="L191">        point    = startPoint.clone();</span>
+
+<span class="fc" id="L193">        return doOptimize();</span>
+
+    }
+
+    /** Perform the bulk of optimization algorithm.
+     * @return the point/value pair giving the optimal value for objective function
+     * @exception FunctionEvaluationException if the objective function throws one during
+     * the search
+     * @exception OptimizationException if the algorithm failed to converge
+     * @exception IllegalArgumentException if the start point dimension is wrong
+     */
+    protected abstract RealPointValuePair doOptimize()
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException;
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>UnivariateRealSolverImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.analysis.solvers</a> &gt; <span class="el_source">UnivariateRealSolverImpl.java</span></div><h1>UnivariateRealSolverImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.analysis.solvers;
+
+import org.apache.commons.math.ConvergingAlgorithmImpl;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.exception.NullArgumentException;
+
+/**
+ * Provide a default implementation for several functions useful to generic
+ * solvers.
+ *
+ * @version $Revision$ $Date$
+ * @deprecated in 2.2 (to be removed in 3.0).
+ */
+@Deprecated
+public abstract class UnivariateRealSolverImpl
+    extends ConvergingAlgorithmImpl implements UnivariateRealSolver {
+
+    /** Maximum error of function. */
+    protected double functionValueAccuracy;
+
+    /** Default maximum error of function. */
+    protected double defaultFunctionValueAccuracy;
+
+    /** Indicates where a root has been computed. */
+<span class="fc" id="L46">    protected boolean resultComputed = false;</span>
+
+    /** The last computed root. */
+    protected double result;
+
+    /** Value of the function at the last computed result. */
+    protected double functionValue;
+
+    /** The function to solve.
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method. */
+    @Deprecated
+    protected UnivariateRealFunction f;
+
+    /**
+     * Construct a solver with given iteration count and accuracy.
+     *
+     * @param f the function to solve.
+     * @param defaultAbsoluteAccuracy maximum absolute error
+     * @param defaultMaximalIterationCount maximum number of iterations
+     * @throws IllegalArgumentException if f is null or the
+     * defaultAbsoluteAccuracy is not valid
+     * @deprecated as of 2.0 the function to solve is passed as an argument
+     * to the {@link #solve(UnivariateRealFunction, double, double)} or
+     * {@link UnivariateRealSolverImpl#solve(UnivariateRealFunction, double, double, double)}
+     * method.
+     */
+    @Deprecated
+    protected UnivariateRealSolverImpl(final UnivariateRealFunction f,
+                                       final int defaultMaximalIterationCount,
+                                       final double defaultAbsoluteAccuracy) {
+<span class="fc" id="L79">        super(defaultMaximalIterationCount, defaultAbsoluteAccuracy);</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (f == null) {</span>
+<span class="nc" id="L81">            throw new NullArgumentException(LocalizedFormats.FUNCTION);</span>
+        }
+<span class="fc" id="L83">        this.f = f;</span>
+<span class="fc" id="L84">        this.defaultFunctionValueAccuracy = 1.0e-15;</span>
+<span class="fc" id="L85">        this.functionValueAccuracy = defaultFunctionValueAccuracy;</span>
+<span class="fc" id="L86">    }</span>
+
+    /**
+     * Construct a solver with given iteration count and accuracy.
+     *
+     * @param defaultAbsoluteAccuracy maximum absolute error
+     * @param defaultMaximalIterationCount maximum number of iterations
+     * @throws IllegalArgumentException if f is null or the
+     * defaultAbsoluteAccuracy is not valid
+     */
+    protected UnivariateRealSolverImpl(final int defaultMaximalIterationCount,
+                                       final double defaultAbsoluteAccuracy) {
+<span class="fc" id="L98">        super(defaultMaximalIterationCount, defaultAbsoluteAccuracy);</span>
+<span class="fc" id="L99">        this.defaultFunctionValueAccuracy = 1.0e-15;</span>
+<span class="fc" id="L100">        this.functionValueAccuracy = defaultFunctionValueAccuracy;</span>
+<span class="fc" id="L101">    }</span>
+
+    /** Check if a result has been computed.
+     * @exception IllegalStateException if no result has been computed
+     */
+    protected void checkResultComputed() throws IllegalStateException {
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">        if (!resultComputed) {</span>
+<span class="nc" id="L108">            throw MathRuntimeException.createIllegalStateException(LocalizedFormats.NO_RESULT_AVAILABLE);</span>
+        }
+<span class="fc" id="L110">    }</span>
+
+    /** {@inheritDoc} */
+    public double getResult() {
+<span class="fc" id="L114">        checkResultComputed();</span>
+<span class="fc" id="L115">        return result;</span>
+    }
+
+    /** {@inheritDoc} */
+    public double getFunctionValue() {
+<span class="nc" id="L120">        checkResultComputed();</span>
+<span class="nc" id="L121">        return functionValue;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setFunctionValueAccuracy(final double accuracy) {
+<span class="fc" id="L126">        functionValueAccuracy = accuracy;</span>
+<span class="fc" id="L127">    }</span>
+
+    /** {@inheritDoc} */
+    public double getFunctionValueAccuracy() {
+<span class="fc" id="L131">        return functionValueAccuracy;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void resetFunctionValueAccuracy() {
+<span class="fc" id="L136">        functionValueAccuracy = defaultFunctionValueAccuracy;</span>
+<span class="fc" id="L137">    }</span>
+
+    /**
+     * Solve for a zero root in the given interval.
+     * &lt;p&gt;A solver may require that the interval brackets a single zero root.
+     * Solvers that do require bracketing should be able to handle the case
+     * where one of the endpoints is itself a root.&lt;/p&gt;
+     *
+     * @param function the function to solve.
+     * @param min the lower bound for the interval.
+     * @param max the upper bound for the interval.
+     * @param maxEval Maximum number of evaluations.
+     * @return a value where the function is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise.
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min &gt; max or the endpoints do not
+     * satisfy the requirements specified by the solver
+     * @since 2.2
+     */
+    public double solve(int maxEval, UnivariateRealFunction function, double min, double max)
+        throws ConvergenceException, FunctionEvaluationException {
+<span class="nc" id="L159">        throw MathRuntimeException.createUnsupportedOperationException(LocalizedFormats.NOT_OVERRIDEN);</span>
+    }
+
+    /**
+     * Solve for a zero in the given interval, start at startValue.
+     * &lt;p&gt;A solver may require that the interval brackets a single zero root.
+     * Solvers that do require bracketing should be able to handle the case
+     * where one of the endpoints is itself a root.&lt;/p&gt;
+     *
+     * @param function the function to solve.
+     * @param min the lower bound for the interval.
+     * @param max the upper bound for the interval.
+     * @param startValue the start value to use
+     * @param maxEval Maximum number of evaluations.
+     * @return a value where the function is zero
+     * @throws ConvergenceException if the maximum iteration count is exceeded
+     * or the solver detects convergence problems otherwise.
+     * @throws FunctionEvaluationException if an error occurs evaluating the function
+     * @throws IllegalArgumentException if min &gt; max or the arguments do not
+     * satisfy the requirements specified by the solver
+     * @since 2.2
+     */
+    public double solve(int maxEval, UnivariateRealFunction function, double min, double max, double startValue)
+        throws ConvergenceException, FunctionEvaluationException, IllegalArgumentException {
+<span class="nc" id="L183">        throw MathRuntimeException.createUnsupportedOperationException(LocalizedFormats.NOT_OVERRIDEN);</span>
+    }
+
+    /**
+     * Convenience function for implementations.
+     *
+     * @param newResult the result to set
+     * @param iterationCount the iteration count to set
+     */
+    protected final void setResult(final double newResult, final int iterationCount) {
+<span class="fc" id="L193">        this.result         = newResult;</span>
+<span class="fc" id="L194">        this.iterationCount = iterationCount;</span>
+<span class="fc" id="L195">        this.resultComputed = true;</span>
+<span class="fc" id="L196">    }</span>
+
+    /**
+     * Convenience function for implementations.
+     *
+     * @param x the result to set
+     * @param fx the result to set
+     * @param iterationCount the iteration count to set
+     */
+    protected final void setResult(final double x, final double fx,
+                                   final int iterationCount) {
+<span class="nc" id="L207">        this.result         = x;</span>
+<span class="nc" id="L208">        this.functionValue  = fx;</span>
+<span class="nc" id="L209">        this.iterationCount = iterationCount;</span>
+<span class="nc" id="L210">        this.resultComputed = true;</span>
+<span class="nc" id="L211">    }</span>
+
+    /**
+     * Convenience function for implementations.
+     */
+    protected final void clearResult() {
+<span class="fc" id="L217">        this.iterationCount = 0;</span>
+<span class="fc" id="L218">        this.resultComputed = false;</span>
+<span class="fc" id="L219">    }</span>
+
+    /**
+     * Returns true iff the function takes opposite signs at the endpoints.
+     *
+     * @param lower  the lower endpoint
+     * @param upper  the upper endpoint
+     * @param function the function
+     * @return true if f(lower) * f(upper) &lt; 0
+     * @throws FunctionEvaluationException if an error occurs evaluating the function at the endpoints
+     */
+    protected boolean isBracketing(final double lower, final double upper,
+                                   final UnivariateRealFunction function)
+        throws FunctionEvaluationException {
+<span class="fc" id="L233">        final double f1 = function.value(lower);</span>
+<span class="fc" id="L234">        final double f2 = function.value(upper);</span>
+<span class="pc bpc" id="L235" title="1 of 8 branches missed.">        return (f1 &gt; 0 &amp;&amp; f2 &lt; 0) || (f1 &lt; 0 &amp;&amp; f2 &gt; 0);</span>
+    }
+
+    /**
+     * Returns true if the arguments form a (strictly) increasing sequence
+     *
+     * @param start  first number
+     * @param mid   second number
+     * @param end  third number
+     * @return true if the arguments form an increasing sequence
+     */
+    protected boolean isSequence(final double start, final double mid, final double end) {
+<span class="fc bfc" id="L247" title="All 4 branches covered.">        return (start &lt; mid) &amp;&amp; (mid &lt; end);</span>
+    }
+
+    /**
+     * Verifies that the endpoints specify an interval,
+     * throws IllegalArgumentException if not
+     *
+     * @param lower  lower endpoint
+     * @param upper upper endpoint
+     * @throws IllegalArgumentException
+     */
+    protected void verifyInterval(final double lower, final double upper) {
+<span class="fc bfc" id="L259" title="All 2 branches covered.">        if (lower &gt;= upper) {</span>
+<span class="fc" id="L260">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.ENDPOINTS_NOT_AN_INTERVAL,
+<span class="fc" id="L262">                    lower, upper);</span>
+        }
+<span class="fc" id="L264">    }</span>
+
+    /**
+     * Verifies that &lt;code&gt;lower &lt; initial &lt; upper&lt;/code&gt;
+     * throws IllegalArgumentException if not
+     *
+     * @param lower  lower endpoint
+     * @param initial initial value
+     * @param upper upper endpoint
+     * @throws IllegalArgumentException
+     */
+    protected void verifySequence(final double lower, final double initial, final double upper) {
+<span class="pc bpc" id="L276" title="1 of 2 branches missed.">        if (!isSequence(lower, initial, upper)) {</span>
+<span class="nc" id="L277">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.INVALID_INTERVAL_INITIAL_VALUE_PARAMETERS,
+<span class="nc" id="L279">                    lower, initial, upper);</span>
+        }
+<span class="fc" id="L281">    }</span>
+
+    /**
+     * Verifies that the endpoints specify an interval and the function takes
+     * opposite signs at the endpoints, throws IllegalArgumentException if not
+     *
+     * @param lower  lower endpoint
+     * @param upper upper endpoint
+     * @param function function
+     * @throws IllegalArgumentException
+     * @throws FunctionEvaluationException if an error occurs evaluating the function at the endpoints
+     */
+    protected void verifyBracketing(final double lower, final double upper,
+                                    final UnivariateRealFunction function)
+        throws FunctionEvaluationException {
+
+<span class="fc" id="L297">        verifyInterval(lower, upper);</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">        if (!isBracketing(lower, upper, function)) {</span>
+<span class="fc" id="L299">            throw MathRuntimeException.createIllegalArgumentException(</span>
+                    LocalizedFormats.SAME_SIGN_AT_ENDPOINTS,
+<span class="fc" id="L301">                    lower, upper, function.value(lower), function.value(upper));</span>
+        }
+<span class="fc" id="L303">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

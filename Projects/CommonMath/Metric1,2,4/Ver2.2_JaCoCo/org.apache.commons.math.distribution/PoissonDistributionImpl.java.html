@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>PoissonDistributionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.distribution</a> &gt; <span class="el_source">PoissonDistributionImpl.java</span></div><h1>PoissonDistributionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.commons.math.distribution;
+
+import java.io.Serializable;
+
+import org.apache.commons.math.MathException;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.special.Gamma;
+import org.apache.commons.math.util.MathUtils;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Implementation for the {@link PoissonDistribution}.
+ *
+ * @version $Revision$ $Date$
+ */
+public class PoissonDistributionImpl extends AbstractIntegerDistribution
+        implements PoissonDistribution, Serializable {
+
+    /**
+     * Default maximum number of iterations for cumulative probability calculations.
+     * @since 2.1
+     */
+    public static final int DEFAULT_MAX_ITERATIONS = 10000000;
+
+    /**
+     * Default convergence criterion.
+     * @since 2.1
+     */
+    public static final double DEFAULT_EPSILON = 1E-12;
+
+    /** Serializable version identifier */
+    private static final long serialVersionUID = -3349935121172596109L;
+
+    /** Distribution used to compute normal approximation. */
+    private NormalDistribution normal;
+
+    /**
+     * Holds the Poisson mean for the distribution.
+     */
+    private double mean;
+
+    /**
+     * Maximum number of iterations for cumulative probability.
+     *
+     * Cumulative probabilities are estimated using either Lanczos series approximation of
+     * Gamma#regularizedGammaP or continued fraction approximation of Gamma#regularizedGammaQ.
+     */
+<span class="pc" id="L65">    private int maxIterations = DEFAULT_MAX_ITERATIONS;</span>
+
+    /**
+     * Convergence criterion for cumulative probability.
+     */
+<span class="pc" id="L70">    private double epsilon = DEFAULT_EPSILON;</span>
+
+    /**
+     * Create a new Poisson distribution with the given the mean. The mean value
+     * must be positive; otherwise an &lt;code&gt;IllegalArgument&lt;/code&gt; is thrown.
+     *
+     * @param p the Poisson mean
+     * @throws IllegalArgumentException if p &amp;le; 0
+     */
+    public PoissonDistributionImpl(double p) {
+<span class="fc" id="L80">        this(p, new NormalDistributionImpl());</span>
+<span class="fc" id="L81">    }</span>
+
+    /**
+     * Create a new Poisson distribution with the given mean, convergence criterion
+     * and maximum number of iterations.
+     *
+     * @param p the Poisson mean
+     * @param epsilon the convergence criteria for cumulative probabilites
+     * @param maxIterations the maximum number of iterations for cumulative probabilites
+     * @since 2.1
+     */
+<span class="nc" id="L92">    public PoissonDistributionImpl(double p, double epsilon, int maxIterations) {</span>
+<span class="nc" id="L93">        setMean(p);</span>
+<span class="nc" id="L94">        this.epsilon = epsilon;</span>
+<span class="nc" id="L95">        this.maxIterations = maxIterations;</span>
+<span class="nc" id="L96">    }</span>
+
+    /**
+     * Create a new Poisson distribution with the given mean and convergence criterion.
+     *
+     * @param p the Poisson mean
+     * @param epsilon the convergence criteria for cumulative probabilites
+     * @since 2.1
+     */
+<span class="nc" id="L105">    public PoissonDistributionImpl(double p, double epsilon) {</span>
+<span class="nc" id="L106">        setMean(p);</span>
+<span class="nc" id="L107">        this.epsilon = epsilon;</span>
+<span class="nc" id="L108">    }</span>
+
+    /**
+     * Create a new Poisson distribution with the given mean and maximum number of iterations.
+     *
+     * @param p the Poisson mean
+     * @param maxIterations the maximum number of iterations for cumulative probabilites
+     * @since 2.1
+     */
+<span class="nc" id="L117">    public PoissonDistributionImpl(double p, int maxIterations) {</span>
+<span class="nc" id="L118">        setMean(p);</span>
+<span class="nc" id="L119">        this.maxIterations = maxIterations;</span>
+<span class="nc" id="L120">    }</span>
+
+
+    /**
+     * Create a new Poisson distribution with the given the mean. The mean value
+     * must be positive; otherwise an &lt;code&gt;IllegalArgument&lt;/code&gt; is thrown.
+     *
+     * @param p the Poisson mean
+     * @param z a normal distribution used to compute normal approximations.
+     * @throws IllegalArgumentException if p &amp;le; 0
+     * @since 1.2
+     * @deprecated as of 2.1 (to avoid possibly inconsistent state, the
+     * &quot;NormalDistribution&quot; will be instantiated internally)
+     */
+    @Deprecated
+    public PoissonDistributionImpl(double p, NormalDistribution z) {
+<span class="fc" id="L136">        super();</span>
+<span class="fc" id="L137">        setNormalAndMeanInternal(z, p);</span>
+<span class="fc" id="L138">    }</span>
+
+    /**
+     * Get the Poisson mean for the distribution.
+     *
+     * @return the Poisson mean for the distribution.
+     */
+    public double getMean() {
+<span class="fc" id="L146">        return mean;</span>
+    }
+
+    /**
+     * Set the Poisson mean for the distribution. The mean value must be
+     * positive; otherwise an &lt;code&gt;IllegalArgument&lt;/code&gt; is thrown.
+     *
+     * @param p the Poisson mean value
+     * @throws IllegalArgumentException if p &amp;le; 0
+     * @deprecated as of 2.1 (class will become immutable in 3.0)
+     */
+    @Deprecated
+    public void setMean(double p) {
+<span class="fc" id="L159">        setNormalAndMeanInternal(normal, p);</span>
+<span class="fc" id="L160">    }</span>
+    /**
+     * Set the Poisson mean for the distribution. The mean value must be
+     * positive; otherwise an &lt;code&gt;IllegalArgument&lt;/code&gt; is thrown.
+     *
+     * @param z the new distribution
+     * @param p the Poisson mean value
+     * @throws IllegalArgumentException if p &amp;le; 0
+     */
+    private void setNormalAndMeanInternal(NormalDistribution z,
+                                          double p) {
+<span class="fc bfc" id="L171" title="All 2 branches covered.">        if (p &lt;= 0) {</span>
+<span class="fc" id="L172">            throw MathRuntimeException.createIllegalArgumentException(</span>
+<span class="fc" id="L173">                    LocalizedFormats.NOT_POSITIVE_POISSON_MEAN, p);</span>
+        }
+<span class="fc" id="L175">        mean = p;</span>
+<span class="fc" id="L176">        normal = z;</span>
+<span class="fc" id="L177">        normal.setMean(p);</span>
+<span class="fc" id="L178">        normal.setStandardDeviation(FastMath.sqrt(p));</span>
+<span class="fc" id="L179">    }</span>
+
+    /**
+     * The probability mass function P(X = x) for a Poisson distribution.
+     *
+     * @param x the value at which the probability density function is
+     *            evaluated.
+     * @return the value of the probability mass function at x
+     */
+    public double probability(int x) {
+        double ret;
+<span class="pc bpc" id="L190" title="1 of 4 branches missed.">        if (x &lt; 0 || x == Integer.MAX_VALUE) {</span>
+<span class="fc" id="L191">            ret = 0.0;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        } else if (x == 0) {</span>
+<span class="fc" id="L193">            ret = FastMath.exp(-mean);</span>
+        } else {
+<span class="fc" id="L195">            ret = FastMath.exp(-SaddlePointExpansion.getStirlingError(x) -</span>
+<span class="fc" id="L196">                  SaddlePointExpansion.getDeviancePart(x, mean)) /</span>
+<span class="fc" id="L197">                  FastMath.sqrt(MathUtils.TWO_PI * x);</span>
+        }
+<span class="fc" id="L199">        return ret;</span>
+    }
+
+    /**
+     * The probability distribution function P(X &lt;= x) for a Poisson
+     * distribution.
+     *
+     * @param x the value at which the PDF is evaluated.
+     * @return Poisson distribution function evaluated at x
+     * @throws MathException if the cumulative probability can not be computed
+     *             due to convergence or other numerical errors.
+     */
+    @Override
+    public double cumulativeProbability(int x) throws MathException {
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        if (x &lt; 0) {</span>
+<span class="fc" id="L214">            return 0;</span>
+        }
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        if (x == Integer.MAX_VALUE) {</span>
+<span class="fc" id="L217">            return 1;</span>
+        }
+<span class="fc" id="L219">        return Gamma.regularizedGammaQ((double) x + 1, mean, epsilon, maxIterations);</span>
+    }
+
+    /**
+     * Calculates the Poisson distribution function using a normal
+     * approximation. The &lt;code&gt;N(mean, sqrt(mean))&lt;/code&gt; distribution is used
+     * to approximate the Poisson distribution.
+     * &lt;p&gt;
+     * The computation uses &quot;half-correction&quot; -- evaluating the normal
+     * distribution function at &lt;code&gt;x + 0.5&lt;/code&gt;
+     * &lt;/p&gt;
+     *
+     * @param x the upper bound, inclusive
+     * @return the distribution function value calculated using a normal
+     *         approximation
+     * @throws MathException if an error occurs computing the normal
+     *             approximation
+     */
+    public double normalApproximateProbability(int x) throws MathException {
+        // calculate the probability using half-correction
+<span class="fc" id="L239">        return normal.cumulativeProbability(x + 0.5);</span>
+    }
+
+    /**
+     * Generates a random value sampled from this distribution.
+     *
+     * &lt;p&gt;&lt;strong&gt;Algorithm Description&lt;/strong&gt;:
+     * &lt;ul&gt;&lt;li&gt; For small means, uses simulation of a Poisson process
+     * using Uniform deviates, as described
+     * &lt;a href=&quot;http://irmi.epfl.ch/cmos/Pmmi/interactive/rng7.htm&quot;&gt; here.&lt;/a&gt;
+     * The Poisson process (and hence value returned) is bounded by 1000 * mean.&lt;/li&gt;&lt;
+     *
+     * &lt;li&gt; For large means, uses the rejection algorithm described in &lt;br/&gt;
+     * Devroye, Luc. (1981).&lt;i&gt;The Computer Generation of Poisson Random Variables&lt;/i&gt;
+     * &lt;strong&gt;Computing&lt;/strong&gt; vol. 26 pp. 197-207.&lt;/li&gt;&lt;/ul&gt;&lt;/p&gt;
+     *
+     * @return random value
+     * @since 2.2
+     * @throws MathException if an error occurs generating the random value
+     */
+    @Override
+    public int sample() throws MathException {
+<span class="fc" id="L261">        return (int) FastMath.min(randomData.nextPoisson(mean), Integer.MAX_VALUE);</span>
+    }
+
+    /**
+     * Access the domain value lower bound, based on &lt;code&gt;p&lt;/code&gt;, used to
+     * bracket a CDF root. This method is used by
+     * {@link #inverseCumulativeProbability(double)} to find critical values.
+     *
+     * @param p the desired probability for the critical value
+     * @return domain lower bound
+     */
+    @Override
+    protected int getDomainLowerBound(double p) {
+<span class="fc" id="L274">        return 0;</span>
+    }
+
+    /**
+     * Access the domain value upper bound, based on &lt;code&gt;p&lt;/code&gt;, used to
+     * bracket a CDF root. This method is used by
+     * {@link #inverseCumulativeProbability(double)} to find critical values.
+     *
+     * @param p the desired probability for the critical value
+     * @return domain upper bound
+     */
+    @Override
+    protected int getDomainUpperBound(double p) {
+<span class="fc" id="L287">        return Integer.MAX_VALUE;</span>
+    }
+
+    /**
+     * Modify the normal distribution used to compute normal approximations. The
+     * caller is responsible for insuring the normal distribution has the proper
+     * parameter settings.
+     *
+     * @param value the new distribution
+     * @since 1.2
+     * @deprecated as of 2.1 (class will become immutable in 3.0)
+     */
+    @Deprecated
+    public void setNormal(NormalDistribution value) {
+<span class="nc" id="L301">        setNormalAndMeanInternal(value, mean);</span>
+<span class="nc" id="L302">    }</span>
+
+    /**
+     * Returns the lower bound of the support for the distribution.
+     *
+     * The lower bound of the support is always 0 no matter the mean parameter.
+     *
+     * @return lower bound of the support (always 0)
+     * @since 2.2
+     */
+    public int getSupportLowerBound() {
+<span class="nc" id="L313">        return 0;</span>
+    }
+
+    /**
+     * Returns the upper bound of the support for the distribution.
+     *
+     * The upper bound of the support is positive infinity,
+     * regardless of the parameter values. There is no integer infinity,
+     * so this method returns &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt; and
+     * {@link #isSupportUpperBoundInclusive()} returns &lt;code&gt;true&lt;/code&gt;.
+     *
+     * @return upper bound of the support (always &lt;code&gt;Integer.MAX_VALUE&lt;/code&gt; for positive infinity)
+     * @since 2.2
+     */
+    public int getSupportUpperBound() {
+<span class="nc" id="L328">        return Integer.MAX_VALUE;</span>
+    }
+
+    /**
+     * Returns the variance of the distribution.
+     *
+     * For mean parameter &lt;code&gt;p&lt;/code&gt;, the variance is &lt;code&gt;p&lt;/code&gt;
+     *
+     * @return the variance
+     * @since 2.2
+     */
+    public double getNumericalVariance() {
+<span class="fc" id="L340">        return getMean();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

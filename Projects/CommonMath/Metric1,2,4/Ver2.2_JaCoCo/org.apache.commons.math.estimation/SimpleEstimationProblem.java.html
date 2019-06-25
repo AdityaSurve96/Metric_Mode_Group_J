@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>SimpleEstimationProblem.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.estimation</a> &gt; <span class="el_source">SimpleEstimationProblem.java</span></div><h1>SimpleEstimationProblem.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.estimation;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Simple implementation of the {@link EstimationProblem
+ * EstimationProblem} interface for boilerplate data handling.
+ * &lt;p&gt;This class &lt;em&gt;only&lt;/em&gt; handles parameters and measurements
+ * storage and unbound parameters filtering. It does not compute
+ * anything by itself. It should either be used with measurements
+ * implementation that are smart enough to know about the
+ * various parameters in order to compute the partial derivatives
+ * appropriately. Since the problem-specific logic is mainly related to
+ * the various measurements models, the simplest way to use this class
+ * is by extending it and using one internal class extending
+ * {@link WeightedMeasurement WeightedMeasurement} for each measurement
+ * type. The instances of the internal classes would have access to the
+ * various parameters and their current estimate.&lt;/p&gt;
+
+ * @version $Revision$ $Date$
+ * @since 1.2
+ * @deprecated as of 2.0, everything in package org.apache.commons.math.estimation has
+ * been deprecated and replaced by package org.apache.commons.math.optimization.general
+
+ */
+@Deprecated
+public class SimpleEstimationProblem implements EstimationProblem {
+
+    /** Estimated parameters. */
+    private final List&lt;EstimatedParameter&gt; parameters;
+
+    /** Measurements. */
+    private final List&lt;WeightedMeasurement&gt; measurements;
+
+    /**
+     * Build an empty instance without parameters nor measurements.
+     */
+<span class="fc" id="L56">    public SimpleEstimationProblem() {</span>
+<span class="fc" id="L57">        parameters   = new ArrayList&lt;EstimatedParameter&gt;();</span>
+<span class="fc" id="L58">        measurements = new ArrayList&lt;WeightedMeasurement&gt;();</span>
+<span class="fc" id="L59">    }</span>
+
+    /**
+     * Get all the parameters of the problem.
+     * @return parameters
+     */
+    public EstimatedParameter[] getAllParameters() {
+<span class="fc" id="L66">        return parameters.toArray(new EstimatedParameter[parameters.size()]);</span>
+    }
+
+    /**
+     * Get the unbound parameters of the problem.
+     * @return unbound parameters
+     */
+    public EstimatedParameter[] getUnboundParameters() {
+
+        // filter the unbound parameters
+<span class="fc" id="L76">        List&lt;EstimatedParameter&gt; unbound = new ArrayList&lt;EstimatedParameter&gt;(parameters.size());</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">        for (EstimatedParameter p : parameters) {</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            if (! p.isBound()) {</span>
+<span class="fc" id="L79">                unbound.add(p);</span>
+            }
+<span class="fc" id="L81">        }</span>
+
+        // convert to an array
+<span class="fc" id="L84">        return unbound.toArray(new EstimatedParameter[unbound.size()]);</span>
+
+    }
+
+    /**
+     * Get the measurements of an estimation problem.
+     * @return measurements
+     */
+    public WeightedMeasurement[] getMeasurements() {
+<span class="fc" id="L93">        return measurements.toArray(new WeightedMeasurement[measurements.size()]);</span>
+    }
+
+    /** Add a parameter to the problem.
+     * @param p parameter to add
+     */
+    protected void addParameter(EstimatedParameter p) {
+<span class="fc" id="L100">        parameters.add(p);</span>
+<span class="fc" id="L101">    }</span>
+
+    /**
+     * Add a new measurement to the set.
+     * @param m measurement to add
+     */
+    protected void addMeasurement(WeightedMeasurement m) {
+<span class="fc" id="L108">        measurements.add(m);</span>
+<span class="fc" id="L109">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

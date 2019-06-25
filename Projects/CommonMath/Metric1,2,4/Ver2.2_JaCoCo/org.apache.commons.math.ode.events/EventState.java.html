@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>EventState.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.ode.events</a> &gt; <span class="el_source">EventState.java</span></div><h1>EventState.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.ode.events;
+
+import org.apache.commons.math.ConvergenceException;
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.analysis.UnivariateRealFunction;
+import org.apache.commons.math.analysis.solvers.BrentSolver;
+import org.apache.commons.math.exception.MathInternalError;
+import org.apache.commons.math.ode.DerivativeException;
+import org.apache.commons.math.ode.sampling.StepInterpolator;
+import org.apache.commons.math.util.FastMath;
+
+/** This class handles the state for one {@link EventHandler
+ * event handler} during integration steps.
+ *
+ * &lt;p&gt;Each time the integrator proposes a step, the event handler
+ * switching function should be checked. This class handles the state
+ * of one handler during one integration step, with references to the
+ * state at the end of the preceding step. This information is used to
+ * decide if the handler should trigger an event or not during the
+ * proposed step (and hence the step should be reduced to ensure the
+ * event occurs at a bound rather than inside the step).&lt;/p&gt;
+ *
+ * @version $Revision$ $Date$
+ * @since 1.2
+ */
+public class EventState {
+
+    /** Event handler. */
+    private final EventHandler handler;
+
+    /** Maximal time interval between events handler checks. */
+    private final double maxCheckInterval;
+
+    /** Convergence threshold for event localization. */
+    private final double convergence;
+
+    /** Upper limit in the iteration count for event localization. */
+    private final int maxIterationCount;
+
+    /** Time at the beginning of the step. */
+    private double t0;
+
+    /** Value of the events handler at the beginning of the step. */
+    private double g0;
+
+    /** Simulated sign of g0 (we cheat when crossing events). */
+    private boolean g0Positive;
+
+    /** Indicator of event expected during the step. */
+    private boolean pendingEvent;
+
+    /** Occurrence time of the pending event. */
+    private double pendingEventTime;
+
+    /** Occurrence time of the previous event. */
+    private double previousEventTime;
+
+    /** Integration direction. */
+    private boolean forward;
+
+    /** Variation direction around pending event.
+     *  (this is considered with respect to the integration direction)
+     */
+    private boolean increasing;
+
+    /** Next action indicator. */
+    private int nextAction;
+
+    /** Simple constructor.
+     * @param handler event handler
+     * @param maxCheckInterval maximal time interval between switching
+     * function checks (this interval prevents missing sign changes in
+     * case the integration steps becomes very large)
+     * @param convergence convergence threshold in the event time search
+     * @param maxIterationCount upper limit of the iteration count in
+     * the event time search
+     */
+    public EventState(final EventHandler handler, final double maxCheckInterval,
+<span class="fc" id="L96">                      final double convergence, final int maxIterationCount) {</span>
+<span class="fc" id="L97">        this.handler           = handler;</span>
+<span class="fc" id="L98">        this.maxCheckInterval  = maxCheckInterval;</span>
+<span class="fc" id="L99">        this.convergence       = FastMath.abs(convergence);</span>
+<span class="fc" id="L100">        this.maxIterationCount = maxIterationCount;</span>
+
+        // some dummy values ...
+<span class="fc" id="L103">        t0                = Double.NaN;</span>
+<span class="fc" id="L104">        g0                = Double.NaN;</span>
+<span class="fc" id="L105">        g0Positive        = true;</span>
+<span class="fc" id="L106">        pendingEvent      = false;</span>
+<span class="fc" id="L107">        pendingEventTime  = Double.NaN;</span>
+<span class="fc" id="L108">        previousEventTime = Double.NaN;</span>
+<span class="fc" id="L109">        increasing        = true;</span>
+<span class="fc" id="L110">        nextAction        = EventHandler.CONTINUE;</span>
+
+<span class="fc" id="L112">    }</span>
+
+    /** Get the underlying event handler.
+     * @return underlying event handler
+     */
+    public EventHandler getEventHandler() {
+<span class="fc" id="L118">        return handler;</span>
+    }
+
+    /** Get the maximal time interval between events handler checks.
+     * @return maximal time interval between events handler checks
+     */
+    public double getMaxCheckInterval() {
+<span class="nc" id="L125">        return maxCheckInterval;</span>
+    }
+
+    /** Get the convergence threshold for event localization.
+     * @return convergence threshold for event localization
+     */
+    public double getConvergence() {
+<span class="fc" id="L132">        return convergence;</span>
+    }
+
+    /** Get the upper limit in the iteration count for event localization.
+     * @return upper limit in the iteration count for event localization
+     */
+    public int getMaxIterationCount() {
+<span class="nc" id="L139">        return maxIterationCount;</span>
+    }
+
+    /** Reinitialize the beginning of the step.
+     * @param interpolator valid for the current step
+     * @exception EventException if the event handler
+     * value cannot be evaluated at the beginning of the step
+     */
+    public void reinitializeBegin(final StepInterpolator interpolator)
+        throws EventException {
+        try {
+            // excerpt from MATH-421 issue:
+            // If an ODE solver is setup with an EventHandler that return STOP
+            // when the even is triggered, the integrator stops (which is exactly
+            // the expected behavior). If however the user want to restart the
+            // solver from the final state reached at the event with the same
+            // configuration (expecting the event to be triggered again at a
+            // later time), then the integrator may fail to start. It can get stuck
+            // at the previous event.
+
+            // The use case for the bug MATH-421 is fairly general, so events occurring
+            // less than epsilon after the solver start in the first step should be ignored,
+            // where epsilon is the convergence threshold of the event. The sign of the g
+            // function should be evaluated after this initial ignore zone, not exactly at
+            // beginning (if there are no event at the very beginning g(t0) and g(t0+epsilon)
+            // have the same sign, so this does not hurt ; if there is an event at the very
+            // beginning, g(t0) and g(t0+epsilon) have opposite signs and we want to start
+            // with the second one. Of course, the sign of epsilon depend on the integration
+            // direction (forward or backward). This explains what is done below.
+
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">            final double ignoreZone = interpolator.isForward() ? getConvergence() : -getConvergence();</span>
+<span class="fc" id="L170">            t0 = interpolator.getPreviousTime() + ignoreZone;</span>
+<span class="fc" id="L171">            interpolator.setInterpolatedTime(t0);</span>
+<span class="fc" id="L172">            g0 = handler.g(t0, interpolator.getInterpolatedState());</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">            if (g0 == 0) {</span>
+                // extremely rare case: there is a zero EXACTLY at end of ignore zone
+                // we will use the opposite of sign at step beginning to force ignoring this zero
+<span class="nc" id="L176">                final double tStart = interpolator.getPreviousTime();</span>
+<span class="nc" id="L177">                interpolator.setInterpolatedTime(tStart);</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                g0Positive = handler.g(tStart, interpolator.getInterpolatedState()) &lt;= 0;</span>
+<span class="nc" id="L179">            } else {</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">                g0Positive = g0 &gt;= 0;</span>
+            }
+
+<span class="nc" id="L183">        } catch (DerivativeException mue) {</span>
+<span class="nc" id="L184">            throw new EventException(mue);</span>
+<span class="fc" id="L185">        }</span>
+<span class="fc" id="L186">    }</span>
+
+    /** Evaluate the impact of the proposed step on the event handler.
+     * @param interpolator step interpolator for the proposed step
+     * @return true if the event handler triggers an event before
+     * the end of the proposed step
+     * @exception DerivativeException if the interpolator fails to
+     * compute the switching function somewhere within the step
+     * @exception EventException if the switching function
+     * cannot be evaluated
+     * @exception ConvergenceException if an event cannot be located
+     */
+    public boolean evaluateStep(final StepInterpolator interpolator)
+        throws DerivativeException, EventException, ConvergenceException {
+
+        try {
+
+<span class="fc" id="L203">            forward = interpolator.isForward();</span>
+<span class="fc" id="L204">            final double t1 = interpolator.getCurrentTime();</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">            if (FastMath.abs(t1 - t0) &lt; convergence) {</span>
+                // we cannot do anything on such a small step, don't trigger any events
+<span class="fc" id="L207">                return false;</span>
+            }
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">            final double start = forward ? (t0 + convergence) : t0 - convergence;</span>
+<span class="fc" id="L210">            final double dt    = t1 - start;</span>
+<span class="fc" id="L211">            final int    n     = FastMath.max(1, (int) FastMath.ceil(FastMath.abs(dt) / maxCheckInterval));</span>
+<span class="fc" id="L212">            final double h     = dt / n;</span>
+
+<span class="fc" id="L214">            double ta = t0;</span>
+<span class="fc" id="L215">            double ga = g0;</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">            for (int i = 0; i &lt; n; ++i) {</span>
+
+                // evaluate handler value at the end of the substep
+<span class="fc" id="L219">                final double tb = start + (i + 1) * h;</span>
+<span class="fc" id="L220">                interpolator.setInterpolatedTime(tb);</span>
+<span class="fc" id="L221">                final double gb = handler.g(tb, interpolator.getInterpolatedState());</span>
+
+                // check events occurrence
+<span class="fc bfc" id="L224" title="All 4 branches covered.">                if (g0Positive ^ (gb &gt;= 0)) {</span>
+                    // there is a sign change: an event is expected during this step
+
+                    // variation direction, with respect to the integration direction
+<span class="fc bfc" id="L228" title="All 2 branches covered.">                    increasing = gb &gt;= ga;</span>
+
+<span class="fc" id="L230">                    final UnivariateRealFunction f = new UnivariateRealFunction() {</span>
+                        public double value(final double t) {
+                            try {
+<span class="fc" id="L233">                                interpolator.setInterpolatedTime(t);</span>
+<span class="fc" id="L234">                                return handler.g(t, interpolator.getInterpolatedState());</span>
+<span class="nc" id="L235">                            } catch (DerivativeException e) {</span>
+<span class="nc" id="L236">                                throw new EmbeddedDerivativeException(e);</span>
+<span class="nc" id="L237">                            } catch (EventException e) {</span>
+<span class="nc" id="L238">                                throw new EmbeddedEventException(e);</span>
+                            }
+                        }
+                    };
+<span class="fc" id="L242">                    final BrentSolver solver = new BrentSolver(convergence);</span>
+
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">                    if (ga * gb &gt;= 0) {</span>
+                        // this is a corner case:
+                        // - there was an event near ta,
+                        // - there is another event between ta and tb
+                        // - when ta was computed, convergence was reached on the &quot;wrong side&quot; of the interval
+                        // this implies that the real sign of ga is the same as gb, so we need to slightly
+                        // shift ta to make sure ga and gb get opposite signs and the solver won't complain
+                        // about bracketing
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                        final double epsilon = (forward ? 0.25 : -0.25) * convergence;</span>
+<span class="nc bnc" id="L253" title="All 4 branches missed.">                        for (int k = 0; (k &lt; 4) &amp;&amp; (ga * gb &gt; 0); ++k) {</span>
+<span class="nc" id="L254">                            ta += epsilon;</span>
+                            try {
+<span class="nc" id="L256">                                ga = f.value(ta);</span>
+<span class="nc" id="L257">                            } catch (FunctionEvaluationException ex) {</span>
+<span class="nc" id="L258">                                throw new DerivativeException(ex);</span>
+<span class="nc" id="L259">                            }</span>
+                        }
+<span class="nc bnc" id="L261" title="All 2 branches missed.">                        if (ga * gb &gt; 0) {</span>
+                            // this should never happen
+<span class="nc" id="L263">                            throw new MathInternalError();</span>
+                        }
+                    }
+
+                    final double root;
+                    try {
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">                        root = (ta &lt;= tb) ?</span>
+<span class="pc" id="L270">                                solver.solve(maxIterationCount, f, ta, tb) :</span>
+<span class="pc" id="L271">                                    solver.solve(maxIterationCount, f, tb, ta);</span>
+<span class="nc" id="L272">                    } catch (FunctionEvaluationException ex) {</span>
+<span class="nc" id="L273">                        throw new DerivativeException(ex);</span>
+<span class="fc" id="L274">                    }</span>
+
+<span class="fc bfc" id="L276" title="All 2 branches covered.">                    if ((!Double.isNaN(previousEventTime)) &amp;&amp;</span>
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">                        (FastMath.abs(root - ta) &lt;= convergence) &amp;&amp;</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                        (FastMath.abs(root - previousEventTime) &lt;= convergence)) {</span>
+                        // we have either found nothing or found (again ?) a past event, we simply ignore it
+<span class="nc" id="L280">                        ta = tb;</span>
+<span class="nc" id="L281">                        ga = gb;</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                    } else if (Double.isNaN(previousEventTime) ||</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">                               (FastMath.abs(previousEventTime - root) &gt; convergence)) {</span>
+<span class="fc" id="L284">                        pendingEventTime = root;</span>
+<span class="fc" id="L285">                        pendingEvent = true;</span>
+<span class="fc" id="L286">                        return true;</span>
+                    } else {
+                        // no sign change: there is no event for now
+<span class="nc" id="L289">                        ta = tb;</span>
+<span class="nc" id="L290">                        ga = gb;</span>
+                    }
+
+<span class="nc" id="L293">                } else {</span>
+                    // no sign change: there is no event for now
+<span class="fc" id="L295">                    ta = tb;</span>
+<span class="fc" id="L296">                    ga = gb;</span>
+                }
+
+            }
+
+            // no event during the whole step
+<span class="fc" id="L302">            pendingEvent     = false;</span>
+<span class="fc" id="L303">            pendingEventTime = Double.NaN;</span>
+<span class="fc" id="L304">            return false;</span>
+
+<span class="nc" id="L306">        } catch (EmbeddedDerivativeException ede) {</span>
+<span class="nc" id="L307">            throw ede.getDerivativeException();</span>
+<span class="nc" id="L308">        } catch (EmbeddedEventException eee) {</span>
+<span class="nc" id="L309">            throw eee.getEventException();</span>
+        }
+
+    }
+
+    /** Get the occurrence time of the event triggered in the current step.
+     * @return occurrence time of the event triggered in the current
+     * step or positive infinity if no events are triggered
+     */
+    public double getEventTime() {
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">        return pendingEvent ? pendingEventTime : Double.POSITIVE_INFINITY;</span>
+    }
+
+    /** Acknowledge the fact the step has been accepted by the integrator.
+     * @param t value of the independent &lt;i&gt;time&lt;/i&gt; variable at the
+     * end of the step
+     * @param y array containing the current value of the state vector
+     * at the end of the step
+     * @exception EventException if the value of the event
+     * handler cannot be evaluated
+     */
+    public void stepAccepted(final double t, final double[] y)
+        throws EventException {
+
+<span class="fc" id="L333">        t0 = t;</span>
+<span class="fc" id="L334">        g0 = handler.g(t, y);</span>
+
+<span class="pc bpc" id="L336" title="1 of 4 branches missed.">        if (pendingEvent &amp;&amp; (FastMath.abs(pendingEventTime - t) &lt;= convergence)) {</span>
+            // force the sign to its value &quot;just after the event&quot;
+<span class="fc" id="L338">            previousEventTime = t;</span>
+<span class="fc" id="L339">            g0Positive        = increasing;</span>
+<span class="fc bfc" id="L340" title="All 2 branches covered.">            nextAction        = handler.eventOccurred(t, y, !(increasing ^ forward));</span>
+        } else {
+<span class="fc bfc" id="L342" title="All 2 branches covered.">            g0Positive = g0 &gt;= 0;</span>
+<span class="fc" id="L343">            nextAction = EventHandler.CONTINUE;</span>
+        }
+<span class="fc" id="L345">    }</span>
+
+    /** Check if the integration should be stopped at the end of the
+     * current step.
+     * @return true if the integration should be stopped
+     */
+    public boolean stop() {
+<span class="fc bfc" id="L352" title="All 2 branches covered.">        return nextAction == EventHandler.STOP;</span>
+    }
+
+    /** Let the event handler reset the state if it wants.
+     * @param t value of the independent &lt;i&gt;time&lt;/i&gt; variable at the
+     * beginning of the next step
+     * @param y array were to put the desired state vector at the beginning
+     * of the next step
+     * @return true if the integrator should reset the derivatives too
+     * @exception EventException if the state cannot be reseted by the event
+     * handler
+     */
+    public boolean reset(final double t, final double[] y)
+        throws EventException {
+
+<span class="pc bpc" id="L367" title="2 of 4 branches missed.">        if (!(pendingEvent &amp;&amp; (FastMath.abs(pendingEventTime - t) &lt;= convergence))) {</span>
+<span class="nc" id="L368">            return false;</span>
+        }
+
+<span class="fc bfc" id="L371" title="All 2 branches covered.">        if (nextAction == EventHandler.RESET_STATE) {</span>
+<span class="fc" id="L372">            handler.resetState(t, y);</span>
+        }
+<span class="fc" id="L374">        pendingEvent      = false;</span>
+<span class="fc" id="L375">        pendingEventTime  = Double.NaN;</span>
+
+<span class="fc bfc" id="L377" title="All 4 branches covered.">        return (nextAction == EventHandler.RESET_STATE) ||</span>
+               (nextAction == EventHandler.RESET_DERIVATIVES);
+
+    }
+
+    /** Local exception for embedding DerivativeException. */
+    private static class EmbeddedDerivativeException extends RuntimeException {
+
+        /** Serializable UID. */
+        private static final long serialVersionUID = 3574188382434584610L;
+
+        /** Embedded exception. */
+        private final DerivativeException derivativeException;
+
+        /** Simple constructor.
+         * @param derivativeException embedded exception
+         */
+<span class="nc" id="L394">        public EmbeddedDerivativeException(final DerivativeException derivativeException) {</span>
+<span class="nc" id="L395">            this.derivativeException = derivativeException;</span>
+<span class="nc" id="L396">        }</span>
+
+        /** Get the embedded exception.
+         * @return embedded exception
+         */
+        public DerivativeException getDerivativeException() {
+<span class="nc" id="L402">            return derivativeException;</span>
+        }
+
+    }
+
+    /** Local exception for embedding EventException. */
+    private static class EmbeddedEventException extends RuntimeException {
+
+        /** Serializable UID. */
+        private static final long serialVersionUID = -1337749250090455474L;
+
+        /** Embedded exception. */
+        private final EventException eventException;
+
+        /** Simple constructor.
+         * @param eventException embedded exception
+         */
+<span class="nc" id="L419">        public EmbeddedEventException(final EventException eventException) {</span>
+<span class="nc" id="L420">            this.eventException = eventException;</span>
+<span class="nc" id="L421">        }</span>
+
+        /** Get the embedded exception.
+         * @return embedded exception
+         */
+        public EventException getEventException() {
+<span class="nc" id="L427">            return eventException;</span>
+        }
+
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

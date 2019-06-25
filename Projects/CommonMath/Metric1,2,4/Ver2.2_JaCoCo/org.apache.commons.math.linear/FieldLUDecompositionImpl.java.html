@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>FieldLUDecompositionImpl.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.linear</a> &gt; <span class="el_source">FieldLUDecompositionImpl.java</span></div><h1>FieldLUDecompositionImpl.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.linear;
+
+import java.lang.reflect.Array;
+
+import org.apache.commons.math.Field;
+import org.apache.commons.math.FieldElement;
+import org.apache.commons.math.MathRuntimeException;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+
+/**
+ * Calculates the LUP-decomposition of a square matrix.
+ * &lt;p&gt;The LUP-decomposition of a matrix A consists of three matrices
+ * L, U and P that satisfy: PA = LU, L is lower triangular, and U is
+ * upper triangular and P is a permutation matrix. All matrices are
+ * m&amp;times;m.&lt;/p&gt;
+ * &lt;p&gt;Since {@link FieldElement field elements} do not provide an ordering
+ * operator, the permutation matrix is computed here only in order to avoid
+ * a zero pivot element, no attempt is done to get the largest pivot element.&lt;/p&gt;
+ *
+ * @param &lt;T&gt; the type of the field elements
+ * @version $Revision$ $Date$
+ * @since 2.0
+ */
+public class FieldLUDecompositionImpl&lt;T extends FieldElement&lt;T&gt;&gt; implements FieldLUDecomposition&lt;T&gt; {
+
+    /** Field to which the elements belong. */
+    private final Field&lt;T&gt; field;
+
+    /** Entries of LU decomposition. */
+    private T lu[][];
+
+    /** Pivot permutation associated with LU decomposition */
+    private int[] pivot;
+
+    /** Parity of the permutation associated with the LU decomposition */
+    private boolean even;
+
+    /** Singularity indicator. */
+    private boolean singular;
+
+    /** Cached value of L. */
+    private FieldMatrix&lt;T&gt; cachedL;
+
+    /** Cached value of U. */
+    private FieldMatrix&lt;T&gt; cachedU;
+
+    /** Cached value of P. */
+    private FieldMatrix&lt;T&gt; cachedP;
+
+    /**
+     * Calculates the LU-decomposition of the given matrix.
+     * @param matrix The matrix to decompose.
+     * @exception NonSquareMatrixException if matrix is not square
+     */
+    public FieldLUDecompositionImpl(FieldMatrix&lt;T&gt; matrix)
+<span class="fc" id="L73">        throws NonSquareMatrixException {</span>
+
+<span class="fc bfc" id="L75" title="All 2 branches covered.">        if (!matrix.isSquare()) {</span>
+<span class="fc" id="L76">            throw new NonSquareMatrixException(matrix.getRowDimension(), matrix.getColumnDimension());</span>
+        }
+
+<span class="fc" id="L79">        final int m = matrix.getColumnDimension();</span>
+<span class="fc" id="L80">        field = matrix.getField();</span>
+<span class="fc" id="L81">        lu = matrix.getData();</span>
+<span class="fc" id="L82">        pivot = new int[m];</span>
+<span class="fc" id="L83">        cachedL = null;</span>
+<span class="fc" id="L84">        cachedU = null;</span>
+<span class="fc" id="L85">        cachedP = null;</span>
+
+        // Initialize permutation array and parity
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L89">            pivot[row] = row;</span>
+        }
+<span class="fc" id="L91">        even     = true;</span>
+<span class="fc" id="L92">        singular = false;</span>
+
+        // Loop over columns
+<span class="fc bfc" id="L95" title="All 2 branches covered.">        for (int col = 0; col &lt; m; col++) {</span>
+
+<span class="fc" id="L97">            T sum = field.getZero();</span>
+
+            // upper
+<span class="fc bfc" id="L100" title="All 2 branches covered.">            for (int row = 0; row &lt; col; row++) {</span>
+<span class="fc" id="L101">                final T[] luRow = lu[row];</span>
+<span class="fc" id="L102">                sum = luRow[col];</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">                for (int i = 0; i &lt; row; i++) {</span>
+<span class="fc" id="L104">                    sum = sum.subtract(luRow[i].multiply(lu[i][col]));</span>
+                }
+<span class="fc" id="L106">                luRow[col] = sum;</span>
+            }
+
+            // lower
+<span class="fc" id="L110">            int nonZero = col; // permutation row</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">            for (int row = col; row &lt; m; row++) {</span>
+<span class="fc" id="L112">                final T[] luRow = lu[row];</span>
+<span class="fc" id="L113">                sum = luRow[col];</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L115">                    sum = sum.subtract(luRow[i].multiply(lu[i][col]));</span>
+                }
+<span class="fc" id="L117">                luRow[col] = sum;</span>
+
+<span class="fc bfc" id="L119" title="All 2 branches covered.">                if (lu[nonZero][col].equals(field.getZero())) {</span>
+                    // try to select a better permutation choice
+<span class="fc" id="L121">                    ++nonZero;</span>
+                }
+            }
+
+            // Singularity check
+<span class="fc bfc" id="L126" title="All 2 branches covered.">            if (nonZero &gt;= m) {</span>
+<span class="fc" id="L127">                singular = true;</span>
+<span class="fc" id="L128">                return;</span>
+            }
+
+            // Pivot if necessary
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            if (nonZero != col) {</span>
+<span class="fc" id="L133">                T tmp = field.getZero();</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">                for (int i = 0; i &lt; m; i++) {</span>
+<span class="fc" id="L135">                    tmp = lu[nonZero][i];</span>
+<span class="fc" id="L136">                    lu[nonZero][i] = lu[col][i];</span>
+<span class="fc" id="L137">                    lu[col][i] = tmp;</span>
+                }
+<span class="fc" id="L139">                int temp = pivot[nonZero];</span>
+<span class="fc" id="L140">                pivot[nonZero] = pivot[col];</span>
+<span class="fc" id="L141">                pivot[col] = temp;</span>
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">                even = !even;</span>
+            }
+
+            // Divide the lower elements by the &quot;winning&quot; diagonal elt.
+<span class="fc" id="L146">            final T luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            for (int row = col + 1; row &lt; m; row++) {</span>
+<span class="fc" id="L148">                final T[] luRow = lu[row];</span>
+<span class="fc" id="L149">                luRow[col] = luRow[col].divide(luDiag);</span>
+            }
+        }
+
+<span class="fc" id="L153">    }</span>
+
+    /** {@inheritDoc} */
+    public FieldMatrix&lt;T&gt; getL() {
+<span class="fc bfc" id="L157" title="All 4 branches covered.">        if ((cachedL == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L158">            final int m = pivot.length;</span>
+<span class="fc" id="L159">            cachedL = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L161">                final T[] luI = lu[i];</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">                for (int j = 0; j &lt; i; ++j) {</span>
+<span class="fc" id="L163">                    cachedL.setEntry(i, j, luI[j]);</span>
+                }
+<span class="fc" id="L165">                cachedL.setEntry(i, i, field.getOne());</span>
+            }
+        }
+<span class="fc" id="L168">        return cachedL;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldMatrix&lt;T&gt; getU() {
+<span class="fc bfc" id="L173" title="All 4 branches covered.">        if ((cachedU == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L174">            final int m = pivot.length;</span>
+<span class="fc" id="L175">            cachedU = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L177">                final T[] luI = lu[i];</span>
+<span class="fc bfc" id="L178" title="All 2 branches covered.">                for (int j = i; j &lt; m; ++j) {</span>
+<span class="fc" id="L179">                    cachedU.setEntry(i, j, luI[j]);</span>
+                }
+            }
+        }
+<span class="fc" id="L183">        return cachedU;</span>
+    }
+
+    /** {@inheritDoc} */
+    public FieldMatrix&lt;T&gt; getP() {
+<span class="fc bfc" id="L188" title="All 4 branches covered.">        if ((cachedP == null) &amp;&amp; !singular) {</span>
+<span class="fc" id="L189">            final int m = pivot.length;</span>
+<span class="fc" id="L190">            cachedP = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L192">                cachedP.setEntry(i, pivot[i], field.getOne());</span>
+            }
+        }
+<span class="fc" id="L195">        return cachedP;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int[] getPivot() {
+<span class="fc" id="L200">        return pivot.clone();</span>
+    }
+
+    /** {@inheritDoc} */
+    public T getDeterminant() {
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (singular) {</span>
+<span class="nc" id="L206">            return field.getZero();</span>
+        } else {
+<span class="nc" id="L208">            final int m = pivot.length;</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">            T determinant = even ? field.getOne() : field.getZero().subtract(field.getOne());</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            for (int i = 0; i &lt; m; i++) {</span>
+<span class="nc" id="L211">                determinant = determinant.multiply(lu[i][i]);</span>
+            }
+<span class="nc" id="L213">            return determinant;</span>
+        }
+    }
+
+    /** {@inheritDoc} */
+    public FieldDecompositionSolver&lt;T&gt; getSolver() {
+<span class="fc" id="L219">        return new Solver&lt;T&gt;(field, lu, pivot, singular);</span>
+    }
+
+    /** Specialized solver. */
+    private static class Solver&lt;T extends FieldElement&lt;T&gt;&gt; implements FieldDecompositionSolver&lt;T&gt; {
+
+        /** Serializable version identifier. */
+        private static final long serialVersionUID = -6353105415121373022L;
+
+        /** Field to which the elements belong. */
+        private final Field&lt;T&gt; field;
+
+        /** Entries of LU decomposition. */
+        private final T lu[][];
+
+        /** Pivot permutation associated with LU decomposition. */
+        private final int[] pivot;
+
+        /** Singularity indicator. */
+        private final boolean singular;
+
+        /**
+         * Build a solver from decomposed matrix.
+         * @param field field to which the matrix elements belong
+         * @param lu entries of LU decomposition
+         * @param pivot pivot permutation associated with LU decomposition
+         * @param singular singularity indicator
+         */
+        private Solver(final Field&lt;T&gt; field, final T[][] lu,
+<span class="fc" id="L248">                       final int[] pivot, final boolean singular) {</span>
+<span class="fc" id="L249">            this.field    = field;</span>
+<span class="fc" id="L250">            this.lu       = lu;</span>
+<span class="fc" id="L251">            this.pivot    = pivot;</span>
+<span class="fc" id="L252">            this.singular = singular;</span>
+<span class="fc" id="L253">        }</span>
+
+        /** {@inheritDoc} */
+        public boolean isNonSingular() {
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            return !singular;</span>
+        }
+
+        /** {@inheritDoc} */
+        public T[] solve(T[] b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L264">            final int m = pivot.length;</span>
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">            if (b.length != m) {</span>
+<span class="nc" id="L266">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                        LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="nc" id="L268">                        b.length, m);</span>
+            }
+<span class="pc bpc" id="L270" title="1 of 2 branches missed.">            if (singular) {</span>
+<span class="nc" id="L271">                throw new SingularMatrixException();</span>
+            }
+
+            @SuppressWarnings(&quot;unchecked&quot;) // field is of type T
+<span class="fc" id="L275">            final T[] bp = (T[]) Array.newInstance(field.getZero().getClass(), m);</span>
+
+            // Apply permutations to b
+<span class="fc bfc" id="L278" title="All 2 branches covered.">            for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L279">                bp[row] = b[pivot[row]];</span>
+            }
+
+            // Solve LY = b
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            for (int col = 0; col &lt; m; col++) {</span>
+<span class="fc" id="L284">                final T bpCol = bp[col];</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">                for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L286">                    bp[i] = bp[i].subtract(bpCol.multiply(lu[i][col]));</span>
+                }
+            }
+
+            // Solve UX = Y
+<span class="fc bfc" id="L291" title="All 2 branches covered.">            for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L292">                bp[col] = bp[col].divide(lu[col][col]);</span>
+<span class="fc" id="L293">                final T bpCol = bp[col];</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L295">                    bp[i] = bp[i].subtract(bpCol.multiply(lu[i][col]));</span>
+                }
+            }
+
+<span class="fc" id="L299">            return bp;</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public FieldVector&lt;T&gt; solve(FieldVector&lt;T&gt; b)
+            throws IllegalArgumentException, InvalidMatrixException {
+            try {
+<span class="nc" id="L307">                return solve((ArrayFieldVector&lt;T&gt;) b);</span>
+<span class="nc" id="L308">            } catch (ClassCastException cce) {</span>
+
+<span class="nc" id="L310">                final int m = pivot.length;</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">                if (b.getDimension() != m) {</span>
+<span class="nc" id="L312">                    throw MathRuntimeException.createIllegalArgumentException(</span>
+                            LocalizedFormats.VECTOR_LENGTH_MISMATCH,
+<span class="nc" id="L314">                            b.getDimension(), m);</span>
+                }
+<span class="nc bnc" id="L316" title="All 2 branches missed.">                if (singular) {</span>
+<span class="nc" id="L317">                    throw new SingularMatrixException();</span>
+                }
+
+                @SuppressWarnings(&quot;unchecked&quot;) // field is of type T
+<span class="nc" id="L321">                final T[] bp = (T[]) Array.newInstance(field.getZero().getClass(), m);</span>
+
+                // Apply permutations to b
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                for (int row = 0; row &lt; m; row++) {</span>
+<span class="nc" id="L325">                    bp[row] = b.getEntry(pivot[row]);</span>
+                }
+
+                // Solve LY = b
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                for (int col = 0; col &lt; m; col++) {</span>
+<span class="nc" id="L330">                    final T bpCol = bp[col];</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                    for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="nc" id="L332">                        bp[i] = bp[i].subtract(bpCol.multiply(lu[i][col]));</span>
+                    }
+                }
+
+                // Solve UX = Y
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="nc" id="L338">                    bp[col] = bp[col].divide(lu[col][col]);</span>
+<span class="nc" id="L339">                    final T bpCol = bp[col];</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">                    for (int i = 0; i &lt; col; i++) {</span>
+<span class="nc" id="L341">                        bp[i] = bp[i].subtract(bpCol.multiply(lu[i][col]));</span>
+                    }
+                }
+
+<span class="nc" id="L345">                return new ArrayFieldVector&lt;T&gt;(bp, false);</span>
+
+            }
+        }
+
+        /** Solve the linear equation A &amp;times; X = B.
+         * &lt;p&gt;The A matrix is implicit here. It is &lt;/p&gt;
+         * @param b right-hand side of the equation A &amp;times; X = B
+         * @return a vector X such that A &amp;times; X = B
+         * @exception IllegalArgumentException if matrices dimensions don't match
+         * @exception InvalidMatrixException if decomposed matrix is singular
+         */
+        public ArrayFieldVector&lt;T&gt; solve(ArrayFieldVector&lt;T&gt; b)
+            throws IllegalArgumentException, InvalidMatrixException {
+<span class="nc" id="L359">            return new ArrayFieldVector&lt;T&gt;(solve(b.getDataRef()), false);</span>
+        }
+
+        /** {@inheritDoc} */
+        public FieldMatrix&lt;T&gt; solve(FieldMatrix&lt;T&gt; b)
+            throws IllegalArgumentException, InvalidMatrixException {
+
+<span class="fc" id="L366">            final int m = pivot.length;</span>
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">            if (b.getRowDimension() != m) {</span>
+<span class="nc" id="L368">                throw MathRuntimeException.createIllegalArgumentException(</span>
+                        LocalizedFormats.DIMENSIONS_MISMATCH_2x2,
+<span class="nc" id="L370">                        b.getRowDimension(), b.getColumnDimension(), m, &quot;n&quot;);</span>
+            }
+<span class="pc bpc" id="L372" title="1 of 2 branches missed.">            if (singular) {</span>
+<span class="nc" id="L373">                throw new SingularMatrixException();</span>
+            }
+
+<span class="fc" id="L376">            final int nColB = b.getColumnDimension();</span>
+
+            // Apply permutations to b
+            @SuppressWarnings(&quot;unchecked&quot;) // field is of type T
+<span class="fc" id="L380">            final T[][] bp = (T[][]) Array.newInstance(field.getZero().getClass(), new int[] { m, nColB });</span>
+<span class="fc bfc" id="L381" title="All 2 branches covered.">            for (int row = 0; row &lt; m; row++) {</span>
+<span class="fc" id="L382">                final T[] bpRow = bp[row];</span>
+<span class="fc" id="L383">                final int pRow = pivot[row];</span>
+<span class="fc bfc" id="L384" title="All 2 branches covered.">                for (int col = 0; col &lt; nColB; col++) {</span>
+<span class="fc" id="L385">                    bpRow[col] = b.getEntry(pRow, col);</span>
+                }
+            }
+
+            // Solve LY = b
+<span class="fc bfc" id="L390" title="All 2 branches covered.">            for (int col = 0; col &lt; m; col++) {</span>
+<span class="fc" id="L391">                final T[] bpCol = bp[col];</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">                for (int i = col + 1; i &lt; m; i++) {</span>
+<span class="fc" id="L393">                    final T[] bpI = bp[i];</span>
+<span class="fc" id="L394">                    final T luICol = lu[i][col];</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">                    for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L396">                        bpI[j] = bpI[j].subtract(bpCol[j].multiply(luICol));</span>
+                    }
+                }
+            }
+
+            // Solve UX = Y
+<span class="fc bfc" id="L402" title="All 2 branches covered.">            for (int col = m - 1; col &gt;= 0; col--) {</span>
+<span class="fc" id="L403">                final T[] bpCol = bp[col];</span>
+<span class="fc" id="L404">                final T luDiag = lu[col][col];</span>
+<span class="fc bfc" id="L405" title="All 2 branches covered.">                for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L406">                    bpCol[j] = bpCol[j].divide(luDiag);</span>
+                }
+<span class="fc bfc" id="L408" title="All 2 branches covered.">                for (int i = 0; i &lt; col; i++) {</span>
+<span class="fc" id="L409">                    final T[] bpI = bp[i];</span>
+<span class="fc" id="L410">                    final T luICol = lu[i][col];</span>
+<span class="fc bfc" id="L411" title="All 2 branches covered.">                    for (int j = 0; j &lt; nColB; j++) {</span>
+<span class="fc" id="L412">                        bpI[j] = bpI[j].subtract(bpCol[j].multiply(luICol));</span>
+                    }
+                }
+            }
+
+<span class="fc" id="L417">            return new Array2DRowFieldMatrix&lt;T&gt;(bp, false);</span>
+
+        }
+
+        /** {@inheritDoc} */
+        public FieldMatrix&lt;T&gt; getInverse() throws InvalidMatrixException {
+<span class="fc" id="L423">            final int m = pivot.length;</span>
+<span class="fc" id="L424">            final T one = field.getOne();</span>
+<span class="fc" id="L425">            FieldMatrix&lt;T&gt; identity = new Array2DRowFieldMatrix&lt;T&gt;(field, m, m);</span>
+<span class="fc bfc" id="L426" title="All 2 branches covered.">            for (int i = 0; i &lt; m; ++i) {</span>
+<span class="fc" id="L427">                identity.setEntry(i, i, one);</span>
+            }
+<span class="fc" id="L429">            return solve(identity);</span>
+        }
+
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>

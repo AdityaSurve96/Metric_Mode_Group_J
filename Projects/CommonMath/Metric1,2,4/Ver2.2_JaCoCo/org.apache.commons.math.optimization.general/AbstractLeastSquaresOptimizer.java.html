@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../.resources/report.css" type="text/css"/><link rel="shortcut icon" href="../.resources/report.gif" type="image/gif"/><title>AbstractLeastSquaresOptimizer.java</title><link rel="stylesheet" href="../.resources/prettify.css" type="text/css"/><script type="text/javascript" src="../.resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../.sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Commons Math</a> &gt; <a href="index.source.html" class="el_package">org.apache.commons.math.optimization.general</a> &gt; <span class="el_source">AbstractLeastSquaresOptimizer.java</span></div><h1>AbstractLeastSquaresOptimizer.java</h1><pre class="source lang-java linenums">/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the &quot;License&quot;); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.math.optimization.general;
+
+import org.apache.commons.math.FunctionEvaluationException;
+import org.apache.commons.math.MaxEvaluationsExceededException;
+import org.apache.commons.math.MaxIterationsExceededException;
+import org.apache.commons.math.analysis.DifferentiableMultivariateVectorialFunction;
+import org.apache.commons.math.analysis.MultivariateMatrixFunction;
+import org.apache.commons.math.exception.util.LocalizedFormats;
+import org.apache.commons.math.linear.InvalidMatrixException;
+import org.apache.commons.math.linear.LUDecompositionImpl;
+import org.apache.commons.math.linear.MatrixUtils;
+import org.apache.commons.math.linear.RealMatrix;
+import org.apache.commons.math.optimization.OptimizationException;
+import org.apache.commons.math.optimization.SimpleVectorialValueChecker;
+import org.apache.commons.math.optimization.VectorialConvergenceChecker;
+import org.apache.commons.math.optimization.DifferentiableMultivariateVectorialOptimizer;
+import org.apache.commons.math.optimization.VectorialPointValuePair;
+import org.apache.commons.math.util.FastMath;
+
+/**
+ * Base class for implementing least squares optimizers.
+ * &lt;p&gt;This base class handles the boilerplate methods associated to thresholds
+ * settings, jacobian and error estimation.&lt;/p&gt;
+ * @version $Revision$ $Date$
+ * @since 1.2
+ *
+ */
+public abstract class AbstractLeastSquaresOptimizer implements DifferentiableMultivariateVectorialOptimizer {
+
+    /** Default maximal number of iterations allowed. */
+    public static final int DEFAULT_MAX_ITERATIONS = 100;
+
+    /** Convergence checker. */
+    protected VectorialConvergenceChecker checker;
+
+    /**
+     * Jacobian matrix.
+     * &lt;p&gt;This matrix is in canonical form just after the calls to
+     * {@link #updateJacobian()}, but may be modified by the solver
+     * in the derived class (the {@link LevenbergMarquardtOptimizer
+     * Levenberg-Marquardt optimizer} does this).&lt;/p&gt;
+     */
+    protected double[][] jacobian;
+
+    /** Number of columns of the jacobian matrix. */
+    protected int cols;
+
+    /** Number of rows of the jacobian matrix. */
+    protected int rows;
+
+    /**
+     * Target value for the objective functions at optimum.
+     * @since 2.1
+     */
+    protected double[] targetValues;
+
+    /**
+     * Weight for the least squares cost computation.
+     * @since 2.1
+     */
+    protected double[] residualsWeights;
+
+    /** Current point. */
+    protected double[] point;
+
+    /** Current objective function value. */
+    protected double[] objective;
+
+    /** Current residuals. */
+    protected double[] residuals;
+
+    /** Weighted Jacobian */
+    protected double[][] wjacobian;
+
+    /** Weighted residuals */
+    protected double[] wresiduals;
+
+    /** Cost value (square root of the sum of the residuals). */
+    protected double cost;
+
+    /** Maximal number of iterations allowed. */
+    private int maxIterations;
+
+    /** Number of iterations already performed. */
+    private int iterations;
+
+    /** Maximal number of evaluations allowed. */
+    private int maxEvaluations;
+
+    /** Number of evaluations already performed. */
+    private int objectiveEvaluations;
+
+    /** Number of jacobian evaluations. */
+    private int jacobianEvaluations;
+
+    /** Objective function. */
+    private DifferentiableMultivariateVectorialFunction function;
+
+    /** Objective function derivatives. */
+    private MultivariateMatrixFunction jF;
+
+    /** Simple constructor with default settings.
+     * &lt;p&gt;The convergence check is set to a {@link SimpleVectorialValueChecker}
+     * and the maximal number of evaluation is set to its default value.&lt;/p&gt;
+     */
+<span class="fc" id="L123">    protected AbstractLeastSquaresOptimizer() {</span>
+<span class="fc" id="L124">        setConvergenceChecker(new SimpleVectorialValueChecker());</span>
+<span class="fc" id="L125">        setMaxIterations(DEFAULT_MAX_ITERATIONS);</span>
+<span class="fc" id="L126">        setMaxEvaluations(Integer.MAX_VALUE);</span>
+<span class="fc" id="L127">    }</span>
+
+    /** {@inheritDoc} */
+    public void setMaxIterations(int maxIterations) {
+<span class="fc" id="L131">        this.maxIterations = maxIterations;</span>
+<span class="fc" id="L132">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxIterations() {
+<span class="nc" id="L136">        return maxIterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getIterations() {
+<span class="fc" id="L141">        return iterations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setMaxEvaluations(int maxEvaluations) {
+<span class="fc" id="L146">        this.maxEvaluations = maxEvaluations;</span>
+<span class="fc" id="L147">    }</span>
+
+    /** {@inheritDoc} */
+    public int getMaxEvaluations() {
+<span class="nc" id="L151">        return maxEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getEvaluations() {
+<span class="fc" id="L156">        return objectiveEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public int getJacobianEvaluations() {
+<span class="fc" id="L161">        return jacobianEvaluations;</span>
+    }
+
+    /** {@inheritDoc} */
+    public void setConvergenceChecker(VectorialConvergenceChecker convergenceChecker) {
+<span class="fc" id="L166">        this.checker = convergenceChecker;</span>
+<span class="fc" id="L167">    }</span>
+
+    /** {@inheritDoc} */
+    public VectorialConvergenceChecker getConvergenceChecker() {
+<span class="nc" id="L171">        return checker;</span>
+    }
+
+    /** Increment the iterations counter by 1.
+     * @exception OptimizationException if the maximal number
+     * of iterations is exceeded
+     */
+    protected void incrementIterationsCounter()
+        throws OptimizationException {
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        if (++iterations &gt; maxIterations) {</span>
+<span class="fc" id="L181">            throw new OptimizationException(new MaxIterationsExceededException(maxIterations));</span>
+        }
+<span class="fc" id="L183">    }</span>
+
+    /**
+     * Update the jacobian matrix.
+     * @exception FunctionEvaluationException if the function jacobian
+     * cannot be evaluated or its dimension doesn't match problem dimension
+     */
+    protected void updateJacobian() throws FunctionEvaluationException {
+<span class="fc" id="L191">        ++jacobianEvaluations;</span>
+<span class="fc" id="L192">        jacobian = jF.value(point);</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        if (jacobian.length != rows) {</span>
+<span class="nc" id="L194">            throw new FunctionEvaluationException(point, LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE,</span>
+<span class="nc" id="L195">                                                  jacobian.length, rows);</span>
+        }
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        for (int i = 0; i &lt; rows; i++) {</span>
+<span class="fc" id="L198">            final double[] ji = jacobian[i];</span>
+<span class="fc" id="L199">            double wi = FastMath.sqrt(residualsWeights[i]);</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            for (int j = 0; j &lt; cols; ++j) {</span>
+<span class="fc" id="L201">                ji[j] *=  -1.0;</span>
+<span class="fc" id="L202">                wjacobian[i][j] = ji[j]*wi;</span>
+            }
+        }
+<span class="fc" id="L205">    }</span>
+
+    /**
+     * Update the residuals array and cost function value.
+     * @exception FunctionEvaluationException if the function cannot be evaluated
+     * or its dimension doesn't match problem dimension or maximal number of
+     * of evaluations is exceeded
+     */
+    protected void updateResidualsAndCost()
+        throws FunctionEvaluationException {
+
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        if (++objectiveEvaluations &gt; maxEvaluations) {</span>
+<span class="nc" id="L217">            throw new FunctionEvaluationException(new MaxEvaluationsExceededException(maxEvaluations),</span>
+                                                  point);
+        }
+<span class="fc" id="L220">        objective = function.value(point);</span>
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        if (objective.length != rows) {</span>
+<span class="fc" id="L222">            throw new FunctionEvaluationException(point, LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE,</span>
+<span class="fc" id="L223">                                                  objective.length, rows);</span>
+        }
+<span class="fc" id="L225">        cost = 0;</span>
+<span class="fc" id="L226">        int index = 0;</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        for (int i = 0; i &lt; rows; i++) {</span>
+<span class="fc" id="L228">            final double residual = targetValues[i] - objective[i];</span>
+<span class="fc" id="L229">            residuals[i] = residual;</span>
+<span class="fc" id="L230">            wresiduals[i]= residual*FastMath.sqrt(residualsWeights[i]);</span>
+<span class="fc" id="L231">            cost += residualsWeights[i] * residual * residual;</span>
+<span class="fc" id="L232">            index += cols;</span>
+        }
+<span class="fc" id="L234">        cost = FastMath.sqrt(cost);</span>
+
+<span class="fc" id="L236">    }</span>
+
+    /**
+     * Get the Root Mean Square value.
+     * Get the Root Mean Square value, i.e. the root of the arithmetic
+     * mean of the square of all weighted residuals. This is related to the
+     * criterion that is minimized by the optimizer as follows: if
+     * &lt;em&gt;c&lt;/em&gt; if the criterion, and &lt;em&gt;n&lt;/em&gt; is the number of
+     * measurements, then the RMS is &lt;em&gt;sqrt (c/n)&lt;/em&gt;.
+     *
+     * @return RMS value
+     */
+    public double getRMS() {
+<span class="fc" id="L249">        return FastMath.sqrt(getChiSquare() / rows);</span>
+    }
+
+    /**
+     * Get a Chi-Square-like value assuming the N residuals follow N
+     * distinct normal distributions centered on 0 and whose variances are
+     * the reciprocal of the weights.
+     * @return chi-square value
+     */
+    public double getChiSquare() {
+<span class="fc" id="L259">        return cost*cost;</span>
+    }
+
+    /**
+     * Get the covariance matrix of optimized parameters.
+     * @return covariance matrix
+     * @exception FunctionEvaluationException if the function jacobian cannot
+     * be evaluated
+     * @exception OptimizationException if the covariance matrix
+     * cannot be computed (singular problem)
+     */
+    public double[][] getCovariances()
+        throws FunctionEvaluationException, OptimizationException {
+
+        // set up the jacobian
+<span class="fc" id="L274">        updateJacobian();</span>
+
+        // compute transpose(J).J, avoiding building big intermediate matrices
+<span class="fc" id="L277">        double[][] jTj = new double[cols][cols];</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">        for (int i = 0; i &lt; cols; ++i) {</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">            for (int j = i; j &lt; cols; ++j) {</span>
+<span class="fc" id="L280">                double sum = 0;</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">                for (int k = 0; k &lt; rows; ++k) {</span>
+<span class="fc" id="L282">                    sum += wjacobian[k][i] * wjacobian[k][j];</span>
+                }
+<span class="fc" id="L284">                jTj[i][j] = sum;</span>
+<span class="fc" id="L285">                jTj[j][i] = sum;</span>
+            }
+        }
+
+        try {
+            // compute the covariance matrix
+<span class="fc" id="L291">            RealMatrix inverse =</span>
+<span class="fc" id="L292">                new LUDecompositionImpl(MatrixUtils.createRealMatrix(jTj)).getSolver().getInverse();</span>
+<span class="fc" id="L293">            return inverse.getData();</span>
+<span class="fc" id="L294">        } catch (InvalidMatrixException ime) {</span>
+<span class="fc" id="L295">            throw new OptimizationException(LocalizedFormats.UNABLE_TO_COMPUTE_COVARIANCE_SINGULAR_PROBLEM);</span>
+        }
+
+    }
+
+    /**
+     * Guess the errors in optimized parameters.
+     * &lt;p&gt;Guessing is covariance-based, it only gives rough order of magnitude.&lt;/p&gt;
+     * @return errors in optimized parameters
+     * @exception FunctionEvaluationException if the function jacobian cannot b evaluated
+     * @exception OptimizationException if the covariances matrix cannot be computed
+     * or the number of degrees of freedom is not positive (number of measurements
+     * lesser or equal to number of parameters)
+     */
+    public double[] guessParametersErrors()
+        throws FunctionEvaluationException, OptimizationException {
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        if (rows &lt;= cols) {</span>
+<span class="fc" id="L312">            throw new OptimizationException(</span>
+                    LocalizedFormats.NO_DEGREES_OF_FREEDOM,
+<span class="fc" id="L314">                    rows, cols);</span>
+        }
+<span class="fc" id="L316">        double[] errors = new double[cols];</span>
+<span class="fc" id="L317">        final double c = FastMath.sqrt(getChiSquare() / (rows - cols));</span>
+<span class="fc" id="L318">        double[][] covar = getCovariances();</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        for (int i = 0; i &lt; errors.length; ++i) {</span>
+<span class="fc" id="L320">            errors[i] = FastMath.sqrt(covar[i][i]) * c;</span>
+        }
+<span class="fc" id="L322">        return errors;</span>
+    }
+
+    /** {@inheritDoc} */
+    public VectorialPointValuePair optimize(final DifferentiableMultivariateVectorialFunction f,
+                                            final double[] target, final double[] weights,
+                                            final double[] startPoint)
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException {
+
+<span class="fc bfc" id="L331" title="All 2 branches covered.">        if (target.length != weights.length) {</span>
+<span class="fc" id="L332">            throw new OptimizationException(LocalizedFormats.DIMENSIONS_MISMATCH_SIMPLE,</span>
+<span class="fc" id="L333">                                            target.length, weights.length);</span>
+        }
+
+        // reset counters
+<span class="fc" id="L337">        iterations           = 0;</span>
+<span class="fc" id="L338">        objectiveEvaluations = 0;</span>
+<span class="fc" id="L339">        jacobianEvaluations  = 0;</span>
+
+        // store least squares problem characteristics
+<span class="fc" id="L342">        function         = f;</span>
+<span class="fc" id="L343">        jF               = f.jacobian();</span>
+<span class="fc" id="L344">        targetValues     = target.clone();</span>
+<span class="fc" id="L345">        residualsWeights = weights.clone();</span>
+<span class="fc" id="L346">        this.point       = startPoint.clone();</span>
+<span class="fc" id="L347">        this.residuals   = new double[target.length];</span>
+
+        // arrays shared with the other private methods
+<span class="fc" id="L350">        rows      = target.length;</span>
+<span class="fc" id="L351">        cols      = point.length;</span>
+<span class="fc" id="L352">        jacobian  = new double[rows][cols];</span>
+
+<span class="fc" id="L354">        wjacobian = new double[rows][cols];</span>
+<span class="fc" id="L355">        wresiduals = new double[rows];</span>
+
+<span class="fc" id="L357">        cost = Double.POSITIVE_INFINITY;</span>
+
+<span class="fc" id="L359">        return doOptimize();</span>
+
+    }
+
+    /** Perform the bulk of optimization algorithm.
+     * @return the point/value pair giving the optimal value for objective function
+     * @exception FunctionEvaluationException if the objective function throws one during
+     * the search
+     * @exception OptimizationException if the algorithm failed to converge
+     * @exception IllegalArgumentException if the start point dimension is wrong
+     */
+    protected abstract VectorialPointValuePair doOptimize()
+        throws FunctionEvaluationException, OptimizationException, IllegalArgumentException;
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.eclemma.org/jacoco">JaCoCo</a> 0.7.5.201505241946</span></div></body></html>
