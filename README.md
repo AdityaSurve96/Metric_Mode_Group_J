@@ -1,16 +1,19 @@
-#Project Structure
-The main folder is called Project, which contains five folders:
- *CommonCollections.
- *CommonLang.
- *CommonMath.
- *Common Configuration.
- *CommonDigester.
- *ScriptToExtractDataFromPitestFile
- 
- Except *ScripttoExtractDataFromPitestFile, each of the five folders is named after the respective project. Each of these folders conatin the following: 
-    *the pom files for the five different versions of each project.
-    *Folders named 'Metric 1,2,4', Metric3, Metric5, Metric6 containing the results for the respective metric.
-    *Folder Correlation which contains the correlation data and the correlation coefficients in seperate .csv files.
+#Project Structure  
+The main folder is called Project, which contains five folders:    
+* CommonCollections.    
+* CommonLang.  
+* CommonMath.  
+* Common Configuration.  
+* CommonDigester.  
+* ScriptToExtractDataFromPitestFile
+
+ScriptToExtractDataFromPitestFile contains the script to extract the data.   
+Except 'ScripttoExtractDataFromPitestFile', each of the five folders is named after the respective project. Each of these folders conatin the following:   
+* the pom files for the five different versions of each project.  
+* Folders named 'Metric 1,2,4', Metric3, Metric5, Metric6 containing the results for the respective metric.  
+* Folder Correlation, which contains the correlation data and the correlation coefficients in seperate .csv files as well as the .csv files extracted from the Pit and Jacoco.
+    
+    
  
  
 
