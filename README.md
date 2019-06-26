@@ -7,6 +7,11 @@ The main folder is called Project, which contains five folders:
  *CommonDigester
  *ScriptToExtractDataFromPitestFile
  
+ Except *ScripttoExtractDataFromPitestFile, each of the five folders is named after the respective project. Each of these folders conatin the following: 
+    *the pom files for the five different versions of each project
+    *Folders named 'Metric 1,2,4', Metric3, Metric5, Metric6 containing the results for the respective metric.
+    *Folder Correlation which contains the correlation data and the correlation coefficients in seperate .csv files.
+ 
  
 
 # Metric_Mode
