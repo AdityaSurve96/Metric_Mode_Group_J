@@ -97,6 +97,11 @@ We have Chosen the following Projects for analysis:-
 
 
 4. SonarQube/SonarLint
+   After successful compiling a certain version we need to run this command
+ “mvn sonar: sonar Dsonar.projectKey=”KeyValue”Dsonar.host.url=http://localhost:9000 Dsonar.login=admin Dsonar.password=admin” 
+ on the terminal. 
+ The results can then be seen online on the localhost where the project was created.
+ The code smell value can then be taken for further correlation.
 
 ## Team Details  
 
