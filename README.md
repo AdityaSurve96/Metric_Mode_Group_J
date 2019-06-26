@@ -82,7 +82,7 @@ We have Chosen the following Projects for analysis:-
       3. Run the Maven Test Goal.
    * We get the reports in jacoco-ut folder which is currently present in the above folder structure in each project/version sub-folders
 2. PiTest Plugin
-   We get the reports in a Pit-test reports folder after successfully running pit-test plugin.
+    We get the reports in a Pit-test reports folder after successfully running pit-test plugin.
    The output is in the form of index.html format for desired result 
    We had to build script inorder to extract data for further correlation.
 
@@ -97,11 +97,11 @@ We have Chosen the following Projects for analysis:-
 
 
 4. SonarQube/SonarLint
-   After successful compiling a certain version we need to run this command
+  After successfully compiling a version we need to run the following command:
  “mvn sonar: sonar Dsonar.projectKey=”KeyValue”Dsonar.host.url=http://localhost:9000 Dsonar.login=admin Dsonar.password=admin” 
  on the terminal. 
- The results can then be seen online on the localhost where the project was created.
- The code smell value can then be taken for further correlation.
+  The results can then be seen online on the browser at localhost:9000 where the project was created.
+  The code smell value can then be used for further correlation.
 
 ## Team Details  
 
