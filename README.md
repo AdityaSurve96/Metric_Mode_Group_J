@@ -101,8 +101,16 @@ We have Chosen the following Projects for analysis:-
       3. Run the Maven Test Goal.
    * We get the reports in jacoco-ut folder which is currently present in the above folder structure in each project/version sub-folders
 2. PiTest Plugin
-    We get the reports in a Pit-test reports folder after successfully running pit-test plugin.
-   The output is in the form of index.html format for desired result 
+   we add the following plugin the pom file:  
+     
+   <pitest.version>1.4.3</pitest.version>  
+   <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>  
+   <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>  
+   <maven.compiler.source>1.7</maven.compiler.source>  
+   <maven.compiler.target>1.7</maven.compiler.target>  
+    
+    We get the reports in a Pit-test reports folder after successfully running pit-test plugin.  
+    The output is in the form of index.html format for desired result 
    We had to build script inorder to extract data for further correlation.
 
 3. Code Churn  
