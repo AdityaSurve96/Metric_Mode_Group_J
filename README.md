@@ -103,11 +103,11 @@ We have Chosen the following Projects for analysis:-
 2. PiTest Plugin
    we add the following plugin the pom file:  
      
-   <pitest.version>1.4.3</pitest.version>  
-   <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>  
-   <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>  
-   <maven.compiler.source>1.7</maven.compiler.source>  
-   <maven.compiler.target>1.7</maven.compiler.target>  
+   <plugin>
+    <groupId>org.pitest</groupId>
+    <artifactId>pitest-maven</artifactId>
+    <version>LATEST</version>
+   </plugin>  
     
     We get the reports in a Pit-test reports folder after successfully running pit-test plugin.  
     The output is in the form of index.html format for desired result 
