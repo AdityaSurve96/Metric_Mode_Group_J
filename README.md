@@ -84,7 +84,7 @@ We have Chosen the following Projects for analysis:-
 2. PiTest Plugin
    We get the reports in a Pit-test reports folder after successfully running pit-test plugin.
    The output is in the form of index.html format for desired result 
-    we had to build script inorder to extract data for further correlation.
+   We had to build script inorder to extract data for further correlation.
 
 3. Code Churn  
   Download and install cloc-1.82.exe.  
