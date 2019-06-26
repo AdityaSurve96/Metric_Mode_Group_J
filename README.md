@@ -101,14 +101,7 @@ We have Chosen the following Projects for analysis:-
       3. Run the Maven Test Goal.
    * We get the reports in jacoco-ut folder which is currently present in the above folder structure in each project/version sub-folders
 2. PiTest Plugin
-   we add the following plugin the pom file:  
-     
-   <plugin>
-    <groupId>org.pitest</groupId>
-    <artifactId>pitest-maven</artifactId>
-    <version>LATEST</version>
-   </plugin>  
-    
+             
     We get the reports in a Pit-test reports folder after successfully running pit-test plugin.  
     The output is in the form of index.html format for desired result 
    We had to build script inorder to extract data for further correlation.
