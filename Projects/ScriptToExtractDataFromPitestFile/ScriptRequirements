@@ -1,0 +1,17 @@
+Inorder to run the script you need to download Jsoup Jar version 1.12.1 for Java from https://jsoup.org/download .  
+Then add thr jars to the external libraries of the script project.  
+
+As input first we give Path of index.html file and second we give path of Jacoco.csv file both of same project verison.  
+
+
+
+The script gives 2 files as output  
+* A pitest report in CSV format named pitExtracted.csv.    
+* A Jacoco csv file named new.csv which has required colums and the classes ade same as thr classes in pitest reports.  
+
+We use first file data for Metric 1 - 3 correlation.  
+We use Branch Coverage decimal value from second file alomg wifh mutation score decimal from first file for Mrtric 2-3 correlation.  
+
+
+
+
